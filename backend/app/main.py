@@ -11,22 +11,17 @@ from .config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     print("Starting IOTPlatform...")
-    # Initialize database
     await init_db()
     print("Database initialized")
 
-    # Initialize default user
     async with async_session_maker() as db:
         await init_default_user(db)
 
-    # Start MQTT service
     await mqtt_service.start(async_session_maker)
 
     yield
 
-    # Shutdown
     print("Shutting down IOTPlatform...")
     await mqtt_service.stop()
 
@@ -38,7 +33,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -47,7 +41,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
 app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
 app.include_router(products.router, prefix=settings.API_V1_PREFIX)
 app.include_router(devices.router, prefix=settings.API_V1_PREFIX)

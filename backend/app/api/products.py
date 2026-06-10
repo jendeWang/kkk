@@ -1,59 +1,43 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func, desc
 from sqlalchemy.orm import selectinload
-from typing import List
-from .deps import get_current_active_user
-from ..database import get_db
-from ..models.models import User, Product, ProductProperty, ProductService, ProductEvent
+from typing import List, Optional
+from datetime import datetime
+import uuid
+import random
+import string
+
+from .deps import get_current_active_user, get_db
+from ..models.models import User, Product, ProductProperty, ProductService, ProductEvent, Device
 from ..schemas import (
     ProductCreate, ProductUpdate, ProductResponse, ProductDetailResponse,
-    ProductPropertyCreate, ProductPropertyResponse,
-    ProductServiceCreate, ProductServiceResponse,
-    ProductEventCreate, ProductEventResponse
+    ProductPropertyCreate, ProductPropertyUpdate, ProductPropertyResponse,
+    ProductServiceCreate, ProductServiceUpdate, ProductServiceResponse,
+    ProductEventCreate, ProductEventUpdate, ProductEventResponse,
 )
 
 router = APIRouter(prefix="/products", tags=["产品管理"])
 
 
-def generate_product_key():
-    """生成产品密钥"""
-    import random
-    import string
-    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=16))
-
-
-@router.post("/", response_model=ProductResponse)
-async def create_product(
-    product: ProductCreate,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """创建产品"""
-    product_key = generate_product_key()
-    db_product = Product(
-        product_key=product_key,
-        name=product.name,
-        category=product.category,
-        model=product.model,
-        manufacturer=product.manufacturer,
-        description=product.description,
-        owner_id=current_user.id
-    )
-    db.add(db_product)
-    await db.commit()
-    await db.refresh(db_product)
-    return db_product
+def _generate_product_key(length: int = 16) -> str:
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
 
 @router.get("/", response_model=List[ProductResponse])
 async def list_products(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """获取产品列表"""
     result = await db.execute(
-        select(Product).where(Product.owner_id == current_user.id)
+        select(Product)
+        .where(Product.owner_id == current_user.id)
+        .order_by(desc(Product.created_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
     )
     return result.scalars().all()
 
@@ -62,194 +46,255 @@ async def list_products(
 async def get_product(
     product_key: str,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """获取产品详情"""
+    """获取产品详情（包含属性、服务、事件列表和设备数量）"""
     result = await db.execute(
         select(Product)
-        .where(
-            Product.product_key == product_key,
-            Product.owner_id == current_user.id
-        )
         .options(
             selectinload(Product.properties),
             selectinload(Product.services),
-            selectinload(Product.events)
+            selectinload(Product.events),
+        )
+        .where(
+            Product.product_key == product_key,
+            Product.owner_id == current_user.id,
         )
     )
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    return product
+
+    # 统计设备数量
+    count_result = await db.execute(
+        select(func.count(Device.id)).where(Device.product_id == product.id)
+    )
+    device_count = count_result.scalar_one() or 0
+
+    response = ProductDetailResponse(
+        id=product.id,
+        product_key=product.product_key,
+        name=product.name,
+        category=product.category,
+        model=product.model,
+        manufacturer=product.manufacturer,
+        description=product.description,
+        owner_id=product.owner_id,
+        created_at=product.created_at,
+        properties=product.properties,
+        services=product.services,
+        events=product.events,
+        device_count=device_count,
+    )
+    return response
+
+
+@router.post("/", response_model=ProductResponse)
+async def create_product(
+    product_data: ProductCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """创建新产品"""
+    new_product = Product(
+        product_key=_generate_product_key(),
+        name=product_data.name,
+        category=product_data.category,
+        model=product_data.model,
+        manufacturer=product_data.manufacturer,
+        description=product_data.description,
+        owner_id=current_user.id,
+    )
+    db.add(new_product)
+    await db.commit()
+    await db.refresh(new_product)
+    return new_product
 
 
 @router.put("/{product_key}", response_model=ProductResponse)
 async def update_product(
     product_key: str,
-    product: ProductUpdate,
+    product_data: ProductUpdate,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """更新产品"""
+    """更新产品信息"""
     result = await db.execute(
         select(Product).where(
             Product.product_key == product_key,
-            Product.owner_id == current_user.id
+            Product.owner_id == current_user.id,
         )
     )
-    db_product = result.scalar_one_or_none()
-    if not db_product:
+    product = result.scalar_one_or_none()
+    if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-
-    for key, value in product.model_dump(exclude_unset=True).items():
-        setattr(db_product, key, value)
-
+    for field, value in product_data.model_dump(exclude_unset=True).items():
+        setattr(product, field, value)
     await db.commit()
-    await db.refresh(db_product)
-    return db_product
+    await db.refresh(product)
+    return product
 
 
 @router.delete("/{product_key}")
 async def delete_product(
     product_key: str,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """删除产品"""
+    """删除产品（及其下的属性、服务、事件、设备）"""
     result = await db.execute(
-        select(Product).where(
+        select(Product)
+        .options(selectinload(Product.devices))
+        .where(
             Product.product_key == product_key,
-            Product.owner_id == current_user.id
+            Product.owner_id == current_user.id,
         )
     )
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+
+    if product.devices:
+        raise HTTPException(status_code=400, detail="Cannot delete product with devices")
 
     await db.delete(product)
     await db.commit()
     return {"message": "Product deleted successfully"}
 
 
-# Property endpoints
-@router.post("/{product_key}/properties", response_model=ProductPropertyResponse)
-async def create_property(
-    product_key: str,
-    prop: ProductPropertyCreate,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """创建属性"""
-    result = await db.execute(
-        select(Product).where(
-            Product.product_key == product_key,
-            Product.owner_id == current_user.id
-        )
-    )
-    product = result.scalar_one_or_none()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    db_prop = ProductProperty(
-        product_id=product.id,
-        identifier=prop.identifier,
-        name=prop.name,
-        data_type=prop.data_type,
-        access_type=prop.access_type,
-        unit=prop.unit,
-        min_value=prop.min_value,
-        max_value=prop.max_value,
-        default_value=prop.default_value,
-        description=prop.description
-    )
-    db.add(db_prop)
-    await db.commit()
-    await db.refresh(db_prop)
-    return db_prop
-
+# ========== Product Properties ==========
 
 @router.get("/{product_key}/properties", response_model=List[ProductPropertyResponse])
-async def list_properties(
+async def list_product_properties(
     product_key: str,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """获取属性列表"""
+    """获取产品属性列表"""
     result = await db.execute(
-        select(Product).where(
+        select(Product)
+        .options(selectinload(Product.properties))
+        .where(
             Product.product_key == product_key,
-            Product.owner_id == current_user.id
+            Product.owner_id == current_user.id,
+        )
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product.properties
+
+
+@router.post("/{product_key}/properties", response_model=ProductPropertyResponse)
+async def create_product_property(
+    product_key: str,
+    prop_data: ProductPropertyCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """添加产品属性（identifier 在产品内唯一）"""
+    result = await db.execute(
+        select(Product)
+        .options(selectinload(Product.properties))
+        .where(
+            Product.product_key == product_key,
+            Product.owner_id == current_user.id,
         )
     )
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    prop_result = await db.execute(
-        select(ProductProperty).where(ProductProperty.product_id == product.id)
+    if any(p.identifier == prop_data.identifier for p in product.properties):
+        raise HTTPException(status_code=400, detail=f"Property identifier '{prop_data.identifier}' already exists")
+
+    new_prop = ProductProperty(
+        product_id=product.id,
+        identifier=prop_data.identifier,
+        name=prop_data.name,
+        data_type=prop_data.data_type,
+        access_type=prop_data.access_type,
+        unit=prop_data.unit,
+        min_value=prop_data.min_value,
+        max_value=prop_data.max_value,
+        default_value=prop_data.default_value,
+        description=prop_data.description,
     )
-    return prop_result.scalars().all()
+    db.add(new_prop)
+    await db.commit()
+    await db.refresh(new_prop)
+    return new_prop
 
 
-@router.put("/{product_key}/properties/{identifier}", response_model=ProductPropertyResponse)
-async def update_property(
+@router.put("/{product_key}/properties/{property_id}", response_model=ProductPropertyResponse)
+async def update_product_property(
     product_key: str,
-    identifier: str,
-    prop: ProductPropertyCreate,
+    property_id: int,
+    prop_data: ProductPropertyUpdate,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """更新属性"""
-    result = await db.execute(
+    """更新产品属性"""
+    product_result = await db.execute(
         select(Product).where(
             Product.product_key == product_key,
-            Product.owner_id == current_user.id
+            Product.owner_id == current_user.id,
         )
     )
-    product = result.scalar_one_or_none()
+    product = product_result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
     prop_result = await db.execute(
         select(ProductProperty).where(
+            ProductProperty.id == property_id,
             ProductProperty.product_id == product.id,
-            ProductProperty.identifier == identifier
         )
     )
-    db_prop = prop_result.scalar_one_or_none()
-    if not db_prop:
+    prop = prop_result.scalar_one_or_none()
+    if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
 
-    for key, value in prop.model_dump(exclude_unset=True).items():
-        setattr(db_prop, key, value)
+    if prop_data.identifier and prop_data.identifier != prop.identifier:
+        check_result = await db.execute(
+            select(ProductProperty).where(
+                ProductProperty.product_id == product.id,
+                ProductProperty.identifier == prop_data.identifier,
+                ProductProperty.id != property_id,
+            )
+        )
+        if check_result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail=f"Property identifier '{prop_data.identifier}' already exists")
 
+    for field, value in prop_data.model_dump(exclude_unset=True).items():
+        setattr(prop, field, value)
     await db.commit()
-    await db.refresh(db_prop)
-    return db_prop
+    await db.refresh(prop)
+    return prop
 
 
-@router.delete("/{product_key}/properties/{identifier}")
-async def delete_property(
+@router.delete("/{product_key}/properties/{property_id}")
+async def delete_product_property(
     product_key: str,
-    identifier: str,
+    property_id: int,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """删除属性"""
-    result = await db.execute(
+    """删除产品属性"""
+    product_result = await db.execute(
         select(Product).where(
             Product.product_key == product_key,
-            Product.owner_id == current_user.id
+            Product.owner_id == current_user.id,
         )
     )
-    product = result.scalar_one_or_none()
+    product = product_result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
     prop_result = await db.execute(
         select(ProductProperty).where(
+            ProductProperty.id == property_id,
             ProductProperty.product_id == product.id,
-            ProductProperty.identifier == identifier
         )
     )
     prop = prop_result.scalar_one_or_none()
@@ -261,124 +306,137 @@ async def delete_property(
     return {"message": "Property deleted successfully"}
 
 
-# Service endpoints
-@router.post("/{product_key}/services", response_model=ProductServiceResponse)
-async def create_service(
-    product_key: str,
-    service: ProductServiceCreate,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """创建服务"""
-    result = await db.execute(
-        select(Product).where(
-            Product.product_key == product_key,
-            Product.owner_id == current_user.id
-        )
-    )
-    product = result.scalar_one_or_none()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    db_service = ProductService(
-        product_id=product.id,
-        identifier=service.identifier,
-        name=service.name,
-        description=service.description,
-        input_params=service.input_params,
-        output_params=service.output_params
-    )
-    db.add(db_service)
-    await db.commit()
-    await db.refresh(db_service)
-    return db_service
-
+# ========== Product Services ==========
 
 @router.get("/{product_key}/services", response_model=List[ProductServiceResponse])
-async def list_services(
+async def list_product_services(
     product_key: str,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """获取服务列表"""
+    """获取产品服务列表"""
     result = await db.execute(
-        select(Product).where(
+        select(Product)
+        .options(selectinload(Product.services))
+        .where(
             Product.product_key == product_key,
-            Product.owner_id == current_user.id
+            Product.owner_id == current_user.id,
         )
     )
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-
-    svc_result = await db.execute(
-        select(ProductService).where(ProductService.product_id == product.id)
-    )
-    return svc_result.scalars().all()
+    return product.services
 
 
-@router.put("/{product_key}/services/{identifier}", response_model=ProductServiceResponse)
-async def update_service(
+@router.post("/{product_key}/services", response_model=ProductServiceResponse)
+async def create_product_service(
     product_key: str,
-    identifier: str,
-    service: ProductServiceCreate,
+    service_data: ProductServiceCreate,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """更新服务"""
+    """添加产品服务"""
     result = await db.execute(
-        select(Product).where(
+        select(Product)
+        .options(selectinload(Product.services))
+        .where(
             Product.product_key == product_key,
-            Product.owner_id == current_user.id
+            Product.owner_id == current_user.id,
         )
     )
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    if any(s.identifier == service_data.identifier for s in product.services):
+        raise HTTPException(status_code=400, detail=f"Service identifier '{service_data.identifier}' already exists")
 
-    svc_result = await db.execute(
+    new_service = ProductService(
+        product_id=product.id,
+        identifier=service_data.identifier,
+        name=service_data.name,
+        description=service_data.description,
+        input_params=service_data.input_params,
+        output_params=service_data.output_params,
+    )
+    db.add(new_service)
+    await db.commit()
+    await db.refresh(new_service)
+    return new_service
+
+
+@router.put("/{product_key}/services/{service_id}", response_model=ProductServiceResponse)
+async def update_product_service(
+    product_key: str,
+    service_id: int,
+    service_data: ProductServiceUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """更新产品服务"""
+    product_result = await db.execute(
+        select(Product).where(
+            Product.product_key == product_key,
+            Product.owner_id == current_user.id,
+        )
+    )
+    product = product_result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    service_result = await db.execute(
         select(ProductService).where(
+            ProductService.id == service_id,
             ProductService.product_id == product.id,
-            ProductService.identifier == identifier
         )
     )
-    db_service = svc_result.scalar_one_or_none()
-    if not db_service:
+    service = service_result.scalar_one_or_none()
+    if not service:
         raise HTTPException(status_code=404, detail="Service not found")
 
-    for key, value in service.model_dump(exclude_unset=True).items():
-        setattr(db_service, key, value)
+    if service_data.identifier and service_data.identifier != service.identifier:
+        check_result = await db.execute(
+            select(ProductService).where(
+                ProductService.product_id == product.id,
+                ProductService.identifier == service_data.identifier,
+                ProductService.id != service_id,
+            )
+        )
+        if check_result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail=f"Service identifier '{service_data.identifier}' already exists")
 
+    for field, value in service_data.model_dump(exclude_unset=True).items():
+        setattr(service, field, value)
     await db.commit()
-    await db.refresh(db_service)
-    return db_service
+    await db.refresh(service)
+    return service
 
 
-@router.delete("/{product_key}/services/{identifier}")
-async def delete_service(
+@router.delete("/{product_key}/services/{service_id}")
+async def delete_product_service(
     product_key: str,
-    identifier: str,
+    service_id: int,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """删除服务"""
-    result = await db.execute(
+    """删除产品服务"""
+    product_result = await db.execute(
         select(Product).where(
             Product.product_key == product_key,
-            Product.owner_id == current_user.id
+            Product.owner_id == current_user.id,
         )
     )
-    product = result.scalar_one_or_none()
+    product = product_result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    svc_result = await db.execute(
+    service_result = await db.execute(
         select(ProductService).where(
+            ProductService.id == service_id,
             ProductService.product_id == product.id,
-            ProductService.identifier == identifier
         )
     )
-    service = svc_result.scalar_one_or_none()
+    service = service_result.scalar_one_or_none()
     if not service:
         raise HTTPException(status_code=404, detail="Service not found")
 
@@ -387,124 +445,137 @@ async def delete_service(
     return {"message": "Service deleted successfully"}
 
 
-# Event endpoints
-@router.post("/{product_key}/events", response_model=ProductEventResponse)
-async def create_event(
-    product_key: str,
-    event: ProductEventCreate,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """创建事件"""
-    result = await db.execute(
-        select(Product).where(
-            Product.product_key == product_key,
-            Product.owner_id == current_user.id
-        )
-    )
-    product = result.scalar_one_or_none()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    db_event = ProductEvent(
-        product_id=product.id,
-        identifier=event.identifier,
-        name=event.name,
-        event_type=event.event_type,
-        description=event.description,
-        output_params=event.output_params
-    )
-    db.add(db_event)
-    await db.commit()
-    await db.refresh(db_event)
-    return db_event
-
+# ========== Product Events ==========
 
 @router.get("/{product_key}/events", response_model=List[ProductEventResponse])
-async def list_events(
+async def list_product_events(
     product_key: str,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """获取事件列表"""
+    """获取产品事件列表"""
     result = await db.execute(
-        select(Product).where(
+        select(Product)
+        .options(selectinload(Product.events))
+        .where(
             Product.product_key == product_key,
-            Product.owner_id == current_user.id
+            Product.owner_id == current_user.id,
         )
     )
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-
-    evt_result = await db.execute(
-        select(ProductEvent).where(ProductEvent.product_id == product.id)
-    )
-    return evt_result.scalars().all()
+    return product.events
 
 
-@router.put("/{product_key}/events/{identifier}", response_model=ProductEventResponse)
-async def update_event(
+@router.post("/{product_key}/events", response_model=ProductEventResponse)
+async def create_product_event(
     product_key: str,
-    identifier: str,
-    event: ProductEventCreate,
+    event_data: ProductEventCreate,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """更新事件"""
+    """添加产品事件"""
     result = await db.execute(
-        select(Product).where(
+        select(Product)
+        .options(selectinload(Product.events))
+        .where(
             Product.product_key == product_key,
-            Product.owner_id == current_user.id
+            Product.owner_id == current_user.id,
         )
     )
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    if any(e.identifier == event_data.identifier for e in product.events):
+        raise HTTPException(status_code=400, detail=f"Event identifier '{event_data.identifier}' already exists")
 
-    evt_result = await db.execute(
+    new_event = ProductEvent(
+        product_id=product.id,
+        identifier=event_data.identifier,
+        name=event_data.name,
+        event_type=event_data.event_type,
+        description=event_data.description,
+        output_params=event_data.output_params,
+    )
+    db.add(new_event)
+    await db.commit()
+    await db.refresh(new_event)
+    return new_event
+
+
+@router.put("/{product_key}/events/{event_id}", response_model=ProductEventResponse)
+async def update_product_event(
+    product_key: str,
+    event_id: int,
+    event_data: ProductEventUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """更新产品事件"""
+    product_result = await db.execute(
+        select(Product).where(
+            Product.product_key == product_key,
+            Product.owner_id == current_user.id,
+        )
+    )
+    product = product_result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    event_result = await db.execute(
         select(ProductEvent).where(
+            ProductEvent.id == event_id,
             ProductEvent.product_id == product.id,
-            ProductEvent.identifier == identifier
         )
     )
-    db_event = evt_result.scalar_one_or_none()
-    if not db_event:
+    event = event_result.scalar_one_or_none()
+    if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    for key, value in event.model_dump(exclude_unset=True).items():
-        setattr(db_event, key, value)
+    if event_data.identifier and event_data.identifier != event.identifier:
+        check_result = await db.execute(
+            select(ProductEvent).where(
+                ProductEvent.product_id == product.id,
+                ProductEvent.identifier == event_data.identifier,
+                ProductEvent.id != event_id,
+            )
+        )
+        if check_result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail=f"Event identifier '{event_data.identifier}' already exists")
 
+    for field, value in event_data.model_dump(exclude_unset=True).items():
+        setattr(event, field, value)
     await db.commit()
-    await db.refresh(db_event)
-    return db_event
+    await db.refresh(event)
+    return event
 
 
-@router.delete("/{product_key}/events/{identifier}")
-async def delete_event(
+@router.delete("/{product_key}/events/{event_id}")
+async def delete_product_event(
     product_key: str,
-    identifier: str,
+    event_id: int,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """删除事件"""
-    result = await db.execute(
+    """删除产品事件"""
+    product_result = await db.execute(
         select(Product).where(
             Product.product_key == product_key,
-            Product.owner_id == current_user.id
+            Product.owner_id == current_user.id,
         )
     )
-    product = result.scalar_one_or_none()
+    product = product_result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    evt_result = await db.execute(
+    event_result = await db.execute(
         select(ProductEvent).where(
+            ProductEvent.id == event_id,
             ProductEvent.product_id == product.id,
-            ProductEvent.identifier == identifier
         )
     )
-    event = evt_result.scalar_one_or_none()
+    event = event_result.scalar_one_or_none()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 

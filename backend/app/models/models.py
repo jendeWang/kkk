@@ -5,75 +5,78 @@ from ..database import Base
 import enum
 
 
-class DataTypeEnum(str, enum.Enum):
-    STRING = "string"
+class PropertyDataType(str, enum.Enum):
     INT = "int"
     FLOAT = "float"
     BOOL = "bool"
-    DATE = "date"
+    STRING = "string"
     ENUM = "enum"
-    JSON = "json"
 
 
-class AccessTypeEnum(str, enum.Enum):
-    R = "r"
-    W = "w"
-    RW = "rw"
+class PropertyAccessType(str, enum.Enum):
+    READ_ONLY = "read_only"
+    READ_WRITE = "read_write"
 
 
-class DeviceStatusEnum(str, enum.Enum):
+class DeviceStatus(str, enum.Enum):
     ONLINE = "online"
     OFFLINE = "offline"
     ERROR = "error"
 
 
-class CommandStatusEnum(str, enum.Enum):
+class CommandStatus(str, enum.Enum):
     PENDING = "pending"
-    EXECUTING = "executing"
+    SENT = "sent"
     EXECUTED = "executed"
     FAILED = "failed"
 
 
-class AlertTypeEnum(str, enum.Enum):
+class AlertType(str, enum.Enum):
     THRESHOLD = "threshold"
-    DEVICE_STATUS = "device_status"
+    DEVICE_OFFLINE = "device_offline"
+    DEVICE_ONLINE = "device_online"
+    EVENT = "event"
+    CUSTOM = "custom"
 
 
-class SeverityEnum(str, enum.Enum):
+class ConditionOperator(str, enum.Enum):
+    GT = "gt"
+    GTE = "gte"
+    LT = "lt"
+    LTE = "lte"
+    EQ = "eq"
+    NEQ = "neq"
+    INCREASE_RATE = "increase_rate"
+    DECREASE_RATE = "decrease_rate"
+
+
+class AlertSeverity(str, enum.Enum):
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
     CRITICAL = "critical"
 
 
-class AlertStatusEnum(str, enum.Enum):
+class AlertStatus(str, enum.Enum):
     TRIGGERED = "triggered"
     ACKNOWLEDGED = "acknowledged"
+    IN_PROGRESS = "in_progress"
     RESOLVED = "resolved"
+    ARCHIVED = "archived"
 
 
-class PermissionLevelEnum(str, enum.Enum):
-    READ = "read"
-    WRITE = "write"
-    ADMIN = "admin"
-
-
-class QualityEnum(str, enum.Enum):
-    GOOD = "good"
-    BAD = "bad"
-    UNCERTAIN = "uncertain"
-
-
-# User Model
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(100), nullable=True)
+    full_name = Column(String(100), nullable=True)
     hashed_password = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True)
+    is_superuser = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
 
     products = relationship("Product", back_populates="owner")
     devices = relationship("Device", back_populates="owner")
@@ -81,7 +84,6 @@ class User(Base):
     api_keys = relationship("APIKey", back_populates="owner")
 
 
-# Product Model
 class Product(Base):
     __tablename__ = "products"
 
@@ -93,6 +95,8 @@ class Product(Base):
     manufacturer = Column(String(100), nullable=True)
     description = Column(Text, nullable=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
 
     owner = relationship("User", back_populates="products")
     properties = relationship("ProductProperty", back_populates="product", cascade="all, delete-orphan")
@@ -108,13 +112,15 @@ class ProductProperty(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     identifier = Column(String(100), nullable=False)
     name = Column(String(100), nullable=False)
-    data_type = Column(SQLEnum(DataTypeEnum), nullable=False)
-    access_type = Column(SQLEnum(AccessTypeEnum), nullable=False)
+    data_type = Column(SQLEnum(PropertyDataType), nullable=False)
+    access_type = Column(SQLEnum(PropertyAccessType), nullable=False, default=PropertyAccessType.READ_ONLY)
     unit = Column(String(20), nullable=True)
-    min_value = Column(Float, nullable=True)
-    max_value = Column(Float, nullable=True)
+    min_value = Column(String, nullable=True)
+    max_value = Column(String, nullable=True)
+    enum_values = Column(JSON, nullable=True)
     default_value = Column(String, nullable=True)
     description = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
 
     product = relationship("Product", back_populates="properties")
 
@@ -129,6 +135,7 @@ class ProductService(Base):
     description = Column(Text, nullable=True)
     input_params = Column(JSON, nullable=True)
     output_params = Column(JSON, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
 
     product = relationship("Product", back_populates="services")
 
@@ -143,24 +150,26 @@ class ProductEvent(Base):
     event_type = Column(String(50), nullable=True)
     description = Column(Text, nullable=True)
     output_params = Column(JSON, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
 
     product = relationship("Product", back_populates="events")
 
 
-# Device Model
 class Device(Base):
     __tablename__ = "devices"
 
     id = Column(Integer, primary_key=True, index=True)
     device_key = Column(String(32), unique=True, index=True, nullable=False)
-    device_secret = Column(String(64), nullable=False)
+    device_secret = Column(String(64), unique=True, nullable=False)
     device_name = Column(String(100), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
-    status = Column(SQLEnum(DeviceStatusEnum), default=DeviceStatusEnum.OFFLINE)
+    status = Column(SQLEnum(DeviceStatus), default=DeviceStatus.OFFLINE)
     last_seen = Column(DateTime, nullable=True)
     status_changed_at = Column(DateTime, nullable=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     extra = Column(JSON, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
 
     product = relationship("Product", back_populates="devices")
     owner = relationship("User", back_populates="devices")
@@ -190,12 +199,14 @@ class Command(Base):
     command_id = Column(String(64), unique=True, index=True, nullable=False)
     device_id = Column(Integer, ForeignKey("devices.id"), nullable=False)
     service_identifier = Column(String(100), nullable=False)
-    parameters = Column(JSON, nullable=False)
-    status = Column(SQLEnum(CommandStatusEnum), default=CommandStatusEnum.PENDING)
-    issued_at = Column(DateTime, nullable=False)
-    executed_at = Column(DateTime, nullable=True)
-    output_data = Column(JSON, nullable=True)
+    input_params = Column(JSON, nullable=True)
+    status = Column(SQLEnum(CommandStatus), default=CommandStatus.PENDING)
     error_message = Column(Text, nullable=True)
+    output_data = Column(JSON, nullable=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    sent_at = Column(DateTime, nullable=True)
+    executed_at = Column(DateTime, nullable=True)
 
     device = relationship("Device", back_populates="commands")
 
@@ -207,32 +218,35 @@ class DeviceEventRecord(Base):
     device_id = Column(Integer, ForeignKey("devices.id"), nullable=False)
     event_identifier = Column(String(100), nullable=False)
     event_data = Column(JSON, nullable=True)
-    timestamp = Column(DateTime, nullable=False)
+    timestamp = Column(DateTime, nullable=False, default=func.now())
 
     device = relationship("Device", back_populates="event_records")
 
 
-# Alert Models
 class AlertRule(Base):
     __tablename__ = "alert_rules"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
-    alert_type = Column(SQLEnum(AlertTypeEnum), nullable=False)
+    alert_type = Column(SQLEnum(AlertType), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
     device_id = Column(Integer, ForeignKey("devices.id"), nullable=True)
     property_identifier = Column(String(100), nullable=True)
-    operator = Column(String(10), nullable=True)
+    operator = Column(SQLEnum(ConditionOperator), nullable=True)
     threshold_value = Column(String, nullable=True)
-    severity = Column(SQLEnum(SeverityEnum), nullable=False)
     duration_seconds = Column(Integer, nullable=True)
+    delay_seconds = Column(Integer, nullable=True)
+    severity = Column(SQLEnum(AlertSeverity), nullable=False)
     cooldown_seconds = Column(Integer, nullable=True)
     silent_from_hour = Column(Integer, nullable=True)
     silent_to_hour = Column(Integer, nullable=True)
+    notification_config = Column(JSON, nullable=True)
     enabled = Column(Boolean, default=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     last_triggered_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
 
     owner = relationship("User", back_populates="alert_rules")
     device = relationship("Device")
@@ -244,31 +258,38 @@ class AlertEvent(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     rule_id = Column(Integer, ForeignKey("alert_rules.id"), nullable=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
     device_id = Column(Integer, ForeignKey("devices.id"), nullable=False)
+    property_identifier = Column(String(100), nullable=True)
     message = Column(String(500), nullable=False)
-    severity = Column(SQLEnum(SeverityEnum), nullable=False)
+    severity = Column(SQLEnum(AlertSeverity), nullable=False)
     current_value = Column(String, nullable=True)
     threshold_value = Column(String, nullable=True)
-    status = Column(SQLEnum(AlertStatusEnum), default=AlertStatusEnum.TRIGGERED)
+    operator = Column(String(20), nullable=True)
+    status = Column(SQLEnum(AlertStatus), default=AlertStatus.TRIGGERED)
     acknowledged_at = Column(DateTime, nullable=True)
+    acknowledged_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     resolved_at = Column(DateTime, nullable=True)
+    resolved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    resolution_notes = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
 
     rule = relationship("AlertRule", back_populates="alert_events")
     device = relationship("Device", back_populates="alert_events")
 
 
-# API Key Model
 class APIKey(Base):
     __tablename__ = "api_keys"
 
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String(64), unique=True, index=True, nullable=False)
     name = Column(String(100), nullable=False)
-    permission_level = Column(SQLEnum(PermissionLevelEnum), nullable=False)
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
-    last_used_at = Column(DateTime, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    permissions = Column(JSON, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+    last_used = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
 
     owner = relationship("User", back_populates="api_keys")
