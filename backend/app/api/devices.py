@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from datetime import datetime
 import secrets
+import random
 from .deps import get_current_active_user
 from ..database import get_db
 from ..models.models import User, Device, Product, Telemetry, Command, DeviceStatusEnum, CommandStatusEnum
@@ -19,8 +20,9 @@ router = APIRouter(prefix="/devices", tags=["设备管理"])
 
 def generate_device_credentials():
     """生成设备密钥对"""
-    device_key = 'dev_' + ''.join(secrets.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=24))
-    device_secret = ''.join(secrets.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=48))
+    chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    device_key = 'dev_' + ''.join(random.choices(chars, k=24))
+    device_secret = ''.join(random.choices(chars, k=48))
     return device_key, device_secret
 
 

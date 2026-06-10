@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request
-from .sse_service import alert_sse_stream, device_sse_stream
+from ..services.sse_service import alert_sse_stream, device_sse_stream
 
 router = APIRouter(prefix="/sse", tags=["SSE推送"])
 

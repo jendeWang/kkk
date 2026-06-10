@@ -4,6 +4,7 @@ from sqlalchemy import select
 from typing import List, Optional
 from datetime import datetime
 import secrets
+import random
 from .deps import get_current_active_user
 from ..database import get_db
 from ..models.models import User, APIKey, PermissionLevelEnum
@@ -14,7 +15,8 @@ router = APIRouter(prefix="/api-keys", tags=["API密钥管理"])
 
 def generate_api_key():
     """生成API密钥"""
-    return ''.join(secrets.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=32))
+    chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    return ''.join(random.choices(chars, k=32))
 
 
 @router.post("/", response_model=APIKeyResponse)

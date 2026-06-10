@@ -21,7 +21,7 @@ class MQTTService:
         self.client.on_disconnect = self._on_disconnect
 
         try:
-            await self.client.connect(settings.MQTT_BROKER_URL, settings.MQTT_BROKER_PORT, timeout=5)
+            await self.client.connect(settings.MQTT_BROKER_URL, settings.MQTT_BROKER_PORT)
             self._connected = True
             print(f"Connected to MQTT broker at {settings.MQTT_BROKER_URL}:{settings.MQTT_BROKER_PORT}")
         except Exception as e:

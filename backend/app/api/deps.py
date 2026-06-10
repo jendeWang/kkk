@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import timedelta
-from . import auth
+from ..security.auth import decode_token, verify_password, create_access_token
 from ..database import get_db
 from ..models.models import User
 from ..config import settings
@@ -20,7 +20,7 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    payload = auth.decode_token(token)
+    payload = decode_token(token)
     if payload is None:
         raise credentials_exception
     user_id = payload.get("sub")
