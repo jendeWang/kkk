@@ -1,0 +1,763 @@
+{
+  "summary": {
+    "total": 78,
+    "passed": 78,
+    "failed": 0,
+    "pass_rate": "100.0%",
+    "run_at": "2026-06-10T09:54:33.581470Z"
+  },
+  "modules": {
+    "auth": {
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "duration_sec": 1.094
+    },
+    "products": {
+      "total": 21,
+      "passed": 21,
+      "failed": 0,
+      "duration_sec": 0.167
+    },
+    "devices": {
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "duration_sec": 0.103
+    },
+    "telemetry": {
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "duration_sec": 0.039
+    },
+    "commands": {
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "duration_sec": 0.048
+    },
+    "alerts": {
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "duration_sec": 0.076
+    },
+    "apikeys": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "duration_sec": 0.03
+    },
+    "sse_and_openapi": {
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "duration_sec": 0.25
+    }
+  },
+  "cases": [
+    {
+      "module": "auth",
+      "name": "TC-A01 健康检查 GET / 返回 200",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"message\": \"IOTPlatform API\", \"version\": \"1.0.0\"}",
+      "timestamp": "2026-06-10T09:54:31.779173Z"
+    },
+    {
+      "module": "auth",
+      "name": "TC-A02 登录成功 (正确账号密码)",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzgxMTcxNjcyfQ.WYWDDi7ZU9RdCSMDW6MSQQpXYPpn8udPl5xJoaEetJQ\", \"token_type\": \"bearer\"}",
+      "timestamp": "2026-06-10T09:54:32.302325Z"
+    },
+    {
+      "module": "auth",
+      "name": "TC-A02-1 登录响应包含 access_token",
+      "passed": true,
+      "detail": "包含字段: ['access_token', 'token_type']",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:32.302376Z"
+    },
+    {
+      "module": "auth",
+      "name": "TC-A03 错误密码登录返回非 200",
+      "passed": true,
+      "detail": "status=401",
+      "request": null,
+      "response": "status=401, body={\"detail\": \"Incorrect username or password\"}",
+      "timestamp": "2026-06-10T09:54:32.860703Z"
+    },
+    {
+      "module": "auth",
+      "name": "TC-A04 GET /auth/me 返回 200",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"id\": 1, \"username\": \"admin\", \"email\": \"admin@iot.local\", \"full_name\": \"IoT Platform Administrator\", \"is_active\": true, \"is_superuser\": true, \"created_at\": \"2026-06-10T09:43:30\"}",
+      "timestamp": "2026-06-10T09:54:32.865880Z"
+    },
+    {
+      "module": "auth",
+      "name": "TC-A04-1 me 响应包含用户字段",
+      "passed": true,
+      "detail": "包含字段: ['id', 'username', 'is_active', 'is_superuser']",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:32.865917Z"
+    },
+    {
+      "module": "auth",
+      "name": "TC-A05 无 token 访问受保护接口返回 401/403",
+      "passed": true,
+      "detail": "status=401 (预期非 200)",
+      "request": null,
+      "response": "status=401, body={\"detail\": \"Not authenticated\"}",
+      "timestamp": "2026-06-10T09:54:32.868423Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P01 创建产品 POST /products/",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"name\": \"test-product-a6555fbf\", \"category\": \"sensor\", \"model\": \"v1.0\", \"manufacturer\": \"acme\", \"description\": \"test product\", \"id\": 3, \"product_key\": \"cfpxsvqw8cq04105\", \"owner_id\": 1, \"created_at\": \"2026-06-10T09:54:32\"}",
+      "timestamp": "2026-06-10T09:54:32.882337Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P01-1 产品响应包含必填字段",
+      "passed": true,
+      "detail": "包含字段: ['id', 'product_key', 'name', 'owner_id']",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:32.882366Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P02 获取产品列表 GET /products/",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[{\"name\": \"test-product-a6555fbf\", \"category\": \"sensor\", \"model\": \"v1.0\", \"manufacturer\": \"acme\", \"description\": \"test product\", \"id\": 3, \"product_key\": \"cfpxsvqw8cq04105\", \"owner_id\": 1, \"created_at\": \"2026-06-10T09:54:32\"}, {\"name\": \"test-product-ae3902a7-updated\", \"category\": \"sensor\", \"model\": \"",
+      "timestamp": "2026-06-10T09:54:32.889423Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P02-1 列表为数组且长度 >= 1",
+      "passed": true,
+      "detail": "length=3",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:32.889470Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P03 获取产品详情",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"name\": \"test-product-a6555fbf\", \"category\": \"sensor\", \"model\": \"v1.0\", \"manufacturer\": \"acme\", \"description\": \"test product\", \"id\": 3, \"product_key\": \"cfpxsvqw8cq04105\", \"owner_id\": 1, \"created_at\": \"2026-06-10T09:54:32\", \"properties\": [], \"services\": [], \"events\": [], \"device_count\": 0}",
+      "timestamp": "2026-06-10T09:54:32.907458Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P03-1 详情包含属性/服务/事件字段",
+      "passed": true,
+      "detail": "包含字段: ['properties', 'services', 'events', 'device_count']",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:32.907486Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P04 更新产品 PUT /products/{key}",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"name\": \"test-product-a6555fbf-updated\", \"category\": \"sensor\", \"model\": \"v1.0\", \"manufacturer\": \"acme\", \"description\": \"updated desc\", \"id\": 3, \"product_key\": \"cfpxsvqw8cq04105\", \"owner_id\": 1, \"created_at\": \"2026-06-10T09:54:32\"}",
+      "timestamp": "2026-06-10T09:54:32.918329Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P05 添加产品属性",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"identifier\": \"temp_c3b39e\", \"name\": \"温度\", \"data_type\": \"float\", \"access_type\": \"read_only\", \"unit\": \"C\", \"min_value\": \"-50\", \"max_value\": \"100\", \"enum_values\": null, \"default_value\": null, \"description\": \"环境温度\", \"id\": 2, \"product_id\": 3, \"created_at\": \"2026-06-10T09:54:32\"}",
+      "timestamp": "2026-06-10T09:54:32.932912Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P05-1 属性响应包含 identifier",
+      "passed": true,
+      "detail": "包含字段: ['id', 'identifier', 'data_type']",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:32.932945Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P06 重复 identifier 应返回非 200",
+      "passed": true,
+      "detail": "status=400",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:32.939281Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P07 更新产品属性",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"identifier\": \"temp_c3b39e\", \"name\": \"温度(更新)\", \"data_type\": \"float\", \"access_type\": \"read_only\", \"unit\": \"摄氏度\", \"min_value\": \"-50\", \"max_value\": \"100\", \"enum_values\": null, \"default_value\": null, \"description\": \"环境温度\", \"id\": 2, \"product_id\": 3, \"created_at\": \"2026-06-10T09:54:32\"}",
+      "timestamp": "2026-06-10T09:54:32.950406Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P08 删除产品属性",
+      "passed": true,
+      "detail": "status=200 (200/204 均视为 OK)",
+      "request": null,
+      "response": "status=200, body={\"message\": \"Property deleted successfully\"}",
+      "timestamp": "2026-06-10T09:54:32.959458Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P09 添加产品服务",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"identifier\": \"set_switch_a2177d\", \"name\": \"开关控制\", \"description\": \"打开或关闭设备\", \"input_params\": {\"state\": \"bool\"}, \"output_params\": {\"result\": \"string\"}, \"id\": 1, \"product_id\": 3, \"created_at\": \"2026-06-10T09:54:32\"}",
+      "timestamp": "2026-06-10T09:54:32.972561Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P09-1 服务响应包含 identifier",
+      "passed": true,
+      "detail": "包含字段: ['id', 'identifier']",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:32.972589Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P10 更新产品服务",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"identifier\": \"set_switch_a2177d\", \"name\": \"开关控制V2\", \"description\": \"打开或关闭设备\", \"input_params\": {\"state\": \"bool\"}, \"output_params\": {\"result\": \"string\"}, \"id\": 1, \"product_id\": 3, \"created_at\": \"2026-06-10T09:54:32\"}",
+      "timestamp": "2026-06-10T09:54:32.984209Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P10-1 删除产品服务",
+      "passed": true,
+      "detail": "status=200",
+      "request": null,
+      "response": "status=200, body={\"message\": \"Service deleted successfully\"}",
+      "timestamp": "2026-06-10T09:54:32.994035Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P11 添加产品事件",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"identifier\": \"overheat_9dd928\", \"name\": \"过热事件\", \"event_type\": \"warning\", \"description\": \"设备温度过高\", \"output_params\": {\"temp\": \"float\"}, \"id\": 1, \"product_id\": 3, \"created_at\": \"2026-06-10T09:54:33\"}",
+      "timestamp": "2026-06-10T09:54:33.009884Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P11-1 事件响应包含 identifier",
+      "passed": true,
+      "detail": "包含字段: ['id', 'identifier']",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.009915Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P12 更新产品事件",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"identifier\": \"overheat_9dd928\", \"name\": \"过热事件(更新)\", \"event_type\": \"warning\", \"description\": \"设备温度过高\", \"output_params\": {\"temp\": \"float\"}, \"id\": 1, \"product_id\": 3, \"created_at\": \"2026-06-10T09:54:33\"}",
+      "timestamp": "2026-06-10T09:54:33.021425Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P12-1 删除产品事件",
+      "passed": true,
+      "detail": "status=200",
+      "request": null,
+      "response": "status=200, body={\"message\": \"Event deleted successfully\"}",
+      "timestamp": "2026-06-10T09:54:33.030101Z"
+    },
+    {
+      "module": "products",
+      "name": "TC-P13 删除不存在产品返回非 200",
+      "passed": true,
+      "detail": "status=404",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.035829Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D01 创建设备",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"id\": 2, \"device_key\": \"izwx0o8mbk6rocx4\", \"device_secret\": \"uxoEYSjGMmNmVdvx3hPOpoOibukGhIys\", \"device_name\": \"test-device-1f6063e6\", \"product_id\": 3, \"status\": \"offline\", \"last_seen\": null, \"owner_id\": 1, \"extra\": {\"location\": \"room-1\"}, \"created_at\": \"2026-06-10T09:54:33\"}",
+      "timestamp": "2026-06-10T09:54:33.049218Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D01-1 设备响应包含 device_key/secret",
+      "passed": true,
+      "detail": "包含字段: ['id', 'device_key', 'device_secret', 'device_name', 'product_id']",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.049249Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D02 获取设备列表",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[{\"id\": 2, \"device_key\": \"izwx0o8mbk6rocx4\", \"device_secret\": \"uxoEYSjGMmNmVdvx3hPOpoOibukGhIys\", \"device_name\": \"test-device-1f6063e6\", \"product_id\": 3, \"status\": \"offline\", \"last_seen\": null, \"owner_id\": 1, \"extra\": {\"location\": \"room-1\"}, \"created_at\": \"2026-06-10T09:54:33\"}, {\"id\": 1, \"device_ke",
+      "timestamp": "2026-06-10T09:54:33.055989Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D03 设备列表按 product_id 过滤",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[{\"id\": 2, \"device_key\": \"izwx0o8mbk6rocx4\", \"device_secret\": \"uxoEYSjGMmNmVdvx3hPOpoOibukGhIys\", \"device_name\": \"test-device-1f6063e6\", \"product_id\": 3, \"status\": \"offline\", \"last_seen\": null, \"owner_id\": 1, \"extra\": {\"location\": \"room-1\"}, \"created_at\": \"2026-06-10T09:54:33\"}]",
+      "timestamp": "2026-06-10T09:54:33.061570Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D03-1 返回非空数组",
+      "passed": true,
+      "detail": "length=1",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.061609Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D04 设备列表按 status 过滤 (offline)",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[{\"id\": 2, \"device_key\": \"izwx0o8mbk6rocx4\", \"device_secret\": \"uxoEYSjGMmNmVdvx3hPOpoOibukGhIys\", \"device_name\": \"test-device-1f6063e6\", \"product_id\": 3, \"status\": \"offline\", \"last_seen\": null, \"owner_id\": 1, \"extra\": {\"location\": \"room-1\"}, \"created_at\": \"2026-06-10T09:54:33\"}, {\"id\": 1, \"device_ke",
+      "timestamp": "2026-06-10T09:54:33.066791Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D05 获取设备详情",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"id\": 2, \"device_key\": \"izwx0o8mbk6rocx4\", \"device_name\": \"test-device-1f6063e6\", \"product_id\": 3, \"product_name\": \"test-product-a6555fbf-updated\", \"status\": \"offline\", \"last_seen\": null, \"owner_id\": 1, \"extra\": {\"location\": \"room-1\"}, \"created_at\": \"2026-06-10T09:54:33\", \"properties\": [], \"recent_",
+      "timestamp": "2026-06-10T09:54:33.081457Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D05-1 详情包含 properties / recent_commands / recent_events",
+      "passed": true,
+      "detail": "包含字段: ['properties', 'recent_commands', 'recent_events', 'product_name']",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.081492Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D06 获取设备属性当前值列表",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[]",
+      "timestamp": "2026-06-10T09:54:33.088466Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D07 更新设备",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"id\": 2, \"device_key\": \"izwx0o8mbk6rocx4\", \"device_secret\": \"uxoEYSjGMmNmVdvx3hPOpoOibukGhIys\", \"device_name\": \"test-device-1f6063e6-updated\", \"product_id\": 3, \"status\": \"offline\", \"last_seen\": null, \"owner_id\": 1, \"extra\": {\"location\": \"room-2\"}, \"created_at\": \"2026-06-10T09:54:33\"}",
+      "timestamp": "2026-06-10T09:54:33.098172Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D08 重新生成设备密钥",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"id\": 2, \"device_key\": \"izwx0o8mbk6rocx4\", \"device_secret\": \"wvufE2ucg5ZG3BOvN9fxO4QFK2j4LJ5k\", \"device_name\": \"test-device-1f6063e6-updated\", \"product_id\": 3, \"status\": \"offline\", \"last_seen\": null, \"owner_id\": 1, \"extra\": {\"location\": \"room-2\"}, \"created_at\": \"2026-06-10T09:54:33\"}",
+      "timestamp": "2026-06-10T09:54:33.107630Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D08-1 新密钥与旧密钥不同",
+      "passed": true,
+      "detail": "secret 已变化",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.107655Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D09 访问不存在设备返回非 200",
+      "passed": true,
+      "detail": "status=404",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.112934Z"
+    },
+    {
+      "module": "devices",
+      "name": "TC-D10 删除设备",
+      "passed": true,
+      "detail": "status=200",
+      "request": null,
+      "response": "status=200, body={\"message\": \"Device deleted successfully\"}",
+      "timestamp": "2026-06-10T09:54:33.138505Z"
+    },
+    {
+      "module": "telemetry",
+      "name": "TC-T01 手动上报遥测数据",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"id\": 2, \"device_id\": 2, \"property_identifier\": \"temperature\", \"value\": \"25.5\", \"timestamp\": \"2026-06-10T09:54:33.138591\", \"quality\": \"good\"}",
+      "timestamp": "2026-06-10T09:54:33.149466Z"
+    },
+    {
+      "module": "telemetry",
+      "name": "TC-T02 获取遥测列表",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"items\": [{\"id\": 2, \"device_id\": 2, \"property_identifier\": \"temperature\", \"value\": \"25.5\", \"timestamp\": \"2026-06-10T09:54:33.138591\", \"quality\": \"good\"}, {\"id\": 1, \"device_id\": 1, \"property_identifier\": \"temperature\", \"value\": \"25.5\", \"timestamp\": \"2026-06-10T09:53:02.892779\", \"quality\": \"good\"}], ",
+      "timestamp": "2026-06-10T09:54:33.155927Z"
+    },
+    {
+      "module": "telemetry",
+      "name": "TC-T03 遥测按 device_id 过滤",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"items\": [{\"id\": 2, \"device_id\": 2, \"property_identifier\": \"temperature\", \"value\": \"25.5\", \"timestamp\": \"2026-06-10T09:54:33.138591\", \"quality\": \"good\"}], \"skip\": 0, \"limit\": 100, \"total\": 1}",
+      "timestamp": "2026-06-10T09:54:33.161385Z"
+    },
+    {
+      "module": "telemetry",
+      "name": "TC-T04 遥测按 property_identifier 过滤",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"items\": [{\"id\": 2, \"device_id\": 2, \"property_identifier\": \"temperature\", \"value\": \"25.5\", \"timestamp\": \"2026-06-10T09:54:33.138591\", \"quality\": \"good\"}, {\"id\": 1, \"device_id\": 1, \"property_identifier\": \"temperature\", \"value\": \"25.5\", \"timestamp\": \"2026-06-10T09:53:02.892779\", \"quality\": \"good\"}], ",
+      "timestamp": "2026-06-10T09:54:33.167310Z"
+    },
+    {
+      "module": "telemetry",
+      "name": "TC-T05 GET /telemetry/devices/{id}",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"items\": [{\"id\": 2, \"device_id\": 2, \"property_identifier\": \"temperature\", \"value\": \"25.5\", \"timestamp\": \"2026-06-10T09:54:33.138591\", \"quality\": \"good\"}], \"skip\": 0, \"limit\": 100, \"total\": 1}",
+      "timestamp": "2026-06-10T09:54:33.173964Z"
+    },
+    {
+      "module": "telemetry",
+      "name": "TC-T06 缺少 property_identifier 返回非 200",
+      "passed": true,
+      "detail": "status=400",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.177610Z"
+    },
+    {
+      "module": "commands",
+      "name": "TC-C01 创建命令",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"id\": 2, \"command_id\": \"cmd-beec562e-083d-47a6-86b1-262fda5d414b\", \"device_id\": 2, \"service_identifier\": \"set_switch\", \"input_params\": {\"state\": true}, \"status\": \"pending\", \"error_message\": null, \"output_data\": null, \"owner_id\": 1, \"created_at\": \"2026-06-10T09:54:33.181678\", \"sent_at\": null, \"execu",
+      "timestamp": "2026-06-10T09:54:33.188580Z"
+    },
+    {
+      "module": "commands",
+      "name": "TC-C01-1 命令响应包含 command_id / status",
+      "passed": true,
+      "detail": "包含字段: ['id', 'command_id', 'status']",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.188608Z"
+    },
+    {
+      "module": "commands",
+      "name": "TC-C02 POST /devices/{id}/commands 下发命令",
+      "passed": true,
+      "detail": "status=400",
+      "request": null,
+      "response": "status=400, body={\"detail\": \"Invalid service identifier. Available services: none\"}",
+      "timestamp": "2026-06-10T09:54:33.199017Z"
+    },
+    {
+      "module": "commands",
+      "name": "TC-C03 获取命令列表",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[{\"id\": 2, \"command_id\": \"cmd-beec562e-083d-47a6-86b1-262fda5d414b\", \"device_id\": 2, \"service_identifier\": \"set_switch\", \"input_params\": {\"state\": true}, \"status\": \"pending\", \"error_message\": null, \"output_data\": null, \"owner_id\": 1, \"created_at\": \"2026-06-10T09:54:33.181678\", \"sent_at\": null, \"exec",
+      "timestamp": "2026-06-10T09:54:33.204472Z"
+    },
+    {
+      "module": "commands",
+      "name": "TC-C04 命令列表按 device_id 过滤",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[{\"id\": 2, \"command_id\": \"cmd-beec562e-083d-47a6-86b1-262fda5d414b\", \"device_id\": 2, \"service_identifier\": \"set_switch\", \"input_params\": {\"state\": true}, \"status\": \"pending\", \"error_message\": null, \"output_data\": null, \"owner_id\": 1, \"created_at\": \"2026-06-10T09:54:33.181678\", \"sent_at\": null, \"exec",
+      "timestamp": "2026-06-10T09:54:33.209438Z"
+    },
+    {
+      "module": "commands",
+      "name": "TC-C05 命令列表按 status 过滤",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[{\"id\": 2, \"command_id\": \"cmd-beec562e-083d-47a6-86b1-262fda5d414b\", \"device_id\": 2, \"service_identifier\": \"set_switch\", \"input_params\": {\"state\": true}, \"status\": \"pending\", \"error_message\": null, \"output_data\": null, \"owner_id\": 1, \"created_at\": \"2026-06-10T09:54:33.181678\", \"sent_at\": null, \"exec",
+      "timestamp": "2026-06-10T09:54:33.214968Z"
+    },
+    {
+      "module": "commands",
+      "name": "TC-C06 GET /devices/{id}/commands",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[{\"id\": 2, \"command_id\": \"cmd-beec562e-083d-47a6-86b1-262fda5d414b\", \"device_id\": 2, \"service_identifier\": \"set_switch\", \"input_params\": {\"state\": true}, \"status\": \"pending\", \"error_message\": null, \"output_data\": null, \"owner_id\": 1, \"created_at\": \"2026-06-10T09:54:33.181678\", \"sent_at\": null, \"exec",
+      "timestamp": "2026-06-10T09:54:33.220499Z"
+    },
+    {
+      "module": "commands",
+      "name": "TC-C07 GET /commands/{command_id}",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"id\": 2, \"command_id\": \"cmd-beec562e-083d-47a6-86b1-262fda5d414b\", \"device_id\": 2, \"service_identifier\": \"set_switch\", \"input_params\": {\"state\": true}, \"status\": \"pending\", \"error_message\": null, \"output_data\": null, \"owner_id\": 1, \"created_at\": \"2026-06-10T09:54:33.181678\", \"sent_at\": null, \"execu",
+      "timestamp": "2026-06-10T09:54:33.225740Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AR01 创建阈值告警规则",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"name\": \"温度过高告警-5cd96c\", \"description\": \"当温度超过 30 度时触发\", \"alert_type\": \"threshold\", \"product_id\": null, \"device_id\": 2, \"property_identifier\": \"temperature\", \"operator\": \"gt\", \"threshold_value\": \"30\", \"duration_seconds\": 0, \"delay_seconds\": null, \"severity\": \"warning\", \"cooldown_seconds\": 60, \"sile",
+      "timestamp": "2026-06-10T09:54:33.238092Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AR01-1 规则响应包含 id / owner_id",
+      "passed": true,
+      "detail": "包含字段: ['id', 'owner_id']",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.238147Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AR02 创建设备状态告警规则",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"name\": \"设备上线告警-aef88c\", \"description\": \"设备上线时触发\", \"alert_type\": \"device_online\", \"product_id\": null, \"device_id\": null, \"property_identifier\": null, \"operator\": null, \"threshold_value\": null, \"duration_seconds\": null, \"delay_seconds\": null, \"severity\": \"info\", \"cooldown_seconds\": null, \"silent_fro",
+      "timestamp": "2026-06-10T09:54:33.245633Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AR03 获取告警规则列表",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[{\"name\": \"温度过高告警-5cd96c\", \"description\": \"当温度超过 30 度时触发\", \"alert_type\": \"threshold\", \"product_id\": null, \"device_id\": 2, \"property_identifier\": \"temperature\", \"operator\": \"gt\", \"threshold_value\": \"30\", \"duration_seconds\": 0, \"delay_seconds\": null, \"severity\": \"warning\", \"cooldown_seconds\": 60, \"sil",
+      "timestamp": "2026-06-10T09:54:33.250967Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AR04 获取告警规则详情",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"name\": \"温度过高告警-5cd96c\", \"description\": \"当温度超过 30 度时触发\", \"alert_type\": \"threshold\", \"product_id\": null, \"device_id\": 2, \"property_identifier\": \"temperature\", \"operator\": \"gt\", \"threshold_value\": \"30\", \"duration_seconds\": 0, \"delay_seconds\": null, \"severity\": \"warning\", \"cooldown_seconds\": 60, \"sile",
+      "timestamp": "2026-06-10T09:54:33.256016Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AR05 更新告警规则",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"name\": \"更新后的规则名\", \"description\": \"当温度超过 30 度时触发\", \"alert_type\": \"threshold\", \"product_id\": null, \"device_id\": 2, \"property_identifier\": \"temperature\", \"operator\": \"gt\", \"threshold_value\": \"30\", \"duration_seconds\": 0, \"delay_seconds\": null, \"severity\": \"warning\", \"cooldown_seconds\": 60, \"silent_fro",
+      "timestamp": "2026-06-10T09:54:33.265314Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AR06 删除告警规则",
+      "passed": true,
+      "detail": "status=200",
+      "request": null,
+      "response": "status=200, body={\"message\": \"Alert rule deleted successfully\"}",
+      "timestamp": "2026-06-10T09:54:33.275517Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AR07 缺少 alert_type 返回非 200",
+      "passed": true,
+      "detail": "status=422",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.279174Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AE01 获取告警事件列表",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[]",
+      "timestamp": "2026-06-10T09:54:33.284777Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AE01-1 事件列表为数组",
+      "passed": true,
+      "detail": "length=0",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.284807Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AE02 告警事件按 severity 过滤",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[]",
+      "timestamp": "2026-06-10T09:54:33.290385Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AE03 告警事件按 status 过滤",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[]",
+      "timestamp": "2026-06-10T09:54:33.295910Z"
+    },
+    {
+      "module": "alerts",
+      "name": "TC-AE04 告警事件按 device_id 过滤",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[]",
+      "timestamp": "2026-06-10T09:54:33.301467Z"
+    },
+    {
+      "module": "apikeys",
+      "name": "TC-K01 创建 API Key",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"id\": 1, \"key\": \"xCijDpMfigcnsw71tQ0AzAlVrMTmQ0XA\", \"name\": \"test-key-b6b12b\", \"user_id\": 1, \"permissions\": {\"read\": true, \"write\": true}, \"expires_at\": \"2026-09-08T09:54:33.304296\", \"last_used\": null, \"is_active\": true, \"created_at\": \"2026-06-10T09:54:33\"}",
+      "timestamp": "2026-06-10T09:54:33.313130Z"
+    },
+    {
+      "module": "apikeys",
+      "name": "TC-K01-1 响应包含 key 字段",
+      "passed": true,
+      "detail": "包含字段: ['id', 'key', 'name']",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.313162Z"
+    },
+    {
+      "module": "apikeys",
+      "name": "TC-K02 获取 API Key 列表",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=[{\"id\": 1, \"key\": \"xCijDpMfigcnsw71tQ0AzAlVrMTmQ0XA\", \"name\": \"test-key-b6b12b\", \"user_id\": 1, \"permissions\": {\"read\": true, \"write\": true}, \"expires_at\": \"2026-09-08T09:54:33.304296\", \"last_used\": null, \"is_active\": true, \"created_at\": \"2026-06-10T09:54:33\"}]",
+      "timestamp": "2026-06-10T09:54:33.318260Z"
+    },
+    {
+      "module": "apikeys",
+      "name": "TC-K03 获取 API Key 详情",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"id\": 1, \"key\": \"xCijDpMfigcnsw71tQ0AzAlVrMTmQ0XA\", \"name\": \"test-key-b6b12b\", \"user_id\": 1, \"permissions\": {\"read\": true, \"write\": true}, \"expires_at\": \"2026-09-08T09:54:33.304296\", \"last_used\": null, \"is_active\": true, \"created_at\": \"2026-06-10T09:54:33\"}",
+      "timestamp": "2026-06-10T09:54:33.323597Z"
+    },
+    {
+      "module": "apikeys",
+      "name": "TC-K04 删除 API Key",
+      "passed": true,
+      "detail": "status=200",
+      "request": null,
+      "response": "status=200, body={\"message\": \"API key deleted successfully\"}",
+      "timestamp": "2026-06-10T09:54:33.331003Z"
+    },
+    {
+      "module": "sse_and_openapi",
+      "name": "TC-S01 GET /openapi.json",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"openapi\": \"3.1.0\", \"info\": {\"title\": \"IOTPlatform API\", \"description\": \"物联网设备管理平台API\", \"version\": \"1.0.0\"}, \"paths\": {\"/api/v1/auth/login\": {\"post\": {\"tags\": [\"认证\"], \"summary\": \"Login\", \"description\": \"用户登录\", \"operationId\": \"login_api_v1_auth_login_post\", \"requestBody\": {\"content\": {\"application/j",
+      "timestamp": "2026-06-10T09:54:33.570774Z"
+    },
+    {
+      "module": "sse_and_openapi",
+      "name": "TC-S02 GET /docs (Swagger UI)",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body=\"\\n    <!DOCTYPE html>\\n    <html>\\n    <head>\\n    <meta name=\\\"viewport\\\" content=\\\"width=device-width, initial-scale=1.0\\\">\\n    <link type=\\\"text/css\\\" rel=\\\"stylesheet\\\" href=\\\"https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css\\\">\\n    <link rel=\\\"shortcut icon\\\" href=\\\"https://fasta",
+      "timestamp": "2026-06-10T09:54:33.572783Z"
+    },
+    {
+      "module": "sse_and_openapi",
+      "name": "TC-S03 GET /health",
+      "passed": true,
+      "detail": "期望 200, 实际 200",
+      "request": null,
+      "response": "status=200, body={\"status\": \"healthy\"}",
+      "timestamp": "2026-06-10T09:54:33.574720Z"
+    },
+    {
+      "module": "sse_and_openapi",
+      "name": "TC-S04 SSE 端点可连通 (alerts)",
+      "passed": true,
+      "detail": "status=200 (200=OK, 4xx 也视为服务存在)",
+      "request": null,
+      "response": null,
+      "timestamp": "2026-06-10T09:54:33.581202Z"
+    }
+  ]
+}

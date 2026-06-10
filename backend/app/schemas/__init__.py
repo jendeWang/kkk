@@ -181,6 +181,7 @@ class DeviceUpdate(BaseModel):
 class DeviceResponse(BaseModel):
     id: int
     device_key: str
+    device_secret: Optional[str] = None
     device_name: str
     product_id: int
     status: str

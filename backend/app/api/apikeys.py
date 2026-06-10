@@ -58,6 +58,25 @@ async def list_api_keys(
     return result.scalars().all()
 
 
+@router.get("/{api_key_id}", response_model=APIKeyResponse)
+async def get_api_key(
+    api_key_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取单个 API 密钥详情"""
+    result = await db.execute(
+        select(APIKey).where(
+            APIKey.id == api_key_id,
+            APIKey.user_id == current_user.id,
+        )
+    )
+    api_key = result.scalar_one_or_none()
+    if not api_key:
+        raise HTTPException(status_code=404, detail="API key not found")
+    return api_key
+
+
 @router.delete("/{api_key_id}")
 async def delete_api_key(
     api_key_id: int,
