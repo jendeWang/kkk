@@ -21,11 +21,12 @@ class MQTTService:
         self.client.on_disconnect = self._on_disconnect
 
         try:
-            await self.client.connect(settings.MQTT_BROKER_URL, settings.MQTT_BROKER_PORT)
+            await self.client.connect(settings.MQTT_BROKER_URL, settings.MQTT_BROKER_PORT, timeout=5)
             self._connected = True
             print(f"Connected to MQTT broker at {settings.MQTT_BROKER_URL}:{settings.MQTT_BROKER_PORT}")
         except Exception as e:
-            print(f"Failed to connect to MQTT broker: {e}")
+            print(f"Warning: Could not connect to MQTT broker at {settings.MQTT_BROKER_URL}:{settings.MQTT_BROKER_PORT} - {e}")
+            print("MQTT functionality will be unavailable. The application will continue without MQTT support.")
             self._connected = False
 
     def _on_connect(self, client, flags, rc, properties):
