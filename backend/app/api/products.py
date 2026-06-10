@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import List
 from .deps import get_current_active_user
 from ..database import get_db
@@ -65,9 +66,15 @@ async def get_product(
 ):
     """获取产品详情"""
     result = await db.execute(
-        select(Product).where(
+        select(Product)
+        .where(
             Product.product_key == product_key,
             Product.owner_id == current_user.id
+        )
+        .options(
+            selectinload(Product.properties),
+            selectinload(Product.services),
+            selectinload(Product.events)
         )
     )
     product = result.scalar_one_or_none()
