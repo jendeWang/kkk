@@ -1,6 +1,7 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List, Any, Dict
+from pydantic import BaseModel, ConfigDict, field_validator
+from typing import Optional, List, Any, Dict, Union
 from datetime import datetime
+import enum as _enum
 
 
 class LoginRequest(BaseModel):
@@ -72,6 +73,13 @@ class ProductPropertyBase(BaseModel):
     enum_values: Optional[List[str]] = None
     default_value: Optional[str] = None
     description: Optional[str] = None
+
+    @field_validator("data_type", "access_type", mode="before")
+    @classmethod
+    def _enum_to_str(cls, v):
+        if isinstance(v, _enum.Enum):
+            return v.value
+        return v
 
 
 class ProductPropertyCreate(ProductPropertyBase):
@@ -183,6 +191,13 @@ class DeviceResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @field_validator("status", mode="before")
+    @classmethod
+    def _enum_status_to_str(cls, v):
+        if isinstance(v, _enum.Enum):
+            return v.value
+        return v
+
 
 class PropertyWithValueResponse(BaseModel):
     identifier: str
@@ -193,6 +208,13 @@ class PropertyWithValueResponse(BaseModel):
     last_updated: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("data_type", mode="before")
+    @classmethod
+    def _enum_dt_to_str(cls, v):
+        if isinstance(v, _enum.Enum):
+            return v.value
+        return v
 
 
 class DeviceDetailResponse(BaseModel):
@@ -211,6 +233,13 @@ class DeviceDetailResponse(BaseModel):
     recent_events: List["DeviceEventRecordResponse"] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _enum_status_to_str(cls, v):
+        if isinstance(v, _enum.Enum):
+            return v.value
+        return v
 
 
 class TelemetryResponse(BaseModel):
@@ -254,6 +283,13 @@ class CommandResponse(BaseModel):
     executed_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _enum_status_to_str(cls, v):
+        if isinstance(v, _enum.Enum):
+            return v.value
+        return v
 
 
 class DeviceEventRecordResponse(BaseModel):
