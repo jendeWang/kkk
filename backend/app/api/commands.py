@@ -14,6 +14,15 @@ from ..mqtt.service import mqtt_service
 router = APIRouter(prefix="/commands", tags=["命令管理"])
 
 
+def _try_enum(enum_cls, value):
+    if value is None:
+        return None
+    try:
+        return enum_cls(value)
+    except (ValueError, TypeError):
+        return value
+
+
 @router.get("/", response_model=List[CommandResponse])
 async def list_commands(
     device_id: Optional[int] = Query(None),
@@ -27,7 +36,8 @@ async def list_commands(
     if device_id is not None:
         query = query.where(Command.device_id == device_id)
     if status:
-        query = query.where(Command.status == status)
+        status_enum = _try_enum(CommandStatus, status)
+        query = query.where(Command.status == status_enum)
     query = query.order_by(desc(Command.created_at)).limit(limit)
     result = await db.execute(query)
     return result.scalars().all()

@@ -320,6 +320,13 @@ class AlertRuleBase(BaseModel):
     notification_config: Optional[Dict[str, Any]] = None
     enabled: bool = True
 
+    @field_validator("alert_type", "severity", "operator", mode="before")
+    @classmethod
+    def _enum_to_str(cls, v):
+        if isinstance(v, _enum.Enum):
+            return v.value
+        return v
+
 
 class AlertRuleCreate(AlertRuleBase):
     pass
@@ -375,6 +382,13 @@ class AlertEventResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("severity", "status", "operator", mode="before")
+    @classmethod
+    def _enum_to_str(cls, v):
+        if isinstance(v, _enum.Enum):
+            return v.value
+        return v
 
 
 class AlertEventStatusUpdate(BaseModel):

@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..models.models import Device, Telemetry, Command, DeviceEventRecord, DeviceStatus, CommandStatus, AlertEvent, AlertType, AlertStatus, AlertSeverity
 from ..services.sse_service import sse_service
+from ..services.alert_service import alert_engine
 
 
 class MQTTHandler:
@@ -45,9 +46,15 @@ class MQTTHandler:
                 quality=payload.get("quality", "good"),
             )
             db.add(telemetry)
-            device.status = DeviceStatus.ONLINE
+            try:
+                device.status = DeviceStatus.ONLINE
+            except (ValueError, TypeError):
+                device.status = DeviceStatus.ONLINE
             device.last_seen = datetime.utcnow()
             await db.commit()
+            await alert_engine.check_telemetry_alert(
+                db, device.id, payload.get("property_identifier"), payload.get("value")
+            )
             await sse_service.publish_device_status({
                 "device_key": device_key,
                 "device_name": device.device_name,

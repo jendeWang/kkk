@@ -9,7 +9,10 @@ import random
 import string
 
 from .deps import get_current_active_user, get_db
-from ..models.models import User, Product, ProductProperty, ProductService, ProductEvent, Device
+from ..models.models import (
+    User, Product, ProductProperty, ProductService, ProductEvent, Device,
+    PropertyDataType, PropertyAccessType,
+)
 from ..schemas import (
     ProductCreate, ProductUpdate, ProductResponse, ProductDetailResponse,
     ProductPropertyCreate, ProductPropertyUpdate, ProductPropertyResponse,
@@ -69,7 +72,7 @@ async def get_product(
     count_result = await db.execute(
         select(func.count(Device.id)).where(Device.product_id == product.id)
     )
-    device_count = count_result.scalar_one() or 0
+    device_count = count_result.scalar() or 0
 
     response = ProductDetailResponse(
         id=product.id,
@@ -212,8 +215,8 @@ async def create_product_property(
         product_id=product.id,
         identifier=prop_data.identifier,
         name=prop_data.name,
-        data_type=prop_data.data_type,
-        access_type=prop_data.access_type,
+        data_type=PropertyDataType(prop_data.data_type),
+        access_type=PropertyAccessType(prop_data.access_type),
         unit=prop_data.unit,
         min_value=prop_data.min_value,
         max_value=prop_data.max_value,
@@ -267,6 +270,10 @@ async def update_product_property(
             raise HTTPException(status_code=400, detail=f"Property identifier '{prop_data.identifier}' already exists")
 
     for field, value in prop_data.model_dump(exclude_unset=True).items():
+        if field == "data_type" and value is not None:
+            value = PropertyDataType(value)
+        elif field == "access_type" and value is not None:
+            value = PropertyAccessType(value)
         setattr(prop, field, value)
     await db.commit()
     await db.refresh(prop)

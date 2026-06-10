@@ -34,6 +34,15 @@ def _generate_device_secret(length: int = 32) -> str:
     return ''.join(random.choices(chars, k=length))
 
 
+def _try_enum(enum_cls, value):
+    if value is None:
+        return None
+    try:
+        return enum_cls(value)
+    except (ValueError, TypeError):
+        return value
+
+
 @router.get("/", response_model=List[DeviceResponse])
 async def list_devices(
     page: int = Query(1, ge=1),
@@ -48,7 +57,8 @@ async def list_devices(
     if product_id is not None:
         query = query.where(Device.product_id == product_id)
     if status:
-        query = query.where(Device.status == status)
+        status_enum = _try_enum(DeviceStatus, status)
+        query = query.where(Device.status == status_enum)
     query = query.order_by(desc(Device.created_at)).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
     return result.scalars().all()

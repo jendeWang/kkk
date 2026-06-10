@@ -11,6 +11,15 @@ from ..schemas import AlertRuleCreate, AlertRuleUpdate, AlertRuleResponse, Alert
 router = APIRouter(prefix="/alerts", tags=["告警管理"])
 
 
+def _try_enum(enum_cls, value):
+    if value is None:
+        return None
+    try:
+        return enum_cls(value)
+    except (ValueError, TypeError):
+        return value
+
+
 @router.post("/rules", response_model=AlertRuleResponse)
 async def create_alert_rule(
     rule: AlertRuleCreate,
@@ -140,11 +149,13 @@ async def list_alert_events(
     """获取告警事件列表"""
     query = select(AlertEvent).join(Device).where(Device.owner_id == current_user.id)
     if status:
-        query = query.where(AlertEvent.status == status)
+        status_enum = _try_enum(AlertStatus, status)
+        query = query.where(AlertEvent.status == status_enum)
     if device_id is not None:
         query = query.where(AlertEvent.device_id == device_id)
     if severity:
-        query = query.where(AlertEvent.severity == severity)
+        severity_enum = _try_enum(AlertSeverity, severity)
+        query = query.where(AlertEvent.severity == severity_enum)
     query = query.order_by(desc(AlertEvent.created_at)).limit(limit)
     result = await db.execute(query)
     return result.scalars().all()
@@ -168,12 +179,13 @@ async def update_alert_event_status(
     if not event:
         raise HTTPException(status_code=404, detail="Alert event not found")
 
-    event.status = status_update.status
+    status_enum = _try_enum(AlertStatus, status_update.status)
+    event.status = status_enum
     if event.acknowledged_at is None:
         event.acknowledged_at = datetime.utcnow()
         event.acknowledged_by = current_user.id
 
-    if status_update.status in (AlertStatus.RESOLVED, AlertStatus.ARCHIVED):
+    if status_enum in (AlertStatus.RESOLVED, AlertStatus.ARCHIVED):
         event.resolved_at = datetime.utcnow()
         event.resolved_by = current_user.id
 

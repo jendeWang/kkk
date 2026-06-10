@@ -22,7 +22,6 @@ async def list_telemetry(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """列出遥测数据（支持过滤和分页）"""
     query = select(Telemetry).join(Device).where(Device.owner_id == current_user.id)
 
     if device_id is not None:
@@ -37,11 +36,12 @@ async def list_telemetry(
     query = query.order_by(desc(Telemetry.timestamp)).offset(skip).limit(limit)
     result = await db.execute(query)
     items = result.scalars().all()
+    items_dict = [TelemetryResponse.model_validate(item).model_dump() for item in items]
     return {
-        "items": items,
+        "items": items_dict,
         "skip": skip,
         "limit": limit,
-        "total": len(items),
+        "total": len(items_dict),
     }
 
 
@@ -56,7 +56,6 @@ async def list_device_telemetry(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取某设备的遥测数据"""
     device_result = await db.execute(
         select(Device).where(
             Device.id == device_id,
@@ -78,11 +77,12 @@ async def list_device_telemetry(
     query = query.order_by(desc(Telemetry.timestamp)).offset(skip).limit(limit)
     result = await db.execute(query)
     items = result.scalars().all()
+    items_dict = [TelemetryResponse.model_validate(item).model_dump() for item in items]
     return {
-        "items": items,
+        "items": items_dict,
         "skip": skip,
         "limit": limit,
-        "total": len(items),
+        "total": len(items_dict),
     }
 
 
@@ -92,7 +92,6 @@ async def submit_telemetry(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """手动提交遥测点（用于测试）"""
     device_id = payload.get("device_id")
     prop_id = payload.get("property_identifier")
     value = payload.get("value")
