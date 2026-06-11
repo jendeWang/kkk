@@ -66,6 +66,17 @@ export const useProductStore = defineStore('product', () => {
     }
   }
 
+  async function updateService(productKey, serviceId, data) {
+    const response = await api.put(`/products/${productKey}/services/${serviceId}`, data)
+    if (currentProduct.value?.product_key === productKey) {
+      const index = currentProduct.value.services.findIndex(s => s.id === serviceId)
+      if (index !== -1) {
+        currentProduct.value.services[index] = response.data
+      }
+    }
+    return response.data
+  }
+
   async function addEvent(productKey, data) {
     const response = await api.post(`/products/${productKey}/events`, data)
     if (currentProduct.value?.product_key === productKey) {
@@ -84,6 +95,6 @@ export const useProductStore = defineStore('product', () => {
   return {
     products, currentProduct,
     fetchProducts, fetchProduct, createProduct, updateProduct, deleteProduct,
-    addProperty, deleteProperty, addService, deleteService, addEvent, deleteEvent
+    addProperty, deleteProperty, addService, deleteService, updateService, addEvent, deleteEvent
   }
 })

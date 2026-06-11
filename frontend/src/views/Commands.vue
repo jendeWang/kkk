@@ -34,12 +34,81 @@
         <!-- Form Mode: Auto-generated inputs from service definition -->
         <div v-if="!advancedMode && currentServiceParams.length > 0" class="params-form-container">
           <el-form :model="paramForm" label-width="120px" class="params-form">
-            <el-form-item v-for="param in currentServiceParams" :key="param.name" :label="param.name" :required="param.required">
-              <el-input v-if="param.type === 'string'" v-model="paramForm[param.name]" :placeholder="`Enter ${param.name} (string)`" style="width: 300px;" />
-              <el-input v-else-if="param.type === 'int'" type="number" v-model.number="paramForm[param.name]" :placeholder="`Enter ${param.name} (integer)`" style="width: 300px;" />
-              <el-input v-else-if="param.type === 'float'" type="number" step="0.01" v-model.number="paramForm[param.name]" :placeholder="`Enter ${param.name} (float)`" style="width: 300px;" />
-              <el-switch v-else-if="param.type === 'bool'" v-model="paramForm[param.name]" />
+            <el-form-item
+              v-for="param in currentServiceParams"
+              :key="param.name"
+              :label="param.name"
+              :required="param.required"
+            >
+              <!-- Boolean -->
+              <el-switch
+                v-if="param.type === 'bool'"
+                v-model="paramForm[param.name]"
+              />
+
+              <!-- String: with options or plain input -->
+              <template v-else-if="param.type === 'string'">
+                <el-select
+                  v-if="hasValidOptions(param)"
+                  v-model="paramForm[param.name]"
+                  :filterable="true"
+                  :allow-create="allowCustomInput(param)"
+                  default-first-option
+                  placeholder="Select or enter a value"
+                  style="width: 300px"
+                >
+                  <el-option
+                    v-for="opt in param.options"
+                    :key="opt"
+                    :value="String(opt)"
+                    :label="String(opt)"
+                  />
+                </el-select>
+                <el-input
+                  v-else
+                  v-model="paramForm[param.name]"
+                  :placeholder="param.description || 'Enter string value'"
+                  style="width: 300px"
+                />
+              </template>
+
+              <!-- Integer/Float: with options or input-number -->
+              <template v-else-if="param.type === 'int' || param.type === 'float'">
+                <el-select
+                  v-if="hasValidOptions(param) && !allowCustomInput(param)"
+                  v-model="paramForm[param.name]"
+                  placeholder="Select a value"
+                  style="width: 300px"
+                >
+                  <el-option
+                    v-for="opt in param.options"
+                    :key="opt"
+                    :value="Number(opt)"
+                    :label="String(opt)"
+                  />
+                </el-select>
+                <el-input-number
+                  v-else
+                  v-model="paramForm[param.name]"
+                  :min="getSafeMin(param)"
+                  :max="getSafeMax(param)"
+                  :step="getSafeStep(param)"
+                  :step-strictly="false"
+                  :controls="true"
+                  :placeholder="param.description || 'Enter a number'"
+                />
+              </template>
+
+              <!-- Fallback -->
+              <el-input
+                v-else
+                v-model="paramForm[param.name]"
+                :placeholder="param.description || 'Enter value'"
+                style="width: 300px"
+              />
+
               <span v-if="param.description" class="param-desc">{{ param.description }}</span>
+              <div v-if="getParamHint(param)" class="param-hint">{{ getParamHint(param) }}</div>
             </el-form-item>
           </el-form>
         </div>
@@ -117,14 +186,56 @@ const commandForm = reactive({
   service_identifier: ''
 })
 
-const paramForm = reactive({})
+const paramForm = ref({})
+
+function hasValidOptions(param) {
+  return Array.isArray(param.options) && param.options.length > 0
+}
+
+function allowCustomInput(param) {
+  return param.allow_custom !== false
+}
+
+function getSafeMin(param) {
+  if (param.min === '' || param.min === null || param.min === undefined) return undefined
+  const v = Number(param.min)
+  return isNaN(v) ? undefined : v
+}
+
+function getSafeMax(param) {
+  if (param.max === '' || param.max === null || param.max === undefined) return undefined
+  const v = Number(param.max)
+  return isNaN(v) ? undefined : v
+}
+
+function getSafeStep(param) {
+  if (param.step !== '' && param.step !== null && param.step !== undefined) {
+    const v = Number(param.step)
+    if (!isNaN(v)) return v
+  }
+  return param.type === 'int' ? 1 : 0.01
+}
+
+function getParamHint(param) {
+  const hints = []
+  if (param.type === 'int' || param.type === 'float') {
+    const mn = getSafeMin(param)
+    const mx = getSafeMax(param)
+    if (mn !== undefined) hints.push(`min: ${mn}`)
+    if (mx !== undefined) hints.push(`max: ${mx}`)
+  }
+  if (param.type === 'string' && param.pattern) {
+    hints.push(`pattern: ${param.pattern}`)
+  }
+  return hints.length > 0 ? hints.join(' | ') : ''
+}
 
 function getJsonPlaceholder() {
   const params = {}
   currentServiceParams.value.forEach(p => {
-    if (p.type === 'string') params[p.name] = p.default || ''
-    else if (p.type === 'int' || p.type === 'float') params[p.name] = p.default !== '' ? Number(p.default) : 0
-    else if (p.type === 'bool') params[p.name] = p.default === 'true' || p.default === true
+    if (p.type === 'string') params[p.name] = p.default !== undefined && p.default !== '' ? String(p.default) : ''
+    else if (p.type === 'int' || p.type === 'float') params[p.name] = p.default !== '' && p.default !== undefined ? Number(p.default) : 0
+    else if (p.type === 'bool') params[p.name] = p.default === true || p.default === 'true'
   })
   return JSON.stringify(params, null, 2)
 }
@@ -147,22 +258,20 @@ function validateJson() {
 function switchMode() {
   advancedMode.value = !advancedMode.value
   if (advancedMode.value) {
-    // Sync form values to JSON before switching
     const params = {}
-    Object.keys(paramForm).forEach(key => {
-      if (paramForm[key] !== undefined && paramForm[key] !== '') {
-        params[key] = paramForm[key]
+    Object.keys(paramForm.value).forEach(key => {
+      if (paramForm.value[key] !== undefined && paramForm.value[key] !== '') {
+        params[key] = paramForm.value[key]
       }
     })
     jsonParams.value = JSON.stringify(params, null, 2)
   } else {
-    // Sync JSON to form values before switching back
     if (jsonParams.value.trim()) {
       try {
         const parsed = JSON.parse(jsonParams.value)
-        Object.assign(paramForm, parsed)
+        paramForm.value = { ...parsed }
       } catch (e) {
-        // Ignore parse errors, keep current form values
+        // Ignore parse errors
       }
     }
   }
@@ -200,7 +309,7 @@ async function loadServices() {
     services.value = []
     currentServiceParams.value = []
     commandForm.service_identifier = ''
-    Object.keys(paramForm).forEach(k => delete paramForm[k])
+    paramForm.value = {}
     return
   }
   try {
@@ -218,31 +327,41 @@ async function loadServices() {
   }
 }
 
+function parseDefaultValue(param) {
+  if (param.type === 'bool') {
+    if (param.default === true || param.default === 'true') return true
+    if (param.default === false || param.default === 'false') return false
+    return false
+  }
+  if (param.type === 'int' || param.type === 'float') {
+    if (param.default === '' || param.default === null || param.default === undefined) return ''
+    const v = Number(param.default)
+    return isNaN(v) ? '' : v
+  }
+  return param.default !== undefined && param.default !== null ? String(param.default) : ''
+}
+
 function loadServiceParams() {
   currentServiceParams.value = []
-  Object.keys(paramForm).forEach(k => delete paramForm[k])
+  paramForm.value = {}
   advancedMode.value = false
   jsonParams.value = ''
   jsonError.value = ''
-  
+
   if (!commandForm.service_identifier) return
-  
+
   const service = services.value.find(s => s.identifier === commandForm.service_identifier)
   if (!service || !service.input_params) return
-  
+
+  const formData = {}
+
   // Support both formats: Array of param objects (new) or Dict (legacy)
   if (Array.isArray(service.input_params)) {
-    // New format: [{name, type, required, default, description}, ...]
     currentServiceParams.value = service.input_params
     service.input_params.forEach(param => {
-      if (param.default !== undefined && param.default !== '') {
-        paramForm[param.name] = param.type === 'bool' ? (param.default === true || param.default === 'true') : param.default
-      } else {
-        paramForm[param.name] = param.type === 'bool' ? false : ''
-      }
+      formData[param.name] = parseDefaultValue(param)
     })
   } else if (typeof service.input_params === 'object') {
-    // Legacy format: {"key": {type, description, ...}}
     const params = []
     Object.keys(service.input_params).forEach(key => {
       const def = service.input_params[key]
@@ -251,24 +370,86 @@ function loadServiceParams() {
         type: typeof def === 'object' && def.type ? def.type : 'string',
         required: false,
         default: typeof def === 'object' && def.default !== undefined ? def.default : '',
-        description: typeof def === 'object' && def.description ? def.description : key
+        description: typeof def === 'object' && def.description ? def.description : key,
+        options: Array.isArray(def.options) ? def.options : [],
+        allow_custom: def.allow_custom !== false,
+        min: def.min,
+        max: def.max,
+        step: def.step,
+        pattern: def.pattern
       }
       params.push(param)
-      paramForm[param.name] = param.type === 'bool' ? false : ''
+      formData[param.name] = parseDefaultValue(param)
     })
     currentServiceParams.value = params
   }
+
+  paramForm.value = formData
+}
+
+function validateParam(param, value) {
+  if (param.required && (value === '' || value === undefined || value === null)) {
+    ElMessage.error(`${param.name} is required`)
+    return false
+  }
+
+  if (value === '' || value === undefined || value === null) return true
+
+  if (param.type === 'int' || param.type === 'float') {
+    const num = Number(value)
+    if (isNaN(num)) {
+      ElMessage.error(`${param.name} must be a number`)
+      return false
+    }
+    const mn = getSafeMin(param)
+    const mx = getSafeMax(param)
+    if (mn !== undefined && num < mn) {
+      ElMessage.error(`${param.name} must be >= ${mn}`)
+      return false
+    }
+    if (mx !== undefined && num > mx) {
+      ElMessage.error(`${param.name} must be <= ${mx}`)
+      return false
+    }
+    if (hasValidOptions(param) && !allowCustomInput(param)) {
+      const matched = param.options.some(opt => Number(opt) === num || String(opt) === String(value))
+      if (!matched) {
+        ElMessage.error(`${param.name} must be one of: ${param.options.join(', ')}`)
+        return false
+      }
+    }
+  }
+
+  if (param.type === 'string') {
+    if (hasValidOptions(param) && !allowCustomInput(param)) {
+      if (!param.options.includes(value)) {
+        ElMessage.error(`${param.name} must be one of: ${param.options.join(', ')}`)
+        return false
+      }
+    }
+    if (param.pattern) {
+      try {
+        const regex = new RegExp(param.pattern)
+        if (!regex.test(String(value))) {
+          ElMessage.error(`${param.name} does not match pattern: ${param.pattern}`)
+          return false
+        }
+      } catch (e) {
+        // Invalid regex, skip validation
+      }
+    }
+  }
+
+  return true
 }
 
 async function sendCommand() {
   if (!canSend.value) return
-  
+
   let params = {}
-  
+
   if (advancedMode.value || currentServiceParams.value.length === 0) {
-    // JSON mode or no defined params - use JSON input
     if (!jsonParams.value.trim()) {
-      // Empty JSON is allowed, just send empty params
       params = {}
     } else {
       if (!validateJson()) {
@@ -283,21 +464,17 @@ async function sendCommand() {
       }
     }
   } else {
-    // Form mode with defined params - validate required fields
     for (const param of currentServiceParams.value) {
-      if (param.required && (paramForm[param.name] === undefined || paramForm[param.name] === '' || paramForm[param.name] === null)) {
-        ElMessage.error(`${param.name} is required`)
-        return
-      }
+      const value = paramForm.value[param.name]
+      if (!validateParam(param, value)) return
     }
-    // Build params from form
-    Object.keys(paramForm).forEach(key => {
-      if (paramForm[key] !== undefined && paramForm[key] !== '') {
-        params[key] = paramForm[key]
+    Object.keys(paramForm.value).forEach(key => {
+      if (paramForm.value[key] !== undefined && paramForm.value[key] !== '') {
+        params[key] = paramForm.value[key]
       }
     })
   }
-  
+
   sending.value = true
   try {
     await deviceStore.createCommand({
@@ -363,6 +540,14 @@ onMounted(() => {
   margin-left: 12px;
   color: #909399;
   font-size: 12px;
+}
+
+.param-hint {
+  margin-top: 4px;
+  margin-left: 0;
+  color: #909399;
+  font-size: 12px;
+  font-family: monospace;
 }
 
 .advanced-mode {
