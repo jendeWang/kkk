@@ -11,7 +11,13 @@ export default {
     loading: '加载中...',
     noData: '暂无数据',
     success: '操作成功',
-    error: '操作失败'
+    error: '操作失败',
+    actions: '操作',
+    warning: '警告',
+    logout: '退出登录',
+    loginSuccess: '登录成功',
+    passwordNotMatch: '密码不一致',
+    registerSuccess: '注册成功'
   },
   menu: {
     dashboard: '仪表盘',
@@ -66,7 +72,28 @@ export default {
       properties: '属性',
       services: '服务',
       events: '事件'
-    }
+    },
+    loadError: '加载产品失败',
+    createSuccess: '产品创建成功',
+    createError: '产品创建失败',
+    loadDetailError: '加载产品详情失败',
+    updateSuccess: '产品更新成功',
+    updateError: '产品更新失败',
+    deleteConfirm: '确定删除此产品吗？',
+    deleteSuccess: '产品删除成功',
+    deleteError: '产品删除失败',
+    propertyAddSuccess: '属性添加成功',
+    propertyAddError: '属性添加失败',
+    serviceAddSuccess: '服务添加成功',
+    serviceAddError: '服务添加失败',
+    eventAddSuccess: '事件添加成功',
+    eventAddError: '事件添加失败',
+    propertyDeleteSuccess: '属性删除成功',
+    propertyDeleteError: '属性删除失败',
+    serviceDeleteSuccess: '服务删除成功',
+    serviceDeleteError: '服务删除失败',
+    eventDeleteSuccess: '事件删除成功',
+    eventDeleteError: '事件删除失败'
   },
   devices: {
     title: '设备管理',
@@ -82,7 +109,16 @@ export default {
     regenerateSecret: '重新生成密钥',
     online: '在线',
     offline: '离线',
-    error: '异常'
+    error: '异常',
+    loadError: '加载设备失败',
+    createSuccess: '设备创建成功',
+    createError: '设备创建失败',
+    regenerateSuccess: '密钥重新生成成功',
+    regenerateError: '密钥重新生成失败',
+    deleteConfirm: '确定删除此设备吗？',
+    deleteSuccess: '设备删除成功',
+    deleteError: '设备删除失败',
+    copySuccess: '密钥已复制'
   },
   telemetry: {
     title: '遥测数据',
@@ -91,7 +127,9 @@ export default {
     timeRange: '时间范围',
     value: '值',
     timestamp: '时间',
-    quality: '质量'
+    quality: '质量',
+    loadDevicesError: '加载设备失败',
+    loadDataError: '加载遥测数据失败'
   },
   commands: {
     title: '命令下发',
@@ -105,7 +143,11 @@ export default {
     pending: '待执行',
     executing: '执行中',
     executed: '已执行',
-    failed: '失败'
+    failed: '失败',
+    loadDevicesError: '加载设备失败',
+    loadServicesError: '加载服务失败',
+    sendSuccess: '命令发送成功',
+    sendError: '命令发送失败'
   },
   alertRules: {
     title: '告警规则',
@@ -126,7 +168,15 @@ export default {
     error: '错误',
     critical: '严重',
     enabled: '启用',
-    disabled: '禁用'
+    disabled: '禁用',
+    loadError: '加载告警规则失败',
+    createSuccess: '告警规则创建成功',
+    createError: '告警规则创建失败',
+    updateSuccess: '规则更新成功',
+    updateError: '规则更新失败',
+    deleteConfirm: '确定删除此规则吗？',
+    deleteSuccess: '规则删除成功',
+    deleteError: '规则删除失败'
   },
   alerts: {
     title: '告警事件',
@@ -141,7 +191,12 @@ export default {
     thresholdValue: '阈值',
     createdAt: '触发时间',
     acknowledge: '确认',
-    resolve: '标记解决'
+    resolve: '标记解决',
+    loadError: '加载告警失败',
+    acknowledgeSuccess: '告警已确认',
+    acknowledgeError: '确认告警失败',
+    resolveSuccess: '告警已解决',
+    resolveError: '解决告警失败'
   },
   apiKeys: {
     title: 'API密钥管理',
@@ -154,6 +209,15 @@ export default {
     key: '密钥',
     lastUsed: '最后使用',
     never: '从未使用',
-    copy: '复制密钥'
+    copy: '复制密钥',
+    loadSuccess: '加载成功',
+    loadError: '加载失败',
+    createSuccess: '创建成功',
+    createError: '创建失败',
+    deleteConfirm: '确定删除此密钥吗？',
+    deleteSuccess: '删除成功',
+    deleteError: '删除失败',
+    copySuccess: '已复制',
+    saveKey: '请保存您的密钥'
   }
 }
