@@ -111,8 +111,13 @@ async function loadServices() {
   try {
     const device = deviceStore.devices.find(d => d.id === commandForm.device_id)
     if (device) {
-      const product = await productStore.fetchProduct(device.product_id)
-      services.value = product.services || []
+      // 获取产品列表来找到对应的产品密钥
+      const products = await productStore.fetchProducts()
+      const product = products.find(p => p.id === device.product_id)
+      if (product) {
+        const productDetail = await productStore.fetchProduct(product.product_key)
+        services.value = productDetail.services || []
+      }
     }
   } catch (error) {
     ElMessage.error('Failed to load services')

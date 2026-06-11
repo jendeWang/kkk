@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -10,8 +10,21 @@ from ..config import settings
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
 
 
+async def get_token_from_request(
+    request: Request,
+    token: str = Depends(oauth2_scheme)
+) -> str:
+    """从请求中获取token，支持Header和URL参数"""
+    # 首先尝试从URL参数获取（用于SSE）
+    query_token = request.query_params.get('token')
+    if query_token:
+        return query_token
+    # 否则使用OAuth2 scheme的token
+    return token
+
+
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ) -> User:
     credentials_exception = HTTPException(
@@ -19,6 +32,15 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    # 尝试从URL参数或Header获取token
+    token = request.query_params.get('token')
+    if not token:
+        try:
+            token = await oauth2_scheme(request)
+        except HTTPException:
+            raise credentials_exception
+    
     payload = decode_token(token)
     if payload is None:
         raise credentials_exception
