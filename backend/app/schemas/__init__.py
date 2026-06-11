@@ -274,6 +274,11 @@ class CommandCreate(CommandBase):
 class CommandSendRequest(BaseModel):
     service_identifier: str
     input_params: Optional[Dict[str, Any]] = None
+    parameters: Optional[Dict[str, Any]] = None
+    
+    @property
+    def effective_params(self):
+        return self.parameters if self.parameters is not None else self.input_params
 
 
 class CommandResponse(BaseModel):

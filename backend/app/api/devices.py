@@ -303,11 +303,12 @@ async def send_command_to_device(
         )
 
     command_id = f"cmd-{uuid.uuid4()}"
+    params = command_data.parameters if command_data.parameters is not None else command_data.input_params
     new_command = Command(
         command_id=command_id,
         device_id=device_id,
         service_identifier=command_data.service_identifier,
-        input_params=command_data.input_params,
+        input_params=params,
         status=CommandStatus.PENDING,
         owner_id=current_user.id,
         created_at=datetime.utcnow(),
@@ -323,7 +324,7 @@ async def send_command_to_device(
             payload = {
                 "command_id": command_id,
                 "service_identifier": command_data.service_identifier,
-                "input_params": command_data.input_params,
+                "input_params": params,
                 "timestamp": datetime.utcnow().isoformat(),
             }
             mqtt_service.client.publish(topic, json.dumps(payload))

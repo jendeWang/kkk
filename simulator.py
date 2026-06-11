@@ -5,15 +5,13 @@ import time
 import random
 import os
 
-# 从环境变量读取配置
-DEVICE_KEY = os.environ.get('DEVICE_KEY', '36n02jhfxo0ywmyl')
-DEVICE_SECRET = os.environ.get('DEVICE_SECRET', 'AkXKf0YwtYsE7OJ0PfwWqtyo4wWB30sa')
+DEVICE_KEY = os.environ.get('DEVICE_KEY', 'qe6feuj9k807wwqb')
+DEVICE_SECRET = os.environ.get('DEVICE_SECRET', 'm4nFP1y5it8i11XvMFNih163imnmYFI7')
 MQTT_BROKER = os.environ.get('MQTT_BROKER', 'localhost')
 MQTT_PORT = int(os.environ.get('MQTT_PORT', 1883))
 
 def on_connect(client, userdata, flags, rc):
     print(f"Connected to MQTT broker with result code {rc}")
-    # 订阅命令主题
     client.subscribe(f"devices/{DEVICE_KEY}/commands")
 
 def on_message(client, userdata, msg):
@@ -26,12 +24,10 @@ def on_message(client, userdata, msg):
         
         print(f"Executing command: {service_identifier} with params: {params}")
         
-        # 模拟执行命令
         if service_identifier == 'set_light':
             state = params.get('state', False)
             print(f"Light switched {'ON' if state else 'OFF'}")
             
-            # 发送命令响应
             response = {
                 'command_id': command_id,
                 'status': 'executed',
@@ -45,10 +41,9 @@ def on_message(client, userdata, msg):
         print(f"Error processing message: {e}")
 
 def publish_telemetry(client):
-    """发布遥测数据"""
-    temperature = round(20 + random.uniform(-5, 15), 2)  # 15-35°C
-    humidity = round(40 + random.uniform(-10, 30), 2)     # 30-70%
-    light = round(100 + random.uniform(-50, 900), 0)      # 50-1000 lux
+    temperature = round(25 + random.uniform(-3, 10), 2)
+    humidity = round(50 + random.uniform(-10, 20), 2)
+    light = round(500 + random.uniform(-200, 500), 0)
     
     telemetry = {
         'device_secret': DEVICE_SECRET,
@@ -74,11 +69,7 @@ def main():
     client = mqtt.Client()
     client.on_connect = on_connect
     client.on_message = on_message
-    
-    # 设置连接回调
     client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    
-    # 开始循环
     client.loop_start()
     
     try:
