@@ -35,6 +35,8 @@ export default {
     username: '用户名',
     password: '密码',
     loginBtn: '登录',
+    register: '注册新账户',
+    backToLogin: '返回登录',
     defaultAccount: '默认账号: admin / admin123'
   },
   dashboard: {

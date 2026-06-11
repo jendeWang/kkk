@@ -17,7 +17,7 @@
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('commands.parameters')">
-          <el-input v-model="commandForm.parameters" placeholder='{"key": "value"}' style="width: 250px" />
+          <el-input v-model="commandForm.input_params" placeholder='{"key": "value"}' style="width: 250px" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="sendCommand" :loading="sending" :disabled="!canSend">{{ $t('commands.sendCommand') }}</el-button>
@@ -73,7 +73,7 @@ const services = ref([])
 const commandForm = reactive({
   device_id: null,
   service_identifier: '',
-  parameters: '{}'
+  input_params: '{}'
 })
 
 const canSend = computed(() => {
@@ -125,14 +125,14 @@ async function sendCommand() {
   try {
     let params = {}
     try {
-      params = JSON.parse(commandForm.parameters)
+      params = JSON.parse(commandForm.input_params)
     } catch (e) {
       params = {}
     }
     await deviceStore.createCommand({
       device_id: commandForm.device_id,
       service_identifier: commandForm.service_identifier,
-      parameters: params
+      input_params: params
     })
     ElMessage.success('Command sent')
   } catch (error) {

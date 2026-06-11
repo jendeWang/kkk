@@ -25,7 +25,7 @@
         </el-form-item>
       </el-form>
       <p class="hint">
-        <router-link to="/login">Back to Login</router-link>
+        <router-link to="/login">{{ $t('login.backToLogin') }}</router-link>
       </p>
     </div>
   </div>
