@@ -170,9 +170,11 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useDeviceStore } from '../stores/device.js'
 import { useProductStore } from '../stores/product.js'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 
 const deviceStore = useDeviceStore()
 const productStore = useProductStore()
+const { t } = useI18n()
 
 const sending = ref(false)
 const services = ref([])
@@ -288,11 +290,11 @@ function getStatusType(status) {
 
 function getStatusText(status) {
   const texts = { 
-    pending: $t('commands.pending'), 
-    executing: $t('commands.executing'), 
-    executed: $t('commands.executed'), 
-    failed: $t('commands.failed'),
-    sent: $t('commands.sent')
+    pending: t('commands.pending'), 
+    executing: t('commands.executing'), 
+    executed: t('commands.executed'), 
+    failed: t('commands.failed'),
+    sent: t('commands.sent')
   }
   return texts[status] || status
 }
