@@ -1,22 +1,31 @@
 <template>
   <div class="login-container">
     <div class="login-box">
-      <h1 class="title">{{ $t('login.title') }}</h1>
-      <el-form @submit.prevent="handleLogin" :model="form" class="login-form">
+      <h1 class="title">{{ $t('login.register') || 'Register' }}</h1>
+      <el-form @submit.prevent="handleRegister" :model="form" class="login-form">
         <el-form-item>
           <el-input v-model="form.username" :placeholder="$t('login.username')" size="large" prefix-icon="User" />
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="form.email" placeholder="Email (optional)" size="large" prefix-icon="Message" />
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="form.full_name" placeholder="Full name (optional)" size="large" prefix-icon="UserFilled" />
         </el-form-item>
         <el-form-item>
           <el-input v-model="form.password" type="password" :placeholder="$t('login.password')" size="large" prefix-icon="Lock" show-password />
         </el-form-item>
         <el-form-item>
+          <el-input v-model="form.confirmPassword" type="password" placeholder="Confirm password" size="large" prefix-icon="Lock" show-password />
+        </el-form-item>
+        <el-form-item>
           <el-button type="primary" size="large" style="width: 100%" :loading="loading" native-type="submit">
-            {{ $t('login.loginBtn') }}
+            {{ $t('login.register') || 'Register' }}
           </el-button>
         </el-form-item>
       </el-form>
       <p class="hint">
-        <router-link to="/register">{{ $t('login.register') || 'Register a new account' }}</router-link>
+        <router-link to="/login">Back to Login</router-link>
       </p>
     </div>
   </div>
@@ -33,20 +42,27 @@ const authStore = useAuthStore()
 
 const form = reactive({
   username: '',
-  password: ''
+  email: '',
+  full_name: '',
+  password: '',
+  confirmPassword: ''
 })
 
 const loading = ref(false)
 
-async function handleLogin() {
+async function handleRegister() {
   if (!form.username || !form.password) return
+  if (form.password !== form.confirmPassword) {
+    ElMessage.error('Passwords do not match')
+    return
+  }
   loading.value = true
   try {
-    await authStore.login(form.username, form.password)
-    ElMessage.success('Login successful')
+    await authStore.register(form.username, form.password, form.email || null, form.full_name || null)
+    ElMessage.success('Registration successful')
     router.push('/dashboard')
   } catch (error) {
-    ElMessage.error(error.response?.data?.detail || 'Login failed')
+    ElMessage.error(error.response?.data?.detail || 'Registration failed')
   } finally {
     loading.value = false
   }
@@ -82,5 +98,14 @@ async function handleLogin() {
   color: #999;
   font-size: 12px;
   margin-top: 16px;
+}
+
+.hint a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.hint a:hover {
+  text-decoration: underline;
 }
 </style>

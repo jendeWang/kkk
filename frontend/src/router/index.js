@@ -4,6 +4,7 @@ import Layout from '../views/Layout.vue'
 
 const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { requiresAuth: false } },
+  { path: '/register', name: 'Register', component: () => import('../views/Register.vue'), meta: { requiresAuth: false } },
   { path: '/', redirect: '/dashboard' },
   {
     path: '/',
@@ -31,7 +32,7 @@ router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   if (to.meta.requiresAuth && !authStore.token) {
     next('/login')
-  } else if (to.path === '/login' && authStore.token) {
+  } else if ((to.path === '/login' || to.path === '/register') && authStore.token) {
     next('/dashboard')
   } else {
     next()
