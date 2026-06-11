@@ -175,7 +175,7 @@
         <el-form-item :label="$t('products.description')">
           <el-input v-model="serviceForm.description" type="textarea" />
         </el-form-item>
-        <el-form-item :label="Input Parameters">
+        <el-form-item label="Input Parameters">
           <el-input v-model="serviceForm.input_params" type="textarea" :rows="3" placeholder='[{"name": "param1", "type": "string", "required": true}]' />
           <div class="form-hint">Format: [{"name": "param_name", "type": "string/int/float/bool", "required": true/false, "default": "value"}]</div>
         </el-form-item>
