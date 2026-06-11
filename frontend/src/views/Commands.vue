@@ -7,12 +7,12 @@
 
       <el-form :inline="true" :model="commandForm" class="command-form">
         <el-form-item :label="$t('commands.selectDevice')">
-          <el-select v-model="commandForm.device_id" @change="loadServices" placeholder="Select device" style="width: 200px">
+          <el-select v-model="commandForm.device_id" @change="loadServices" :placeholder="$t('commands.selectDevice')" style="width: 200px">
             <el-option v-for="d in deviceStore.devices" :key="d.id" :label="d.device_name" :value="d.id" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('commands.selectService')">
-          <el-select v-model="commandForm.service_identifier" @change="loadServiceParams" placeholder="Select service" style="width: 200px" :disabled="!services.length">
+          <el-select v-model="commandForm.service_identifier" @change="loadServiceParams" :placeholder="$t('commands.selectService')" style="width: 200px" :disabled="!services.length">
             <el-option v-for="s in services" :key="s.identifier" :label="s.name" :value="s.identifier" />
           </el-select>
         </el-form-item>
@@ -23,10 +23,10 @@
 
       <div v-if="commandForm.service_identifier" class="params-section">
         <div class="params-header">
-          <h4>Input Parameters</h4>
+          <h4>{{ $t('commands.inputParams') }}</h4>
           <div v-if="currentServiceParams.length > 0">
             <el-button size="small" @click="switchMode">
-              {{ advancedMode ? 'Switch to Form Mode' : 'Switch to Advanced Mode' }}
+              {{ advancedMode ? $t('commands.switchToFormMode') : $t('commands.switchToAdvancedMode') }}
             </el-button>
           </div>
         </div>
@@ -132,7 +132,7 @@
       </div>
 
       <el-table :data="deviceStore.commands" style="width: 100%">
-        <el-table-column prop="command_id" label="Command ID" width="250">
+        <el-table-column prop="command_id" :label="$t('commands.commandId')" width="250">
           <template #default="{ row }">
             <el-tooltip :content="row.command_id" placement="top">
               <span>{{ row.command_id.substring(0, 30) }}...</span>
@@ -287,7 +287,13 @@ function getStatusType(status) {
 }
 
 function getStatusText(status) {
-  const texts = { pending: 'Pending', executing: 'Executing', executed: 'Executed', failed: 'Failed' }
+  const texts = { 
+    pending: $t('commands.pending'), 
+    executing: $t('commands.executing'), 
+    executed: $t('commands.executed'), 
+    failed: $t('commands.failed'),
+    sent: $t('commands.sent')
+  }
   return texts[status] || status
 }
 

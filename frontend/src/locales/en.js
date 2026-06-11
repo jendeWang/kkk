@@ -29,7 +29,10 @@ export default {
     username: 'Username',
     password: 'Password',
     loginBtn: 'Login',
-    defaultAccount: 'Default: admin / admin123'
+    defaultAccount: 'Default: admin / admin123',
+    email: 'Email (optional)',
+    fullName: 'Full name (optional)',
+    confirmPassword: 'Confirm password'
   },
   dashboard: {
     title: 'Dashboard',
@@ -38,7 +41,10 @@ export default {
     onlineDevices: 'Online Devices',
     totalAlerts: 'Total Alerts',
     deviceStatus: 'Device Status',
-    recentAlerts: 'Recent Alerts'
+    recentAlerts: 'Recent Alerts',
+    message: 'Message',
+    severity: 'Severity',
+    time: 'Time'
   },
   products: {
     title: 'Products',
@@ -88,6 +94,7 @@ export default {
     title: 'Telemetry Data',
     selectDevice: 'Select Device',
     selectProperty: 'Select Property',
+    allProperties: 'All properties',
     timeRange: 'Time Range',
     value: 'Value',
     timestamp: 'Timestamp',
@@ -105,7 +112,12 @@ export default {
     pending: 'Pending',
     executing: 'Executing',
     executed: 'Executed',
-    failed: 'Failed'
+    failed: 'Failed',
+    sent: 'Sent',
+    commandId: 'Command ID',
+    inputParams: 'Input Parameters',
+    switchToFormMode: 'Switch to Form Mode',
+    switchToAdvancedMode: 'Switch to Advanced Mode'
   },
   alertRules: {
     title: 'Alert Rules',

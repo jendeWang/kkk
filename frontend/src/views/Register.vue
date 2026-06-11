@@ -7,16 +7,16 @@
           <el-input v-model="form.username" :placeholder="$t('login.username')" size="large" prefix-icon="User" />
         </el-form-item>
         <el-form-item>
-          <el-input v-model="form.email" placeholder="Email (optional)" size="large" prefix-icon="Message" />
+          <el-input v-model="form.email" :placeholder="$t('login.email')" size="large" prefix-icon="Message" />
         </el-form-item>
         <el-form-item>
-          <el-input v-model="form.full_name" placeholder="Full name (optional)" size="large" prefix-icon="UserFilled" />
+          <el-input v-model="form.full_name" :placeholder="$t('login.fullName')" size="large" prefix-icon="UserFilled" />
         </el-form-item>
         <el-form-item>
           <el-input v-model="form.password" type="password" :placeholder="$t('login.password')" size="large" prefix-icon="Lock" show-password />
         </el-form-item>
         <el-form-item>
-          <el-input v-model="form.confirmPassword" type="password" placeholder="Confirm password" size="large" prefix-icon="Lock" show-password />
+          <el-input v-model="form.confirmPassword" type="password" :placeholder="$t('login.confirmPassword')" size="large" prefix-icon="Lock" show-password />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" size="large" style="width: 100%" :loading="loading" native-type="submit">

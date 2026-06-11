@@ -37,7 +37,10 @@ export default {
     loginBtn: '登录',
     register: '注册新账户',
     backToLogin: '返回登录',
-    defaultAccount: '默认账号: admin / admin123'
+    defaultAccount: '默认账号: admin / admin123',
+    email: '邮箱（可选）',
+    fullName: '全名（可选）',
+    confirmPassword: '确认密码'
   },
   dashboard: {
     title: '数据总览',
@@ -46,7 +49,10 @@ export default {
     onlineDevices: '在线设备',
     totalAlerts: '告警总数',
     deviceStatus: '设备状态分布',
-    recentAlerts: '最近告警'
+    recentAlerts: '最近告警',
+    message: '消息',
+    severity: '严重级别',
+    time: '时间'
   },
   products: {
     title: '产品管理',
@@ -126,6 +132,7 @@ export default {
     title: '遥测数据',
     selectDevice: '选择设备',
     selectProperty: '选择属性',
+    allProperties: '全部属性',
     timeRange: '时间范围',
     value: '值',
     timestamp: '时间',
@@ -146,6 +153,11 @@ export default {
     executing: '执行中',
     executed: '已执行',
     failed: '失败',
+    sent: '已发送',
+    commandId: '命令ID',
+    inputParams: '输入参数',
+    switchToFormMode: '切换到表单模式',
+    switchToAdvancedMode: '切换到高级模式',
     loadDevicesError: '加载设备失败',
     loadServicesError: '加载服务失败',
     sendSuccess: '命令发送成功',

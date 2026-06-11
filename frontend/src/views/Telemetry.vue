@@ -7,12 +7,12 @@
 
       <el-form :inline="true" :model="queryForm" class="query-form">
         <el-form-item :label="$t('telemetry.selectDevice')">
-          <el-select v-model="queryForm.device_id" @change="loadTelemetry" placeholder="Select device" style="width: 200px">
+          <el-select v-model="queryForm.device_id" @change="loadTelemetry" :placeholder="$t('telemetry.selectDevice')" style="width: 200px">
             <el-option v-for="d in deviceStore.devices" :key="d.id" :label="d.device_name" :value="d.id" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('telemetry.selectProperty')">
-          <el-select v-model="queryForm.property_identifier" @change="loadTelemetry" placeholder="All properties" style="width: 150px" clearable>
+          <el-select v-model="queryForm.property_identifier" @change="loadTelemetry" :placeholder="$t('telemetry.allProperties')" style="width: 150px" clearable>
             <el-option v-for="p in properties" :key="p" :label="p" :value="p" />
           </el-select>
         </el-form-item>
