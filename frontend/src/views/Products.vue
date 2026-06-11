@@ -175,6 +175,10 @@
         <el-form-item :label="$t('products.description')">
           <el-input v-model="serviceForm.description" type="textarea" />
         </el-form-item>
+        <el-form-item :label="Input Parameters">
+          <el-input v-model="serviceForm.input_params" type="textarea" :rows="3" placeholder='[{"name": "param1", "type": "string", "required": true}]' />
+          <div class="form-hint">Format: [{"name": "param_name", "type": "string/int/float/bool", "required": true/false, "default": "value"}]</div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showServiceDialog = false">{{ $t('common.cancel') }}</el-button>
@@ -253,7 +257,8 @@ const propertyForm = reactive({
 const serviceForm = reactive({
   identifier: '',
   name: '',
-  description: ''
+  description: '',
+  input_params: '[]'
 })
 
 const eventForm = reactive({
@@ -353,11 +358,24 @@ async function handleAddProperty() {
 
 async function handleAddService() {
   try {
-    await productStore.addService(editForm.product_key, serviceForm)
+    let inputParams = []
+    try {
+      if (serviceForm.input_params) {
+        inputParams = JSON.parse(serviceForm.input_params)
+      }
+    } catch (e) {
+      ElMessage.error('Invalid input parameters format')
+      return
+    }
+    await productStore.addService(editForm.product_key, {
+      ...serviceForm,
+      input_params: inputParams
+    })
     ElMessage.success('Service added')
     showServiceDialog.value = false
     await editProduct({ product_key: editForm.product_key })
     Object.keys(serviceForm).forEach(k => serviceForm[k] = '')
+    serviceForm.input_params = '[]'
   } catch (error) {
     ElMessage.error('Failed to add service')
   }
