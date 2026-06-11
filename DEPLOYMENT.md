@@ -775,8 +775,218 @@ chmod +x deploy.sh
 | 路由 | Vue Router | 4.2.x |
 | 国际化 | vue-i18n | 9.9.x |
 | 图表 | ECharts | 5.4.x |
-| 后端框架 | FastAPI | 0.104.x |
-| 数据库 | SQLite | 3.x |
+| 后端框架 | FastAPI | 0.109.x |
+| 数据库 | PostgreSQL | 16.x |
+| 缓存 | Redis | 7.x |
 | ORM | SQLAlchemy | 2.0.x |
 | MQTT Broker | EMQX | 5.0 |
+| WSGI服务器 | Gunicorn | 21.2.x |
 | 构建工具 | Vite | 5.0.x |
+
+---
+
+## 十六、Docker Compose 一键部署（推荐）
+
+### 16.1 前提条件
+
+- 安装 Docker 20.10+
+- 安装 Docker Compose 2.0+
+
+```bash
+# 检查安装
+docker --version
+docker compose version
+```
+
+### 16.2 部署步骤
+
+```bash
+# 1. 进入项目目录
+cd /workspace
+
+# 2. 启动所有服务
+docker compose up -d
+
+# 3. 查看服务状态
+docker compose ps
+
+# 4. 查看日志
+docker compose logs -f
+```
+
+### 16.3 服务访问
+
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| **前端** | http://localhost | Web界面 |
+| **后端API** | http://localhost:8000 | API文档: http://localhost:8000/docs |
+| **EMQX管理** | http://localhost:18083 | 用户名: admin / 密码: public |
+| **PostgreSQL** | localhost:5432 | 用户: iot_user / 密码: iot_password |
+| **Redis** | localhost:6379 | 无认证 |
+
+### 16.4 常用命令
+
+```bash
+# 启动服务
+docker compose up -d
+
+# 停止服务
+docker compose down
+
+# 停止并删除数据卷（慎用）
+docker compose down -v
+
+# 重启某个服务
+docker compose restart backend
+
+# 查看服务日志
+docker compose logs -f backend
+
+# 重新构建镜像
+docker compose build --no-cache
+
+# 进入后端容器
+docker exec -it iot_backend sh
+
+# 进入数据库
+docker exec -it iot_postgres psql -U iot_user -d iot_platform
+```
+
+### 16.5 健康检查
+
+```bash
+# 检查所有服务健康状态
+curl http://localhost/health
+docker compose ps
+
+# 检查后端API
+curl http://localhost:8000/api/v1/health
+
+# 检查 EMQX
+curl http://localhost:18083/api/v5/health
+```
+
+---
+
+## 十七、性能优化说明
+
+### 17.1 Gunicorn 多进程配置
+
+后端使用 Gunicorn 运行，默认 worker 数量为 CPU 核心数 × 2 + 1。
+
+```bash
+# 自定义 worker 数量
+docker compose run -e WORKERS=8 -d backend
+```
+
+### 17.2 PostgreSQL 连接池
+
+PostgreSQL 配置了连接池参数，适合 100-500 设备规模。
+
+### 17.3 Redis 缓存
+
+系统使用 Redis 进行会话和热点数据缓存，提高响应速度。
+
+---
+
+## 十八、故障排查
+
+### 18.1 服务无法启动
+
+```bash
+# 查看详细日志
+docker compose logs backend
+
+# 检查端口占用
+netstat -tlnp | grep -E '5432|6379|1883|8000|80'
+```
+
+### 18.2 数据库连接失败
+
+```bash
+# 检查 PostgreSQL 状态
+docker compose logs postgres
+
+# 进入 PostgreSQL 容器测试连接
+docker exec -it iot_postgres psql -U iot_user -d iot_platform -c "SELECT 1;"
+```
+
+### 18.3 MQTT 连接失败
+
+```bash
+# 检查 EMQX 状态
+docker compose logs emqx
+
+# 访问 EMQX Dashboard
+# http://localhost:18083
+```
+
+### 18.4 清理重建
+
+```bash
+# 完全清理（删除所有数据）
+docker compose down -v
+
+# 重新构建并启动
+docker compose down -v --rmi all
+docker compose build --no-cache
+docker compose up -d
+```
+
+---
+
+## 十九、安全建议
+
+### 19.1 生产环境必做
+
+1. **修改默认密码**
+   ```bash
+   # EMQX
+   EMQX_Dashboard__DEFAULT_PASSWORD=your-secure-password
+
+   # PostgreSQL
+   POSTGRES_PASSWORD=your-secure-password
+
+   # JWT Secret
+   SECRET_KEY=your-256-bit-secret-key
+   ```
+
+2. **启用 SSL/TLS**
+   ```yaml
+   # 在 nginx 配置中添加证书
+   ssl_certificate /path/to/cert.pem;
+   ssl_certificate_key /path/to/key.pem;
+   ```
+
+3. **配置防火墙**
+   ```bash
+   ufw allow 80/tcp
+   ufw allow 443/tcp
+   ufw deny 5432/tcp  # 仅允许容器内访问
+   ufw deny 6379/tcp  # 仅允许容器内访问
+   ```
+
+4. **限制 PostgreSQL 访问**
+   ```bash
+   # 仅允许本地和容器网络访问
+   # PostgreSQL 默认配置已限制为 localhost
+   ```
+
+---
+
+## 二十、版本更新日志
+
+| 日期 | 版本 | 更新内容 |
+|------|------|----------|
+| 2026-06-11 | v1.0 | 初始版本发布，包含完整CRUD功能 |
+| | | 支持服务参数定义（默认值、可选值、范围限制、正则） |
+| | | 命令下发双模式（表单模式+JSON高级模式） |
+| | | 国际化支持（中文/英文） |
+| | | 设备模拟器支持 |
+| 2026-06-11 | v1.1 | **Docker Compose 部署支持** |
+| | | PostgreSQL 数据库替代 SQLite |
+| | | Redis 缓存支持 |
+| | | EMQX MQTT Broker |
+| | | Gunicorn 多进程部署 |
+| | | Nginx WebSocket/SSE 支持 |
+| | | 支持 100-500 设备规模 |
