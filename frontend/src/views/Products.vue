@@ -82,7 +82,11 @@
             <el-table-column prop="identifier" :label="$t('products.identifier')" />
             <el-table-column prop="name" :label="$t('products.name')" />
             <el-table-column prop="data_type" :label="$t('products.dataType')" />
-            <el-table-column prop="access_type" :label="$t('products.accessType')" />
+            <el-table-column :label="$t('products.accessType')">
+              <template #default="{ row }">
+                {{ row.access_type === 'read_only' ? 'Read Only' : (row.access_type === 'read_write' ? 'Read/Write' : row.access_type) }}
+              </template>
+            </el-table-column>
             <el-table-column prop="unit" :label="$t('products.unit')" />
             <el-table-column :label="$t('common.actions')" width="100">
               <template #default="{ row }">
@@ -149,9 +153,8 @@
         </el-form-item>
         <el-form-item :label="$t('products.accessType')">
           <el-select v-model="propertyForm.access_type">
-            <el-option value="r" label="Read Only" />
-            <el-option value="w" label="Write Only" />
-            <el-option value="rw" label="Read/Write" />
+            <el-option value="read_only" label="Read Only" />
+            <el-option value="read_write" label="Read/Write" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('products.unit')">
@@ -174,10 +177,6 @@
         </el-form-item>
         <el-form-item :label="$t('products.description')">
           <el-input v-model="serviceForm.description" type="textarea" />
-        </el-form-item>
-        <el-form-item label="Input Parameters">
-          <el-input v-model="serviceForm.input_params" type="textarea" :rows="3" placeholder='[{"name": "param1", "type": "string", "required": true}]' />
-          <div class="form-hint">Format: [{"name": "param_name", "type": "string/int/float/bool", "required": true/false, "default": "value"}]</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -250,15 +249,14 @@ const propertyForm = reactive({
   identifier: '',
   name: '',
   data_type: 'string',
-  access_type: 'r',
+  access_type: 'read_only',
   unit: ''
 })
 
 const serviceForm = reactive({
   identifier: '',
   name: '',
-  description: '',
-  input_params: '[]'
+  description: ''
 })
 
 const eventForm = reactive({
@@ -358,24 +356,17 @@ async function handleAddProperty() {
 
 async function handleAddService() {
   try {
-    let inputParams = []
-    try {
-      if (serviceForm.input_params) {
-        inputParams = JSON.parse(serviceForm.input_params)
-      }
-    } catch (e) {
-      ElMessage.error('Invalid input parameters format')
-      return
-    }
     await productStore.addService(editForm.product_key, {
-      ...serviceForm,
-      input_params: inputParams
+      identifier: serviceForm.identifier,
+      name: serviceForm.name,
+      description: serviceForm.description,
+      input_params: null,
+      output_params: null
     })
     ElMessage.success('Service added')
     showServiceDialog.value = false
     await editProduct({ product_key: editForm.product_key })
     Object.keys(serviceForm).forEach(k => serviceForm[k] = '')
-    serviceForm.input_params = '[]'
   } catch (error) {
     ElMessage.error('Failed to add service')
   }
