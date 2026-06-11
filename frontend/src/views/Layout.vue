@@ -7,7 +7,7 @@
         </div>
         <el-menu :default-active="activeMenu" router class="sidebar-menu">
           <el-menu-item index="/dashboard">
-            <el-icon><Odomometer /></el-icon>
+            <el-icon><DataBoard /></el-icon>
             <span>{{ $t('menu.dashboard') }}</span>
           </el-menu-item>
           <el-menu-item index="/products">
@@ -81,16 +81,16 @@ const activeMenu = computed(() => route.path)
 
 const pageTitle = computed(() => {
   const titles = {
-    '/dashboard': 'menu.dashboard',
-    '/products': 'menu.products',
-    '/devices': 'menu.devices',
-    '/telemetry': 'menu.telemetry',
-    '/commands': 'menu.commands',
-    '/alert-rules': 'menu.alertRules',
-    '/alerts': 'menu.alerts',
-    '/api-keys': 'menu.apiKeys'
+    '/dashboard': '仪表盘',
+    '/products': '产品管理',
+    '/devices': '设备管理',
+    '/telemetry': '遥测数据',
+    '/commands': '命令下发',
+    '/alert-rules': '告警规则',
+    '/alerts': '告警事件',
+    '/api-keys': 'API密钥'
   }
-  return titles[route.path] ? route.meta?.title || route.path : ''
+  return titles[route.path] || ''
 })
 
 function handleCommand(command) {

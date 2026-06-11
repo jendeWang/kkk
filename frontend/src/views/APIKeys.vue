@@ -86,7 +86,7 @@ function formatTime(time) {
 async function loadApiKeys() {
   loading.value = true
   try {
-    const response = await api.get('/api-keys/')
+    const response = await api.get('/api-keys')
     apiKeys.value = response.data
   } catch (error) {
     ElMessage.error('Failed to load API keys')
@@ -98,7 +98,7 @@ async function loadApiKeys() {
 async function handleAdd() {
   saving.value = true
   try {
-    const response = await api.post('/api-keys/', keyForm)
+    const response = await api.post('/api-keys', keyForm)
     ElMessage.success('API Key created')
     ElMessage.info(`Key: ${response.data.key} (Save it!)`)
     showAddDialog.value = false
