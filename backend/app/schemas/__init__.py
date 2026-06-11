@@ -118,7 +118,7 @@ class ProductServiceBase(BaseModel):
     identifier: str
     name: str
     description: Optional[str] = None
-    input_params: Optional[List[Dict[str, Any]]] = None
+    input_params: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     output_params: Optional[Dict[str, Any]] = None
 
 
@@ -130,7 +130,7 @@ class ProductServiceUpdate(BaseModel):
     identifier: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    input_params: Optional[List[Dict[str, Any]]] = None
+    input_params: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     output_params: Optional[Dict[str, Any]] = None
 
 

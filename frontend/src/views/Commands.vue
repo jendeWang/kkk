@@ -228,7 +228,11 @@ function loadServiceParams() {
   if (!commandForm.service_identifier) return
   
   const service = services.value.find(s => s.identifier === commandForm.service_identifier)
-  if (service && service.input_params && Array.isArray(service.input_params)) {
+  if (!service || !service.input_params) return
+  
+  // Support both formats: Array of param objects (new) or Dict (legacy)
+  if (Array.isArray(service.input_params)) {
+    // New format: [{name, type, required, default, description}, ...]
     currentServiceParams.value = service.input_params
     service.input_params.forEach(param => {
       if (param.default !== undefined && param.default !== '') {
@@ -237,6 +241,22 @@ function loadServiceParams() {
         paramForm[param.name] = param.type === 'bool' ? false : ''
       }
     })
+  } else if (typeof service.input_params === 'object') {
+    // Legacy format: {"key": {type, description, ...}}
+    const params = []
+    Object.keys(service.input_params).forEach(key => {
+      const def = service.input_params[key]
+      const param = {
+        name: key,
+        type: typeof def === 'object' && def.type ? def.type : 'string',
+        required: false,
+        default: typeof def === 'object' && def.default !== undefined ? def.default : '',
+        description: typeof def === 'object' && def.description ? def.description : key
+      }
+      params.push(param)
+      paramForm[param.name] = param.type === 'bool' ? false : ''
+    })
+    currentServiceParams.value = params
   }
 }
 
