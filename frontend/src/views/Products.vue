@@ -167,18 +167,58 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showServiceDialog" :title="$t('products.addService')" width="500px">
+    <el-dialog v-model="showServiceDialog" :title="$t('products.addService')" width="600px">
       <el-form :model="serviceForm" label-width="100px">
-        <el-form-item :label="$t('products.identifier')">
-          <el-input v-model="serviceForm.identifier" />
+        <el-form-item :label="$t('products.identifier')" required>
+          <el-input v-model="serviceForm.identifier" placeholder="e.g. set_light, get_status" />
         </el-form-item>
-        <el-form-item :label="$t('products.name')">
-          <el-input v-model="serviceForm.name" />
+        <el-form-item :label="$t('products.name')" required>
+          <el-input v-model="serviceForm.name" placeholder="e.g. 设置灯光, 获取状态" />
         </el-form-item>
         <el-form-item :label="$t('products.description')">
-          <el-input v-model="serviceForm.description" type="textarea" />
+          <el-input v-model="serviceForm.description" type="textarea" placeholder="Service description..." />
         </el-form-item>
       </el-form>
+
+      <div class="params-section">
+        <div class="params-header">
+          <span>Input Parameters (服务参数定义)</span>
+          <el-button size="small" type="primary" @click="addServiceParam">+ Add Parameter</el-button>
+        </div>
+
+        <div v-if="serviceParams.length === 0" class="params-empty">
+          No parameters defined. Click "Add Parameter" to define command parameters.
+        </div>
+
+        <div v-for="(param, index) in serviceParams" :key="index" class="param-item">
+          <el-form label-width="80px" class="param-form">
+            <el-form-item label="Name" required>
+              <el-input v-model="param.name" placeholder="e.g. brightness" />
+            </el-form-item>
+            <el-form-item label="Type" required>
+              <el-select v-model="param.type" style="width: 100%">
+                <el-option value="string" label="String" />
+                <el-option value="int" label="Integer" />
+                <el-option value="float" label="Float" />
+                <el-option value="bool" label="Boolean" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Required">
+              <el-switch v-model="param.required" />
+            </el-form-item>
+            <el-form-item label="Default">
+              <el-input v-model="param.default" placeholder="Default value" />
+            </el-form-item>
+            <el-form-item label="Description">
+              <el-input v-model="param.description" placeholder="Parameter description" />
+            </el-form-item>
+            <el-form-item label="">
+              <el-button size="small" type="danger" @click="removeServiceParam(index)">Remove</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+      </div>
+
       <template #footer>
         <el-button @click="showServiceDialog = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" @click="handleAddService">{{ $t('common.save') }}</el-button>
@@ -258,6 +298,29 @@ const serviceForm = reactive({
   name: '',
   description: ''
 })
+
+const serviceParams = ref([])
+
+function addServiceParam() {
+  serviceParams.value.push({
+    name: '',
+    type: 'string',
+    required: false,
+    default: '',
+    description: ''
+  })
+}
+
+function removeServiceParam(index) {
+  serviceParams.value.splice(index, 1)
+}
+
+function resetServiceForm() {
+  serviceForm.identifier = ''
+  serviceForm.name = ''
+  serviceForm.description = ''
+  serviceParams.value = []
+}
 
 const eventForm = reactive({
   identifier: '',
@@ -355,18 +418,32 @@ async function handleAddProperty() {
 }
 
 async function handleAddService() {
+  if (!serviceForm.identifier || !serviceForm.name) {
+    ElMessage.error('Please fill in identifier and name')
+    return
+  }
+
+  // Validate params if any defined
+  for (const param of serviceParams.value) {
+    if (!param.name) {
+      ElMessage.error('Parameter name is required')
+      return
+    }
+  }
+
   try {
+    const inputParams = serviceParams.value.length > 0 ? serviceParams.value : null
     await productStore.addService(editForm.product_key, {
       identifier: serviceForm.identifier,
       name: serviceForm.name,
       description: serviceForm.description,
-      input_params: null,
+      input_params: inputParams,
       output_params: null
     })
     ElMessage.success('Service added')
     showServiceDialog.value = false
     await editProduct({ product_key: editForm.product_key })
-    Object.keys(serviceForm).forEach(k => serviceForm[k] = '')
+    resetServiceForm()
   } catch (error) {
     ElMessage.error('Failed to add service')
   }
@@ -428,5 +505,46 @@ onMounted(() => {
 
 .tab-actions {
   margin-bottom: 16px;
+}
+
+.params-section {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.params-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.params-empty {
+  text-align: center;
+  color: #909399;
+  padding: 20px;
+  font-size: 14px;
+}
+
+.param-item {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.param-form {
+  margin-bottom: 0;
+}
+
+.param-form .el-form-item {
+  margin-bottom: 8px;
 }
 </style>
