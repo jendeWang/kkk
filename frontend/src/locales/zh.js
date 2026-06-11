@@ -157,6 +157,8 @@ export default {
     alertType: '告警类型',
     threshold: '阈值告警',
     deviceStatus: '设备状态告警',
+    deviceOffline: '设备离线告警',
+    deviceOnline: '设备上线告警',
     device: '适用设备',
     allDevices: '全部设备',
     property: '监控属性',

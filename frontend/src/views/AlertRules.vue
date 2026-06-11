@@ -15,7 +15,7 @@
         <el-table-column prop="name" :label="$t('alertRules.name')" />
         <el-table-column :label="$t('alertRules.alertType')" width="150">
           <template #default="{ row }">
-            {{ row.alert_type === 'threshold' ? $t('alertRules.threshold') : $t('alertRules.deviceStatus') }}
+            {{ getAlertTypeLabel(row.alert_type) }}
           </template>
         </el-table-column>
         <el-table-column :label="$t('alertRules.device')" width="120">
@@ -26,7 +26,7 @@
         <el-table-column prop="property_identifier" :label="$t('alertRules.property')" width="120" />
         <el-table-column :label="$t('alertRules.thresholdValue')" width="150">
           <template #default="{ row }">
-            {{ row.operator }} {{ row.threshold_value }}
+            {{ getOperatorSymbol(row.operator) }} {{ row.threshold_value }}
           </template>
         </el-table-column>
         <el-table-column :label="$t('alertRules.severity')" width="100">
@@ -55,7 +55,8 @@
         <el-form-item :label="$t('alertRules.alertType')">
           <el-select v-model="ruleForm.alert_type">
             <el-option value="threshold" :label="$t('alertRules.threshold')" />
-            <el-option value="device_status" :label="$t('alertRules.deviceStatus')" />
+            <el-option value="device_offline" :label="$t('alertRules.deviceOffline')" />
+            <el-option value="device_online" :label="$t('alertRules.deviceOnline')" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('alertRules.device')">
@@ -69,12 +70,12 @@
         </el-form-item>
         <el-form-item :label="$t('alertRules.operator')" v-if="ruleForm.alert_type === 'threshold'">
           <el-select v-model="ruleForm.operator">
-            <el-option value=">" label=">" />
-            <el-option value="<" label="<" />
-            <el-option value=">=" label=">=" />
-            <el-option value="<=" label="<=" />
-            <el-option value="==" label="==" />
-            <el-option value="!=" label="!=" />
+            <el-option value="gt" label=">" />
+            <el-option value="lt" label="<" />
+            <el-option value="gte" label=">=" />
+            <el-option value="lte" label="<=" />
+            <el-option value="eq" label="==" />
+            <el-option value="neq" label="!=" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('alertRules.thresholdValue')" v-if="ruleForm.alert_type === 'threshold'">
@@ -113,7 +114,7 @@ const ruleForm = reactive({
   alert_type: 'threshold',
   device_id: null,
   property_identifier: '',
-  operator: '>',
+  operator: 'gt',
   threshold_value: '',
   severity: 'warning'
 })
@@ -121,6 +122,20 @@ const ruleForm = reactive({
 function getSeverityType(severity) {
   const types = { info: 'info', warning: 'warning', error: 'danger', critical: 'danger' }
   return types[severity] || 'info'
+}
+
+function getOperatorSymbol(operator) {
+  const symbols = { gt: '>', gte: '>=', lt: '<', lte: '<=', eq: '==', neq: '!=' }
+  return symbols[operator] || operator
+}
+
+function getAlertTypeLabel(alertType) {
+  const labels = {
+    threshold: $t('alertRules.threshold'),
+    device_offline: $t('alertRules.deviceOffline'),
+    device_online: $t('alertRules.deviceOnline')
+  }
+  return labels[alertType] || alertType
 }
 
 async function loadRules() {

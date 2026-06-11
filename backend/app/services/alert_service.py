@@ -22,13 +22,19 @@ class AlertEngine:
                 AlertRule.enabled == True,
                 AlertRule.alert_type == AlertType.THRESHOLD,
                 AlertRule.property_identifier == property_identifier,
-                AlertRule.device_id.in_([device_id, None]),
+                (AlertRule.device_id == device_id) | (AlertRule.device_id.is_(None)),
             )
         )
         rules = result.scalars().all()
+        
+        print(f"[AlertEngine] Checking telemetry: device_id={device_id}, property={property_identifier}, value={float_val}")
+        print(f"[AlertEngine] Found {len(rules)} matching rules")
+        for rule in rules:
+            print(f"[AlertEngine] Rule: {rule.name}, threshold={rule.threshold_value}, operator={rule.operator}")
 
         for rule in rules:
             if self._check_threshold(float_val, rule):
+                print(f"[AlertEngine] Threshold matched! Creating alert for rule {rule.name}")
                 if self._should_trigger(rule, device_id):
                     await self._create_alert(db, rule, device_id, str(float_val))
 
@@ -114,7 +120,7 @@ class AlertEngine:
             severity=rule.severity,
             current_value=str(current_value) if current_value is not None else None,
             threshold_value=rule.threshold_value,
-            operator=str(rule.operator) if rule.operator else None,
+            operator=rule.operator.value if hasattr(rule.operator, 'value') else rule.operator,
             status=AlertStatus.TRIGGERED,
         )
         db.add(alert)
