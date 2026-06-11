@@ -65,8 +65,8 @@ export const useDeviceStore = defineStore('device', () => {
 
   async function fetchAlertRules() {
     const response = await api.get('/alerts/rules')
-    alertRules.value = response.data
-    return response.data
+    alertRules.value = Array.isArray(response.data) ? response.data : []
+    return alertRules.value
   }
 
   async function createAlertRule(data) {

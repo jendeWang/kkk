@@ -102,7 +102,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useDeviceStore } from '../stores/device.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const deviceStore = useDeviceStore()
 
 const loading = ref(false)
@@ -131,9 +133,9 @@ function getOperatorSymbol(operator) {
 
 function getAlertTypeLabel(alertType) {
   const labels = {
-    threshold: $t('alertRules.threshold'),
-    device_offline: $t('alertRules.deviceOffline'),
-    device_online: $t('alertRules.deviceOnline')
+    threshold: t('alertRules.threshold'),
+    device_offline: t('alertRules.deviceOffline'),
+    device_online: t('alertRules.deviceOnline')
   }
   return labels[alertType] || alertType
 }
