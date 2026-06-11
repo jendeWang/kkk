@@ -41,7 +41,7 @@
           <el-input v-model="productForm.manufacturer" />
         </el-form-item>
         <el-form-item :label="$t('products.description')">
-          <el-input v-model="productForm.description" type="textarea" rows="3" />
+          <el-input v-model="productForm.description" type="textarea" :rows="3" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -70,7 +70,7 @@
               <el-input v-model="editForm.manufacturer" />
             </el-form-item>
             <el-form-item :label="$t('products.description')">
-              <el-input v-model="editForm.description" type="textarea" rows="3" />
+              <el-input v-model="editForm.description" type="textarea" :rows="3" />
             </el-form-item>
           </el-form>
         </el-tab-pane>

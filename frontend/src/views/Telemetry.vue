@@ -77,13 +77,14 @@ async function loadTelemetry() {
   if (!queryForm.device_id) return
   loading.value = true
   try {
-    const data = await deviceStore.fetchTelemetry({
+    const response = await deviceStore.fetchTelemetry({
       device_id: queryForm.device_id,
       property_identifier: queryForm.property_identifier || undefined,
       limit: 100
     })
-    telemetryData.value = data
-    properties.value = [...new Set(data.map(t => t.property_identifier))]
+    const data = response.items || response
+    telemetryData.value = Array.isArray(data) ? data : []
+    properties.value = [...new Set(telemetryData.value.map(t => t.property_identifier))]
   } catch (error) {
     ElMessage.error('Failed to load telemetry data')
   } finally {
