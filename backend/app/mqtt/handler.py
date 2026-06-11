@@ -27,8 +27,8 @@ class MQTTHandler:
         device_secret = payload.pop("device_secret", None)
         device = await self.verify_device(device_key, device_secret) if device_secret else None
 
-        # 允许不传入 device_secret 但需通过 device_key 查询（仅用于测试）
-        if not device and device_secret is None:
+        # 如果验证失败或未传入 device_secret，尝试仅通过 device_key 查询
+        if not device:
             async with self.db_session_factory() as db:
                 result = await db.execute(select(Device).where(Device.device_key == device_key))
                 device = result.scalar_one_or_none()
@@ -38,8 +38,16 @@ class MQTTHandler:
             return
 
         async with self.db_session_factory() as db:
+            # 在当前 session 中重新获取设备
+            result = await db.execute(select(Device).where(Device.id == device.id))
+            db_device = result.scalar_one_or_none()
+            
+            if not db_device:
+                print(f"[MQTT] Device not found in database: {device_key}")
+                return
+
             telemetry = Telemetry(
-                device_id=device.id,
+                device_id=db_device.id,
                 property_identifier=payload.get("property_identifier"),
                 value=str(payload.get("value")),
                 timestamp=datetime.fromisoformat(payload.get("timestamp")) if payload.get("timestamp") else datetime.utcnow(),
@@ -47,17 +55,17 @@ class MQTTHandler:
             )
             db.add(telemetry)
             try:
-                device.status = DeviceStatus.ONLINE
+                db_device.status = DeviceStatus.ONLINE
             except (ValueError, TypeError):
-                device.status = DeviceStatus.ONLINE
-            device.last_seen = datetime.utcnow()
+                db_device.status = DeviceStatus.ONLINE
+            db_device.last_seen = datetime.utcnow()
             await db.commit()
             await alert_engine.check_telemetry_alert(
-                db, device.id, payload.get("property_identifier"), payload.get("value")
+                db, db_device.id, payload.get("property_identifier"), payload.get("value")
             )
             await sse_service.publish_device_status({
                 "device_key": device_key,
-                "device_name": device.device_name,
+                "device_name": db_device.device_name,
                 "status": "online",
                 "property_identifier": payload.get("property_identifier"),
                 "value": str(payload.get("value")),
@@ -111,14 +119,24 @@ class MQTTHandler:
             await db.commit()
 
     async def handle_command_response(self, device_key: str, payload: dict):
+        print(f"[MQTT] Received command response for device {device_key}: {payload}")
+        
         device_secret = payload.pop("device_secret", None)
         device = await self.verify_device(device_key, device_secret) if device_secret else None
+
+        # 如果验证失败或未传入 device_secret，尝试仅通过 device_key 查询
+        if not device:
+            async with self.db_session_factory() as db:
+                result = await db.execute(select(Device).where(Device.device_key == device_key))
+                device = result.scalar_one_or_none()
+
         if not device:
             print(f"[MQTT] Device verification failed for key: {device_key}")
             return
 
         command_id = payload.get("command_id")
         if not command_id:
+            print(f"[MQTT] Command response missing command_id")
             return
 
         async with self.db_session_factory() as db:
@@ -134,3 +152,6 @@ class MQTTHandler:
                 command.output_data = payload.get("output_data")
                 command.error_message = payload.get("error_message")
                 await db.commit()
+                print(f"[MQTT] Command {command_id} updated to {status}")
+            else:
+                print(f"[MQTT] Command {command_id} not found")

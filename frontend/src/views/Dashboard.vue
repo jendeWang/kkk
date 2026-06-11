@@ -58,13 +58,13 @@
         <el-card>
           <h4>{{ $t('dashboard.recentAlerts') }}</h4>
           <el-table :data="recentAlerts" style="width: 100%">
-            <el-table-column prop="message" label="Message" />
-            <el-table-column prop="severity" label="Severity" width="100">
+            <el-table-column prop="message" :label="$t('dashboard.message')" />
+            <el-table-column prop="severity" :label="$t('dashboard.severity')" width="100">
               <template #default="{ row }">
                 <el-tag :type="getSeverityType(row.severity)">{{ row.severity }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="created_at" label="Time" width="180">
+            <el-table-column prop="created_at" :label="$t('dashboard.time')" width="180">
               <template #default="{ row }">
                 {{ formatTime(row.created_at) }}
               </template>

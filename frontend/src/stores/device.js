@@ -64,13 +64,13 @@ export const useDeviceStore = defineStore('device', () => {
   }
 
   async function fetchAlertRules() {
-    const response = await api.get('/alerts/rules/')
-    alertRules.value = response.data
-    return response.data
+    const response = await api.get('/alerts/rules')
+    alertRules.value = Array.isArray(response.data) ? response.data : []
+    return alertRules.value
   }
 
   async function createAlertRule(data) {
-    const response = await api.post('/alerts/rules/', data)
+    const response = await api.post('/alerts/rules', data)
     alertRules.value.push(response.data)
     return response.data
   }
@@ -88,7 +88,7 @@ export const useDeviceStore = defineStore('device', () => {
   }
 
   async function fetchAlertEvents(params = {}) {
-    const response = await api.get('/alerts/events/', { params })
+    const response = await api.get('/alerts/events', { params })
     alertEvents.value = response.data
     return response.data
   }

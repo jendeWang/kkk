@@ -60,8 +60,11 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import api from '../services/api.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
+
+const { t } = useI18n()
 
 const apiKeys = ref([])
 const loading = ref(false)
@@ -74,7 +77,7 @@ const keyForm = reactive({
 })
 
 function getPermissionText(level) {
-  const texts = { read: 'Read', write: 'Write', admin: 'Admin' }
+  const texts = { read: t('apiKeys.read'), write: t('apiKeys.write'), admin: t('apiKeys.admin') }
   return texts[level] || level
 }
 
@@ -89,7 +92,7 @@ async function loadApiKeys() {
     const response = await api.get('/api-keys/')
     apiKeys.value = response.data
   } catch (error) {
-    ElMessage.error('Failed to load API keys')
+    ElMessage.error(t('apiKeys.loadError'))
   } finally {
     loading.value = false
   }
@@ -99,14 +102,14 @@ async function handleAdd() {
   saving.value = true
   try {
     const response = await api.post('/api-keys/', keyForm)
-    ElMessage.success('API Key created')
-    ElMessage.info(`Key: ${response.data.key} (Save it!)`)
+    ElMessage.success(t('apiKeys.createSuccess'))
+    ElMessage.info(`${response.data.key} (${t('apiKeys.saveKey')})`)
     showAddDialog.value = false
     keyForm.name = ''
     keyForm.permission_level = 'read'
     await loadApiKeys()
   } catch (error) {
-    ElMessage.error('Failed to create API key')
+    ElMessage.error(t('apiKeys.createError'))
   } finally {
     saving.value = false
   }
@@ -114,18 +117,18 @@ async function handleAdd() {
 
 async function handleDelete(key) {
   try {
-    await ElMessageBox.confirm('Delete this API key?', 'Warning', { type: 'warning' })
+    await ElMessageBox.confirm(t('apiKeys.deleteConfirm'), t('common.warning'), { type: 'warning' })
     await api.delete(`/api-keys/${key.id}`)
-    ElMessage.success('API key deleted')
+    ElMessage.success(t('apiKeys.deleteSuccess'))
     await loadApiKeys()
   } catch (error) {
-    if (error !== 'cancel') ElMessage.error('Failed to delete API key')
+    if (error !== 'cancel') ElMessage.error(t('apiKeys.deleteError'))
   }
 }
 
 function copyKey(key) {
   navigator.clipboard.writeText(key)
-  ElMessage.success('Key copied')
+  ElMessage.success(t('apiKeys.copySuccess'))
 }
 
 onMounted(() => {

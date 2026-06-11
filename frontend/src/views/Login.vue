@@ -15,7 +15,9 @@
           </el-button>
         </el-form-item>
       </el-form>
-      <p class="hint">{{ $t('login.defaultAccount') }}</p>
+      <p class="hint">
+        <router-link to="/register">{{ $t('login.register') || 'Register a new account' }}</router-link>
+      </p>
     </div>
   </div>
 </template>

@@ -9,6 +9,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -111,7 +118,7 @@ class ProductServiceBase(BaseModel):
     identifier: str
     name: str
     description: Optional[str] = None
-    input_params: Optional[Dict[str, Any]] = None
+    input_params: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     output_params: Optional[Dict[str, Any]] = None
 
 
@@ -123,7 +130,7 @@ class ProductServiceUpdate(BaseModel):
     identifier: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    input_params: Optional[Dict[str, Any]] = None
+    input_params: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     output_params: Optional[Dict[str, Any]] = None
 
 
@@ -267,6 +274,11 @@ class CommandCreate(CommandBase):
 class CommandSendRequest(BaseModel):
     service_identifier: str
     input_params: Optional[Dict[str, Any]] = None
+    parameters: Optional[Dict[str, Any]] = None
+    
+    @property
+    def effective_params(self):
+        return self.parameters if self.parameters is not None else self.input_params
 
 
 class CommandResponse(BaseModel):
