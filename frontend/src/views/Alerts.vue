@@ -41,7 +41,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import { useDeviceStore } from '../stores/device.js'
 import { ElMessage } from 'element-plus'
 

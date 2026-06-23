@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, onUnmounted } from 'vue'
 import { useDeviceStore } from '../stores/device.js'
 import { ElMessage } from 'element-plus'
 
