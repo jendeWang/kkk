@@ -60,8 +60,7 @@
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('alertRules.device')">
-          <el-select v-model="ruleForm.device_id" clearable>
-            <el-option :value="null" :label="$t('alertRules.allDevices')" />
+          <el-select v-model="ruleForm.device_id" clearable :placeholder="$t('alertRules.allDevices')">
             <el-option v-for="d in deviceStore.devices" :key="d.id" :label="d.device_name" :value="d.id" />
           </el-select>
         </el-form-item>
