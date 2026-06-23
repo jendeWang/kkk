@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     # MQTT
     MQTT_BROKER_URL: str = os.getenv("MQTT_BROKER_URL", "localhost")
     MQTT_BROKER_PORT: int = int(os.getenv("MQTT_BROKER_PORT", "1883"))
+    MQTT_USERNAME: str = os.getenv("MQTT_USERNAME", "")
+    MQTT_PASSWORD: str = os.getenv("MQTT_PASSWORD", "")
 
     # Security
     SECRET_KEY: str = os.getenv("SECRET_KEY", "test-secret-key-for-development-only")

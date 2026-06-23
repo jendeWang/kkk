@@ -26,6 +26,8 @@ class MQTTService:
                 self.client.on_connect = self._on_connect
                 self.client.on_message = self._on_message
                 self.client.on_disconnect = self._on_disconnect
+                if settings.MQTT_USERNAME:
+                    self.client.set_auth_credentials(settings.MQTT_USERNAME, settings.MQTT_PASSWORD)
                 await self.client.connect(settings.MQTT_BROKER_URL, settings.MQTT_BROKER_PORT or 1883)
                 self._connected = True
                 print(f"[MQTT] Connected to {settings.MQTT_BROKER_URL}:{settings.MQTT_BROKER_PORT}")
