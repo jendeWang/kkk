@@ -12,6 +12,13 @@ export default defineConfig({
         changeOrigin: true,
         secure: false
       }
+    },
+    hmr: {
+      // 在代理环境下禁用HMR WebSocket
+      protocol: 'ws',
+      host: 'localhost',
+      port: 3000,
+      clientPort: 3000
     }
   },
   preview: {
