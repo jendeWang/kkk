@@ -100,48 +100,24 @@ function resetQuery() {
 }
 
 let eventSource = null
-let sseEnabled = true
-
-function isProxyEnvironment() {
-  // 检测是否在代理环境下（内置预览使用代理域名）
-  const hostname = window.location.hostname
-  return hostname.includes('agent-sandbox') || hostname.includes('preview.agent')
-}
 
 function connectSSE() {
-  // SSE在代理环境下不可用，完全禁用
-  if (isProxyEnvironment()) {
-    sseEnabled = false
-    return
-  }
-  
-  if (!sseEnabled) return
-  
   const token = localStorage.getItem('token')
   if (!token) return
   
-  try {
-    eventSource = new EventSource(`/api/v1/sse/devices?token=${token}`)
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        if (data.type === 'device_status' && queryForm.device_id) {
-          loadTelemetry()
-          loadDevices()
-        }
-      } catch (e) {}
-    }
-    eventSource.onerror = (e) => {
-      if (eventSource.readyState === EventSource.CLOSED) {
-        sseEnabled = false
+  eventSource = new EventSource(`/api/v1/sse/devices?token=${token}`)
+  eventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      if (data.type === 'device_status' && queryForm.device_id) {
+        loadTelemetry()
+        loadDevices()
       }
-      eventSource.close()
-      if (sseEnabled) {
-        setTimeout(connectSSE, 5000)
-      }
-    }
-  } catch (e) {
-    sseEnabled = false
+    } catch (e) {}
+  }
+  eventSource.onerror = () => {
+    eventSource.close()
+    setTimeout(connectSSE, 5000)
   }
 }
 
