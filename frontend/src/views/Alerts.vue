@@ -108,25 +108,42 @@ async function resolve(alert) {
 }
 
 let eventSource = null
+let sseEnabled = true
 
 function connectSSE() {
+  // SSE在代理环境下可能不可用，检测并优雅处理
+  if (!sseEnabled) return
+  
   const token = localStorage.getItem('token')
-  eventSource = new EventSource(`/api/v1/sse/alerts?token=${token}`)
-  eventSource.onmessage = async (event) => {
-    try {
-      const data = JSON.parse(event.data)
-      if (data.type === 'new_alert') {
-        ElMessage.warning({
-          message: data.data.message,
-          duration: 5000
-        })
-        await loadAlerts()
+  if (!token) return
+  
+  try {
+    eventSource = new EventSource(`/api/v1/sse/alerts?token=${token}`)
+    eventSource.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'new_alert') {
+          ElMessage.warning({
+            message: data.data.message,
+            duration: 5000
+          })
+          await loadAlerts()
+        }
+      } catch (e) {}
+    }
+    eventSource.onerror = (e) => {
+      // SSE连接失败（可能是代理环境不支持），关闭并停止重连
+      if (eventSource.readyState === EventSource.CLOSED) {
+        sseEnabled = false
       }
-    } catch (e) {}
-  }
-  eventSource.onerror = () => {
-    eventSource.close()
-    setTimeout(connectSSE, 5000)
+      eventSource.close()
+      // 仅在SSE可用时重连
+      if (sseEnabled) {
+        setTimeout(connectSSE, 5000)
+      }
+    }
+  } catch (e) {
+    sseEnabled = false
   }
 }
 
