@@ -101,16 +101,39 @@ function resetQuery() {
 
 let eventSource = null
 let sseEnabled = true
+let pollingTimer = null
 
 function isProxyEnvironment() {
-  // 检测是否在代理环境下（内置预览使用代理域名）
   const hostname = window.location.hostname
   return hostname.includes('agent-sandbox') || hostname.includes('preview.agent')
 }
 
+function startPolling() {
+  // SSE不可用时，用轮询作为备选方案（每10秒刷新一次）
+  if (pollingTimer) return
+  pollingTimer = setInterval(() => {
+    if (queryForm.device_id) {
+      loadTelemetry()
+      loadDevices()
+    }
+  }, 10000)
+}
+
+function stopPolling() {
+  if (pollingTimer) {
+    clearInterval(pollingTimer)
+    pollingTimer = null
+  }
+}
+
 function connectSSE() {
-  // SSE在代理环境下不可用（代理不支持长连接），完全禁用
-  if (isProxyEnvironment() || !sseEnabled) return
+  // 代理环境使用轮询
+  if (isProxyEnvironment()) {
+    startPolling()
+    return
+  }
+  
+  if (!sseEnabled) return
   
   const token = localStorage.getItem('token')
   if (!token) return
@@ -126,10 +149,25 @@ function connectSSE() {
     } catch (e) {}
   }
   eventSource.onerror = () => {
-    sseEnabled = false
-    eventSource.close()
+    // SSE失败时自动切换到轮询
+    if (eventSource) {
+      eventSource.close()
+      eventSource = null
+    }
+    if (sseEnabled) {
+      sseEnabled = false
+      startPolling()
+    }
   }
 }
+
+onBeforeUnmount(() => {
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
+  stopPolling()
+})
 
 onMounted(() => {
   loadDevices()
