@@ -153,5 +153,13 @@ class MQTTHandler:
                 command.error_message = payload.get("error_message")
                 await db.commit()
                 print(f"[MQTT] Command {command_id} updated to {status}")
+                await sse_service.publish_command_response({
+                    "command_id": command_id,
+                    "device_key": device_key,
+                    "device_name": device.device_name,
+                    "status": status,
+                    "output_data": payload.get("output_data"),
+                    "error_message": payload.get("error_message"),
+                })
             else:
                 print(f"[MQTT] Command {command_id} not found")

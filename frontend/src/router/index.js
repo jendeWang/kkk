@@ -19,6 +19,7 @@ const routes = [
       { path: 'alert-rules', name: 'AlertRules', component: () => import('../views/AlertRules.vue') },
       { path: 'alerts', name: 'Alerts', component: () => import('../views/Alerts.vue') },
       { path: 'api-keys', name: 'APIKeys', component: () => import('../views/APIKeys.vue') },
+      { path: 'api-playground', name: 'APIPlayground', component: () => import('../views/APIPlayground.vue') },
     ]
   },
 ]
