@@ -102,8 +102,19 @@ function resetQuery() {
 let eventSource = null
 let sseEnabled = true
 
+function isProxyEnvironment() {
+  // 检测是否在代理环境下（内置预览使用代理域名）
+  const hostname = window.location.hostname
+  return hostname.includes('agent-sandbox') || hostname.includes('preview.agent')
+}
+
 function connectSSE() {
-  // SSE在代理环境下可能不可用，检测并优雅处理
+  // SSE在代理环境下不可用，完全禁用
+  if (isProxyEnvironment()) {
+    sseEnabled = false
+    return
+  }
+  
   if (!sseEnabled) return
   
   const token = localStorage.getItem('token')
@@ -121,12 +132,10 @@ function connectSSE() {
       } catch (e) {}
     }
     eventSource.onerror = (e) => {
-      // SSE连接失败（可能是代理环境不支持），关闭并停止重连
       if (eventSource.readyState === EventSource.CLOSED) {
         sseEnabled = false
       }
       eventSource.close()
-      // 仅在SSE可用时重连
       if (sseEnabled) {
         setTimeout(connectSSE, 5000)
       }
