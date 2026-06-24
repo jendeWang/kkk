@@ -31,7 +31,16 @@
         </template>
         <template v-else>
           <span class="device-name">🌐 园区总览</span>
-          <el-tag type="info" size="small">{{ allDevices.length }} 个设备</el-tag>
+          <el-tag type="info" size="small">{{ filteredDevices.length }} 个设备</el-tag>
+          <el-divider direction="vertical" />
+          <el-select v-model="selectedZone" size="small" style="width: 100px;" placeholder="分区筛选">
+            <el-option label="全部" value="" />
+            <el-option label="东区" value="east" />
+            <el-option label="西区" value="west" />
+            <el-option label="南区" value="south" />
+            <el-option label="北区" value="north" />
+          </el-select>
+          <el-input v-model="searchKeyword" size="small" style="width: 150px;" placeholder="搜索大棚..." prefix-icon="Search" />
         </template>
       </div>
         <div class="toolbar-right">
@@ -69,6 +78,26 @@
         >
           <!-- 总览模式：显示所有设备 -->
           <template v-if="viewMode === 'overview'">
+            <div class="zone-label zone-east">
+              <span class="zone-icon">📍</span>
+              <span>东区</span>
+              <span class="zone-count">{{ zoneDeviceCounts.east }}</span>
+            </div>
+            <div class="zone-label zone-west">
+              <span class="zone-icon">📍</span>
+              <span>西区</span>
+              <span class="zone-count">{{ zoneDeviceCounts.west }}</span>
+            </div>
+            <div class="zone-label zone-south">
+              <span class="zone-icon">📍</span>
+              <span>南区</span>
+              <span class="zone-count">{{ zoneDeviceCounts.south }}</span>
+            </div>
+            <div class="zone-label zone-north">
+              <span class="zone-icon">📍</span>
+              <span>北区</span>
+              <span class="zone-count">{{ zoneDeviceCounts.north }}</span>
+            </div>
             <div
               v-for="device in overviewDeviceNodes"
               :key="device.id"
@@ -295,6 +324,8 @@ const editMode = ref(false)
 const currentTheme = ref('tech-dark')
 const viewMode = ref('overview')
 const currentOverviewDevice = ref(null)
+const selectedZone = ref('')
+const searchKeyword = ref('')
 
 const deviceInfo = reactive({
   id: null,
@@ -417,9 +448,9 @@ const actuatorNodes = computed(() => {
 })
 
 const overviewDeviceNodes = computed(() => {
-  return allDevices.value.map((device, index) => {
+  return filteredDevices.value.map((device, index) => {
     const posKey = `device_${device.id}`
-    const defaultPos = overviewDefaultPositions[index] || { x: 100 + (index % 4) * 200, y: 150 + Math.floor(index / 4) * 200 }
+    const defaultPos = getOverviewDevicePosition(device, index)
     const pos = nodePositions[posKey] || defaultPos
     return {
       ...device,
@@ -429,16 +460,50 @@ const overviewDeviceNodes = computed(() => {
   })
 })
 
-const overviewDefaultPositions = [
-  { x: 150, y: 150 },
-  { x: 450, y: 150 },
-  { x: 150, y: 350 },
-  { x: 450, y: 350 },
-  { x: 300, y: 100 },
-  { x: 600, y: 100 },
-  { x: 300, y: 450 },
-  { x: 600, y: 450 }
-]
+const filteredDevices = computed(() => {
+  return allDevices.value.filter(device => {
+    const matchZone = !selectedZone.value || getDeviceZone(device) === selectedZone.value
+    const matchSearch = !searchKeyword.value || 
+      (device.device_name && device.device_name.toLowerCase().includes(searchKeyword.value.toLowerCase()))
+    return matchZone && matchSearch
+  })
+})
+
+const zoneDeviceCounts = computed(() => {
+  const counts = { east: 0, west: 0, south: 0, north: 0 }
+  filteredDevices.value.forEach(device => {
+    counts[getDeviceZone(device)]++
+  })
+  return counts
+})
+
+function getDeviceZone(device) {
+  const name = (device.device_name || '').toLowerCase()
+  if (name.includes('东') || name.includes('a')) return 'east'
+  if (name.includes('西') || name.includes('b')) return 'west'
+  if (name.includes('南') || name.includes('c')) return 'south'
+  if (name.includes('北') || name.includes('d')) return 'north'
+  return 'east'
+}
+
+function getOverviewDevicePosition(device, index) {
+  const zone = getDeviceZone(device)
+  const zoneConfigs = {
+    east: { startX: 100, startY: 100, cols: 3, gapX: 180, gapY: 160 },
+    west: { startX: 400, startY: 100, cols: 3, gapX: 180, gapY: 160 },
+    south: { startX: 250, startY: 350, cols: 3, gapX: 180, gapY: 160 },
+    north: { startX: 250, startY: 50, cols: 3, gapX: 180, gapY: 160 }
+  }
+  const config = zoneConfigs[zone] || zoneConfigs.east
+  const filteredZoneDevices = allDevices.value.filter(d => getDeviceZone(d) === zone)
+  const zoneIndex = filteredZoneDevices.findIndex(d => d.id === device.id)
+  const col = zoneIndex % config.cols
+  const row = Math.floor(zoneIndex / config.cols)
+  return {
+    x: config.startX + col * config.gapX,
+    y: config.startY + row * config.gapY
+  }
+}
 
 const deviceStatusType = computed(() => {
   const map = { online: 'success', offline: 'info', error: 'danger' }
@@ -1241,6 +1306,50 @@ onBeforeUnmount(() => {
 .overview-device-status.status-offline {
   color: #909399;
 }
+
+.zone-label {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #303133;
+  z-index: 5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.canvas-theme-tech-dark .zone-label {
+  background: rgba(13, 31, 60, 0.9);
+  color: #e6f0ff;
+  border-color: rgba(64, 158, 255, 0.3);
+}
+
+.zone-icon {
+  font-size: 14px;
+}
+
+.zone-count {
+  padding: 1px 6px;
+  background: rgba(64, 158, 255, 0.2);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #409eff;
+}
+
+.canvas-theme-tech-dark .zone-count {
+  background: rgba(64, 158, 255, 0.3);
+}
+
+.zone-east { top: 10px; left: 10px; }
+.zone-west { top: 10px; right: 10px; }
+.zone-south { bottom: 10px; left: 50%; transform: translateX(-50%); }
+.zone-north { top: 50%; right: 10px; transform: translateY(-50%); }
 
 .node-icon-inner.rotating {
   animation: spin 2s linear infinite;

@@ -249,6 +249,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { useDeviceStore } from '../stores/device.js'
 import api from '../services/api.js'
 import * as echarts from 'echarts'
@@ -256,6 +257,7 @@ import { ElMessage } from 'element-plus'
 import { Goods, Monitor, Warning, Connection, CircleCheck, FullScreen } from '@element-plus/icons-vue'
 
 const deviceStore = useDeviceStore()
+const router = useRouter()
 
 const overview = reactive({
   total_products: 0,
