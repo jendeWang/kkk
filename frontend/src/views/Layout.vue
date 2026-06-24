@@ -38,6 +38,10 @@
             <el-icon><Key /></el-icon>
             <span>{{ $t('menu.apiKeys') }}</span>
           </el-menu-item>
+          <el-menu-item index="/topology">
+            <el-icon><Grid /></el-icon>
+            <span>沙盘拓扑</span>
+          </el-menu-item>
           <el-menu-item index="/api-playground">
             <el-icon><Tools /></el-icon>
             <span>API测试台</span>
@@ -93,7 +97,8 @@ const pageTitle = computed(() => {
     '/alert-rules': '告警规则',
     '/alerts': '告警事件',
     '/api-keys': 'API密钥',
-    '/api-playground': 'API测试台'
+    '/api-playground': 'API测试台',
+    '/topology': '沙盘拓扑'
   }
   return titles[route.path] || ''
 })

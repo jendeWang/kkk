@@ -616,3 +616,26 @@ class AutomationExecutionLogResponse(BaseModel):
 
 class SceneTriggerRequest(BaseModel):
     trigger_data: Optional[Dict[str, Any]] = None
+
+
+class DeviceTopologyUpdate(BaseModel):
+    x: float
+    y: float
+
+
+class TopologyConfigResponse(BaseModel):
+    id: int
+    owner_id: int
+    background_image: Optional[str] = None
+    canvas_width: int
+    canvas_height: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TopologyConfigUpdate(BaseModel):
+    background_image: Optional[str] = None
+    canvas_width: Optional[int] = None
+    canvas_height: Optional[int] = None

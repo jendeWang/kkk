@@ -399,3 +399,17 @@ class AutomationExecutionLog(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     scene = relationship("AutomationScene", back_populates="execution_logs")
+
+
+class TopologyConfig(Base):
+    __tablename__ = "topology_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    background_image = Column(Text, nullable=True)
+    canvas_width = Column(Integer, default=1200)
+    canvas_height = Column(Integer, default=800)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
+
+    owner = relationship("User")

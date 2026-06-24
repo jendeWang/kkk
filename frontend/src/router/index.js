@@ -5,6 +5,7 @@ import Layout from '../views/Layout.vue'
 const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { requiresAuth: false } },
   { path: '/register', name: 'Register', component: () => import('../views/Register.vue'), meta: { requiresAuth: false } },
+  { path: '/big-screen', name: 'BigScreen', component: () => import('../views/BigScreen.vue'), meta: { requiresAuth: false } },
   { path: '/', redirect: '/dashboard' },
   {
     path: '/',
@@ -20,6 +21,7 @@ const routes = [
       { path: 'alerts', name: 'Alerts', component: () => import('../views/Alerts.vue') },
       { path: 'api-keys', name: 'APIKeys', component: () => import('../views/APIKeys.vue') },
       { path: 'api-playground', name: 'APIPlayground', component: () => import('../views/APIPlayground.vue') },
+      { path: 'topology', name: 'Topology', component: () => import('../views/Topology.vue') },
     ]
   },
 ]

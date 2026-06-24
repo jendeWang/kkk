@@ -15,7 +15,8 @@ from ..models.models import User, Device, Product, ProductProperty, Command, Tel
 from ..schemas import (
     DeviceCreate, DeviceUpdate, DeviceResponse, DeviceDetailResponse,
     PropertyWithValueResponse, CommandResponse, DeviceEventRecordResponse,
-    CommandSendRequest, CommandCreate, DeviceShadowResponse, DeviceShadowUpdateRequest
+    CommandSendRequest, CommandCreate, DeviceShadowResponse, DeviceShadowUpdateRequest,
+    DeviceTopologyUpdate
 )
 from ..mqtt.service import mqtt_service
 
@@ -490,3 +491,33 @@ async def delete_device_shadow(
         await db.commit()
 
     return {"message": "Device shadow reset successfully"}
+
+
+@router.put("/{device_id}/topology", response_model=DeviceResponse)
+async def update_device_topology(
+    device_id: int,
+    topology_data: DeviceTopologyUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """更新设备拓扑位置"""
+    result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    device = result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    extra = device.extra or {}
+    if "topology" not in extra or not isinstance(extra["topology"], dict):
+        extra["topology"] = {}
+    extra["topology"]["x"] = topology_data.x
+    extra["topology"]["y"] = topology_data.y
+    device.extra = extra
+
+    await db.commit()
+    await db.refresh(device)
+    return device
