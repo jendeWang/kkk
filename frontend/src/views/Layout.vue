@@ -10,6 +10,10 @@
             <el-icon><DataBoard /></el-icon>
             <span>{{ $t('menu.dashboard') }}</span>
           </el-menu-item>
+          <el-menu-item index="/big-screen" @click="openBigScreen">
+            <el-icon><DataLine /></el-icon>
+            <span>数据大屏</span>
+          </el-menu-item>
           <el-menu-item index="/products">
             <el-icon><Goods /></el-icon>
             <span>{{ $t('menu.products') }}</span>
@@ -109,6 +113,10 @@ function handleCommand(command) {
     ElMessage.success('Logged out')
     router.push('/login')
   }
+}
+
+function openBigScreen() {
+  window.open('/big-screen', '_blank')
 }
 </script>
 

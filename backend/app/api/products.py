@@ -20,6 +20,7 @@ from ..schemas import (
     ProductEventCreate, ProductEventUpdate, ProductEventResponse,
     TSLModel, TSLImportResponse,
 )
+from ..services.init_service import refresh_product_ui_specs
 
 router = APIRouter(prefix="/products", tags=["产品管理"])
 
@@ -794,6 +795,105 @@ async def import_tsl(
         services_count=len(tsl_data.services),
         events_count=len(tsl_data.events),
     )
+
+
+@router.get("/{product_key}/tsl/detail")
+async def get_tsl_detail(
+    product_key: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取产品TSL详情（属性含完整specs、服务、事件）"""
+    result = await db.execute(
+        select(Product)
+        .options(
+            selectinload(Product.properties),
+            selectinload(Product.services),
+            selectinload(Product.events),
+        )
+        .where(
+            Product.product_key == product_key,
+            Product.owner_id == current_user.id,
+        )
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    properties = []
+    for prop in product.properties:
+        properties.append({
+            "id": prop.id,
+            "identifier": prop.identifier,
+            "name": prop.name,
+            "data_type": prop.data_type.value if hasattr(prop.data_type, 'value') else prop.data_type,
+            "access_type": prop.access_type.value if hasattr(prop.access_type, 'value') else prop.access_type,
+            "unit": prop.unit,
+            "min_value": prop.min_value,
+            "max_value": prop.max_value,
+            "step": prop.step,
+            "enum_values": prop.enum_values,
+            "default_value": prop.default_value,
+            "required": prop.required or False,
+            "specs": prop.specs or {},
+            "description": prop.description,
+            "created_at": prop.created_at,
+        })
+
+    services = []
+    for svc in product.services:
+        services.append({
+            "id": svc.id,
+            "identifier": svc.identifier,
+            "name": svc.name,
+            "description": svc.description,
+            "input_params": svc.input_params or [],
+            "output_params": svc.output_params or [],
+            "created_at": svc.created_at,
+        })
+
+    events = []
+    for evt in product.events:
+        events.append({
+            "id": evt.id,
+            "identifier": evt.identifier,
+            "name": evt.name,
+            "event_type": evt.event_type,
+            "description": evt.description,
+            "output_params": evt.output_params or [],
+            "created_at": evt.created_at,
+        })
+
+    return {
+        "properties": properties,
+        "services": services,
+        "events": events,
+    }
+
+
+@router.post("/{product_key}/refresh-ui-specs")
+async def refresh_ui_specs(
+    product_key: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """为产品属性补充UI配置（根据identifier匹配）"""
+    result = await db.execute(
+        select(Product).where(
+            Product.product_key == product_key,
+            Product.owner_id == current_user.id,
+        )
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    updated_count = await refresh_product_ui_specs(db, product.id)
+
+    return {
+        "message": f"Updated {updated_count} properties",
+        "updated_count": updated_count,
+    }
 
 
 def _parse_value_by_type(data_type, value_str):

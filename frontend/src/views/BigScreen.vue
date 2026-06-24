@@ -29,6 +29,11 @@
       </div>
     </div>
 
+    <button class="exit-btn" @click="exitBigScreen">
+      <el-icon><Close /></el-icon>
+      <span>退出大屏</span>
+    </button>
+
     <div class="main-content">
       <div class="left-panel">
         <div class="panel">
@@ -240,8 +245,12 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../services/api.js'
 import * as echarts from 'echarts'
+import { Close } from '@element-plus/icons-vue'
+
+const router = useRouter()
 
 const currentTime = ref('')
 let timeTimer = null
@@ -635,10 +644,24 @@ onMounted(async () => {
   generateMockTrendData()
   
   window.addEventListener('resize', handleResize)
+  window.addEventListener('keydown', handleKeydown)
 })
 
 function handleResize() {
   trendChartInstance?.resize()
+}
+
+function exitBigScreen() {
+  window.close()
+  setTimeout(() => {
+    router.push('/dashboard')
+  }, 100)
+}
+
+function handleKeydown(e) {
+  if (e.key === 'Escape') {
+    exitBigScreen()
+  }
 }
 
 onUnmounted(() => {
@@ -646,6 +669,7 @@ onUnmounted(() => {
   if (dataTimer) clearInterval(dataTimer)
   if (trendChartInstance) trendChartInstance.dispose()
   window.removeEventListener('resize', handleResize)
+  window.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
@@ -660,6 +684,31 @@ onUnmounted(() => {
   padding: 15px;
   box-sizing: border-box;
   position: relative;
+}
+
+.exit-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(0, 212, 255, 0.15);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s;
+  backdrop-filter: blur(10px);
+}
+
+.exit-btn:hover {
+  background: rgba(0, 212, 255, 0.3);
+  color: #fff;
+  border-color: rgba(0, 212, 255, 0.6);
 }
 
 .big-screen::before {

@@ -20,6 +20,12 @@
           <el-tag :type="deviceStatusType" size="small">{{ deviceStatusText }}</el-tag>
         </div>
         <div class="toolbar-right">
+          <el-select v-model="currentTheme" size="default" style="width: 140px; margin-right: 12px;" @change="onThemeChange">
+            <el-option label="科技黑" value="tech-dark" />
+            <el-option label="简洁白" value="light" />
+            <el-option label="大棚绿" value="greenhouse" />
+            <el-option label="自定义" value="custom" />
+          </el-select>
           <el-switch v-model="editMode" active-text="编辑模式" inactive-text="查看模式" @change="onEditModeChange" />
           <el-button @click="showBgUpload = true" style="margin-left: 12px;">
             <el-icon><Picture /></el-icon>
@@ -31,7 +37,10 @@
       <div
         ref="canvasContainer"
         class="canvas-container"
-        :class="{ 'edit-mode': editMode }"
+        :class="[
+          'theme-' + currentTheme,
+          { 'edit-mode': editMode }
+        ]"
         @mousedown="handleCanvasMouseDown"
         @mousemove="handleCanvasMouseMove"
         @mouseup="handleCanvasMouseUp"
@@ -40,17 +49,25 @@
       >
         <div
           class="canvas"
+          :class="['canvas-theme-' + currentTheme]"
           :style="canvasStyle"
         >
           <div
-            v-if="config.background_image"
+            v-if="currentTheme === 'custom' && config.background_image"
             class="background-image"
             :style="{ backgroundImage: 'url(' + config.background_image + ')' }"
           ></div>
-          <div
-            v-else
-            class="background-greenhouse"
-          >
+
+          <div v-if="currentTheme === 'tech-dark'" class="tech-dark-bg">
+            <div class="grid-lines"></div>
+            <div class="glow-effect"></div>
+          </div>
+
+          <div v-if="currentTheme === 'light'" class="light-bg">
+            <div class="light-grid"></div>
+          </div>
+
+          <div v-if="currentTheme === 'greenhouse'" class="background-greenhouse">
             <div class="greenhouse-outline">
               <div class="greenhouse-roof"></div>
               <div class="greenhouse-body">
@@ -76,7 +93,7 @@
             @mousedown.stop="editMode && handleNodeMouseDown($event, node)"
             @click.stop="!editMode && handleSensorClick(node)"
           >
-            <div class="node-icon-inner">
+            <div class="node-icon-inner" :style="getNodeIconStyle(node)">
               <span class="node-emoji">{{ node.icon }}</span>
             </div>
             <div class="node-value" v-if="hasData && node.value !== undefined">
@@ -103,7 +120,7 @@
             @mousedown.stop="editMode && handleNodeMouseDown($event, node)"
             @click.stop="!editMode && handleActuatorClick(node)"
           >
-            <div class="node-icon-inner" :class="{ 'rotating': node.id === 'fan_status' && node.isOn }">
+            <div class="node-icon-inner" :class="{ 'rotating': node.isRotating && node.isOn }">
               <span class="node-emoji">{{ node.icon }}</span>
             </div>
             <div class="node-actuator-status">{{ node.isOn ? '运行中' : '已关闭' }}</div>
@@ -219,7 +236,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ZoomIn, ZoomOut, Refresh, Picture, UploadFilled } from '@element-plus/icons-vue'
 import api from '../services/api.js'
@@ -229,11 +246,13 @@ const scale = ref(1)
 const panX = ref(0)
 const panY = ref(0)
 const editMode = ref(false)
+const currentTheme = ref('tech-dark')
 
 const deviceInfo = reactive({
   id: null,
   device_name: '',
-  status: 'offline'
+  status: 'offline',
+  product_id: null
 })
 
 const config = reactive({
@@ -263,41 +282,65 @@ const showActuatorConfirm = ref(false)
 const selectedActuator = ref(null)
 const sendingCommand = ref(false)
 
+const sensorConfigs = ref([])
+const actuatorConfigs = ref([])
+
 let refreshTimer = null
 let nodePositions = {}
 
-const sensorConfigs = [
-  { id: 'temperature', name: '温度传感器', icon: '🌡️', unit: '°C', decimals: 1, min: 15, max: 30, color: '#f56c6c' },
-  { id: 'humidity', name: '空气湿度', icon: '💧', unit: '%', decimals: 1, min: 40, max: 70, color: '#409eff' },
-  { id: 'light_intensity', name: '光照传感器', icon: '☀️', unit: 'lux', decimals: 0, min: 1000, max: 50000, color: '#e6a23c' },
-  { id: 'soil_moisture', name: '土壤湿度', icon: '🌱', unit: '%', decimals: 1, min: 30, max: 80, color: '#67c23a' },
-  { id: 'co2', name: 'CO₂浓度', icon: '💨', unit: 'ppm', decimals: 0, min: 400, max: 1500, color: '#909399' },
-  { id: 'soil_temperature', name: '土壤温度', icon: '🪴', unit: '°C', decimals: 1, min: 15, max: 28, color: '#8e44ad' }
-]
+const defaultFallbackConfigs = {
+  sensors: [
+    { id: 'temperature', name: '温度传感器', icon: '🌡️', unit: '°C', decimals: 1, min: 15, max: 30, color: '#f56c6c' },
+    { id: 'humidity', name: '空气湿度', icon: '💧', unit: '%', decimals: 1, min: 40, max: 70, color: '#409eff' },
+    { id: 'light_intensity', name: '光照传感器', icon: '☀️', unit: 'lux', decimals: 0, min: 1000, max: 50000, color: '#e6a23c' },
+    { id: 'soil_moisture', name: '土壤湿度', icon: '🌱', unit: '%', decimals: 1, min: 30, max: 80, color: '#67c23a' },
+    { id: 'co2', name: 'CO₂浓度', icon: '💨', unit: 'ppm', decimals: 0, min: 400, max: 1500, color: '#909399' },
+    { id: 'soil_temperature', name: '土壤温度', icon: '🪴', unit: '°C', decimals: 1, min: 15, max: 28, color: '#8e44ad' }
+  ],
+  actuators: [
+    { id: 'fan_status', name: '通风扇', icon: '🌀', service: 'set_fan', param: 'fan_status', isRotating: true },
+    { id: 'light_status', name: '补光灯', icon: '💡', service: 'set_light', param: 'light_status', isRotating: false },
+    { id: 'pump_status', name: '灌溉水泵', icon: '🚿', service: 'set_pump', param: 'pump_status', isRotating: false }
+  ],
+  positions: {
+    temperature: { x: 100, y: 120 },
+    humidity: { x: 280, y: 120 },
+    light_intensity: { x: 460, y: 120 },
+    co2: { x: 640, y: 120 },
+    soil_temperature: { x: 190, y: 300 },
+    soil_moisture: { x: 370, y: 300 },
+    fan_status: { x: 100, y: 460 },
+    light_status: { x: 340, y: 460 },
+    pump_status: { x: 580, y: 460 }
+  }
+}
 
-const actuatorConfigs = [
-  { id: 'fan_status', name: '通风扇', icon: '🌀', service: 'set_fan', param: 'fan_status' },
-  { id: 'light_status', name: '补光灯', icon: '💡', service: 'set_light', param: 'light_status' },
-  { id: 'pump_status', name: '灌溉水泵', icon: '🚿', service: 'set_pump', param: 'pump_status' }
-]
+function getPositionsKey() {
+  const pid = deviceInfo.product_id || 'default'
+  return `topology_positions_${pid}`
+}
 
-const defaultPositions = {
-  temperature: { x: 100, y: 120 },
-  humidity: { x: 280, y: 120 },
-  light_intensity: { x: 460, y: 120 },
-  co2: { x: 640, y: 120 },
-  soil_temperature: { x: 190, y: 300 },
-  soil_moisture: { x: 370, y: 300 },
-  fan_status: { x: 100, y: 460 },
-  light_status: { x: 340, y: 460 },
-  pump_status: { x: 580, y: 460 }
+function getDefaultPositions() {
+  const positions = {}
+  sensorConfigs.value.forEach(cfg => {
+    if (cfg.default_x !== undefined && cfg.default_y !== undefined) {
+      positions[cfg.id] = { x: cfg.default_x, y: cfg.default_y }
+    }
+  })
+  actuatorConfigs.value.forEach(cfg => {
+    if (cfg.default_x !== undefined && cfg.default_y !== undefined) {
+      positions[cfg.id] = { x: cfg.default_x, y: cfg.default_y }
+    }
+  })
+  return Object.keys(positions).length > 0 ? positions : defaultFallbackConfigs.positions
 }
 
 const sensorNodes = computed(() => {
-  return sensorConfigs.map(cfg => {
+  return sensorConfigs.value.map(cfg => {
     const value = shadowData[cfg.id]
     const isWarning = value !== undefined && (value < cfg.min || value > cfg.max)
-    const pos = nodePositions[cfg.id] || defaultPositions[cfg.id] || { x: 100, y: 100 }
+    const defaultPos = getDefaultPositions()
+    const pos = nodePositions[cfg.id] || defaultPos[cfg.id] || { x: 100, y: 100 }
     return {
       ...cfg,
       value,
@@ -309,9 +352,10 @@ const sensorNodes = computed(() => {
 })
 
 const actuatorNodes = computed(() => {
-  return actuatorConfigs.map(cfg => {
+  return actuatorConfigs.value.map(cfg => {
     const isOn = !!shadowData[cfg.id]
-    const pos = nodePositions[cfg.id] || defaultPositions[cfg.id] || { x: 100, y: 100 }
+    const defaultPos = getDefaultPositions()
+    const pos = nodePositions[cfg.id] || defaultPos[cfg.id] || { x: 100, y: 100 }
     return {
       ...cfg,
       isOn,
@@ -345,6 +389,16 @@ function getNodeStyle(node) {
   }
 }
 
+function getNodeIconStyle(node) {
+  if (node.color) {
+    return {
+      borderColor: node.color,
+      boxShadow: `0 0 0 3px ${node.color}33`
+    }
+  }
+  return {}
+}
+
 function formatValue(val, decimals) {
   if (val === null || val === undefined || isNaN(val)) return '--'
   return Number(val).toFixed(decimals)
@@ -352,9 +406,12 @@ function formatValue(val, decimals) {
 
 function loadPositions() {
   try {
-    const saved = localStorage.getItem('topology_positions')
+    const key = getPositionsKey()
+    const saved = localStorage.getItem(key)
     if (saved) {
       nodePositions = JSON.parse(saved)
+    } else {
+      nodePositions = {}
     }
   } catch (e) {
     nodePositions = {}
@@ -363,8 +420,98 @@ function loadPositions() {
 
 function savePositions() {
   try {
-    localStorage.setItem('topology_positions', JSON.stringify(nodePositions))
+    const key = getPositionsKey()
+    localStorage.setItem(key, JSON.stringify(nodePositions))
   } catch (e) {}
+}
+
+function loadTheme() {
+  try {
+    const saved = localStorage.getItem('topology_theme')
+    if (saved) {
+      currentTheme.value = saved
+    }
+  } catch (e) {}
+}
+
+function saveTheme(theme) {
+  try {
+    localStorage.setItem('topology_theme', theme)
+  } catch (e) {}
+}
+
+function onThemeChange(theme) {
+  saveTheme(theme)
+  if (theme === 'custom' && !config.background_image) {
+    showBgUpload.value = true
+  }
+}
+
+function parseTslProperties(properties) {
+  const sensors = []
+  const actuators = []
+
+  if (!Array.isArray(properties)) {
+    return { sensors, actuators }
+  }
+
+  properties.forEach(prop => {
+    const specs = prop.specs || {}
+    if (!specs.ui_type) return
+
+    const baseConfig = {
+      id: prop.identifier,
+      name: prop.name || prop.identifier,
+      icon: specs.ui_icon || '📦',
+      color: specs.ui_color || null
+    }
+
+    if (specs.ui_type === 'sensor') {
+      sensors.push({
+        ...baseConfig,
+        unit: specs.ui_unit || '',
+        decimals: specs.ui_decimals !== undefined ? specs.ui_decimals : 1,
+        min: specs.ui_normal_min !== undefined ? specs.ui_normal_min : 0,
+        max: specs.ui_normal_max !== undefined ? specs.ui_normal_max : 100,
+        default_x: specs.ui_default_x,
+        default_y: specs.ui_default_y
+      })
+    } else if (specs.ui_type === 'actuator') {
+      actuators.push({
+        ...baseConfig,
+        service: specs.ui_service || '',
+        param: specs.ui_service_param || prop.identifier,
+        isRotating: prop.identifier === 'fan_status',
+        default_x: specs.ui_default_x,
+        default_y: specs.ui_default_y
+      })
+    }
+  })
+
+  return { sensors, actuators }
+}
+
+async function loadTsl(productId) {
+  if (!productId) return
+  
+  try {
+    const res = await api.get(`/products/${productId}/tsl`)
+    const tsl = res.data
+    const properties = tsl?.properties || []
+    const { sensors, actuators } = parseTslProperties(properties)
+    
+    if (sensors.length > 0 || actuators.length > 0) {
+      sensorConfigs.value = sensors
+      actuatorConfigs.value = actuators
+    } else {
+      sensorConfigs.value = defaultFallbackConfigs.sensors
+      actuatorConfigs.value = defaultFallbackConfigs.actuators
+    }
+  } catch (error) {
+    console.error('Failed to load TSL:', error)
+    sensorConfigs.value = defaultFallbackConfigs.sensors
+    actuatorConfigs.value = defaultFallbackConfigs.actuators
+  }
 }
 
 function zoomIn() {
@@ -482,6 +629,8 @@ function handleBgFileChange(file) {
 function useDefaultBg() {
   tempBgImage.value = ''
   config.background_image = null
+  currentTheme.value = 'greenhouse'
+  saveTheme('greenhouse')
   ElMessage.success('已切换为默认大棚示意图')
   showBgUpload.value = false
 }
@@ -497,6 +646,8 @@ async function saveBackground() {
       background_image: tempBgImage.value
     })
     config.background_image = res.data.background_image
+    currentTheme.value = 'custom'
+    saveTheme('custom')
     ElMessage.success('背景图保存成功')
     showBgUpload.value = false
     tempBgImage.value = ''
@@ -531,6 +682,7 @@ async function loadDevice() {
       deviceInfo.id = device.id
       deviceInfo.device_name = device.device_name
       deviceInfo.status = device.status
+      deviceInfo.product_id = device.product_id || device.product_key
     }
   } catch (error) {
     console.error('Failed to load device:', error)
@@ -563,9 +715,21 @@ async function loadConfig() {
   }
 }
 
+watch(() => deviceInfo.product_id, (newVal, oldVal) => {
+  if (newVal && newVal !== oldVal) {
+    loadPositions()
+  }
+})
+
 onMounted(async () => {
-  loadPositions()
+  loadTheme()
+  sensorConfigs.value = defaultFallbackConfigs.sensors
+  actuatorConfigs.value = defaultFallbackConfigs.actuators
   await Promise.all([loadDevice(), loadConfig()])
+  if (deviceInfo.product_id) {
+    await loadTsl(deviceInfo.product_id)
+  }
+  loadPositions()
   if (deviceInfo.id) {
     await loadDeviceShadow()
   }
@@ -608,6 +772,11 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
+.toolbar-right {
+  display: flex;
+  align-items: center;
+}
+
 .device-name {
   font-size: 15px;
   font-weight: 600;
@@ -624,13 +793,43 @@ onBeforeUnmount(() => {
   flex: 1;
   overflow: hidden;
   position: relative;
-  background: #e8f5e9;
   cursor: grab;
+}
+
+.canvas-container.theme-tech-dark {
+  background: linear-gradient(135deg, #0a1628 0%, #1a2a4a 100%);
+}
+
+.canvas-container.theme-light {
+  background: #f5f7fa;
+}
+
+.canvas-container.theme-greenhouse {
+  background: #e8f5e9;
+}
+
+.canvas-container.theme-custom {
+  background: #2c3e50;
 }
 
 .canvas-container.edit-mode {
   cursor: default;
+}
+
+.canvas-container.theme-tech-dark.edit-mode {
+  background: linear-gradient(135deg, #1a2a4a 0%, #2a3a5a 100%);
+}
+
+.canvas-container.theme-light.edit-mode {
   background: #fff3e0;
+}
+
+.canvas-container.theme-greenhouse.edit-mode {
+  background: #fff3e0;
+}
+
+.canvas-container.theme-custom.edit-mode {
+  background: #34495e;
 }
 
 .canvas-container:active:not(.edit-mode) {
@@ -646,6 +845,79 @@ onBeforeUnmount(() => {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.canvas-theme-tech-dark {
+  background: linear-gradient(180deg, #0d1f3c 0%, #152a4a 100%);
+  border: 1px solid rgba(64, 158, 255, 0.3);
+  box-shadow: 0 0 30px rgba(64, 158, 255, 0.2), 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.canvas-theme-light {
+  background: #ffffff;
+  border: 1px solid #e4e7ed;
+}
+
+.canvas-theme-greenhouse {
+  background: white;
+}
+
+.canvas-theme-custom {
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tech-dark-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.grid-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    linear-gradient(rgba(64, 158, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(64, 158, 255, 0.1) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.glow-effect {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 600px;
+  height: 600px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(64, 158, 255, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.light-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.light-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    linear-gradient(rgba(228, 231, 237, 0.8) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(228, 231, 237, 0.8) 1px, transparent 1px);
+  background-size: 50px 50px;
 }
 
 .background-greenhouse {
@@ -808,6 +1080,12 @@ onBeforeUnmount(() => {
   font-family: 'Courier New', monospace;
 }
 
+.canvas-theme-tech-dark .node-value {
+  background: rgba(13, 31, 60, 0.9);
+  color: #e6f0ff;
+  border: 1px solid rgba(64, 158, 255, 0.3);
+}
+
 .node-value.no-data {
   color: #c0c4cc;
   font-weight: 400;
@@ -820,6 +1098,10 @@ onBeforeUnmount(() => {
   margin-left: 1px;
 }
 
+.canvas-theme-tech-dark .node-unit {
+  color: #8fa3bf;
+}
+
 .node-actuator-status {
   text-align: center;
   font-size: 11px;
@@ -830,9 +1112,19 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
+.canvas-theme-tech-dark .node-actuator-status {
+  background: rgba(13, 31, 60, 0.9);
+  border: 1px solid rgba(64, 158, 255, 0.3);
+}
+
 .actuator-node.status-on .node-actuator-status {
   color: #409eff;
   background: #ecf5ff;
+}
+
+.canvas-theme-tech-dark .actuator-node.status-on .node-actuator-status {
+  background: rgba(64, 158, 255, 0.2);
+  border-color: rgba(64, 158, 255, 0.5);
 }
 
 .actuator-node.status-off .node-actuator-status {
@@ -848,6 +1140,12 @@ onBeforeUnmount(() => {
   background: rgba(255, 255, 255, 0.9);
   padding: 1px 6px;
   border-radius: 3px;
+}
+
+.canvas-theme-tech-dark .node-label {
+  background: rgba(13, 31, 60, 0.9);
+  color: #b8c7db;
+  border: 1px solid rgba(64, 158, 255, 0.2);
 }
 
 .legend-bar {

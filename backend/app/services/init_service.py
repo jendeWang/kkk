@@ -9,6 +9,140 @@ from ..security.auth import get_password_hash
 from ..config import settings
 
 
+UI_SPECS_CONFIG = {
+    "temperature": {
+        "ui_type": "sensor",
+        "ui_icon": "🌡️",
+        "ui_color": "#f56c6c",
+        "ui_unit": "℃",
+        "ui_decimals": 1,
+        "ui_normal_min": 15,
+        "ui_normal_max": 30,
+        "ui_default_x": 100,
+        "ui_default_y": 100,
+    },
+    "humidity": {
+        "ui_type": "sensor",
+        "ui_icon": "💧",
+        "ui_color": "#409eff",
+        "ui_unit": "%RH",
+        "ui_decimals": 1,
+        "ui_normal_min": 40,
+        "ui_normal_max": 70,
+        "ui_default_x": 280,
+        "ui_default_y": 100,
+    },
+    "light_intensity": {
+        "ui_type": "sensor",
+        "ui_icon": "☀️",
+        "ui_color": "#e6a23c",
+        "ui_unit": "lux",
+        "ui_decimals": 0,
+        "ui_normal_min": 1000,
+        "ui_normal_max": 50000,
+        "ui_default_x": 460,
+        "ui_default_y": 100,
+    },
+    "soil_moisture": {
+        "ui_type": "sensor",
+        "ui_icon": "🌱",
+        "ui_color": "#67c23a",
+        "ui_unit": "%",
+        "ui_decimals": 1,
+        "ui_normal_min": 30,
+        "ui_normal_max": 80,
+        "ui_default_x": 190,
+        "ui_default_y": 280,
+    },
+    "co2": {
+        "ui_type": "sensor",
+        "ui_icon": "💨",
+        "ui_color": "#909399",
+        "ui_unit": "ppm",
+        "ui_decimals": 0,
+        "ui_normal_min": 400,
+        "ui_normal_max": 1500,
+        "ui_default_x": 640,
+        "ui_default_y": 100,
+    },
+    "soil_temperature": {
+        "ui_type": "sensor",
+        "ui_icon": "🪴",
+        "ui_color": "#8e44ad",
+        "ui_unit": "℃",
+        "ui_decimals": 1,
+        "ui_normal_min": 15,
+        "ui_normal_max": 28,
+        "ui_default_x": 370,
+        "ui_default_y": 280,
+    },
+    "fan_status": {
+        "ui_type": "actuator",
+        "ui_icon": "🌀",
+        "ui_color": "#409eff",
+        "ui_service": "set_fan",
+        "ui_service_param": "status",
+        "ui_default_x": 100,
+        "ui_default_y": 440,
+    },
+    "light_status": {
+        "ui_type": "actuator",
+        "ui_icon": "💡",
+        "ui_color": "#e6a23c",
+        "ui_service": "set_light",
+        "ui_service_param": "status",
+        "ui_default_x": 340,
+        "ui_default_y": 440,
+    },
+    "pump_status": {
+        "ui_type": "actuator",
+        "ui_icon": "🚿",
+        "ui_color": "#67c23a",
+        "ui_service": "set_pump",
+        "ui_service_param": "status",
+        "ui_default_x": 580,
+        "ui_default_y": 440,
+    },
+}
+
+
+async def refresh_product_ui_specs(db: AsyncSession, product_id: int) -> int:
+    """根据identifier为产品属性补充UI配置，返回更新的属性数量"""
+    from sqlalchemy.orm import selectinload, attributes
+
+    result = await db.execute(
+        select(Product)
+        .options(selectinload(Product.properties))
+        .where(Product.id == product_id)
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        return 0
+
+    updated_count = 0
+    for prop in product.properties:
+        ui_config = UI_SPECS_CONFIG.get(prop.identifier)
+        if not ui_config:
+            continue
+
+        current_specs = dict(prop.specs or {})
+        needs_update = False
+        for key, value in ui_config.items():
+            if key not in current_specs or current_specs[key] != value:
+                current_specs[key] = value
+                needs_update = True
+
+        if needs_update:
+            prop.specs = current_specs
+            attributes.flag_modified(prop, "specs")
+            updated_count += 1
+
+    if updated_count > 0:
+        await db.commit()
+
+    return updated_count
+
+
 async def init_default_user(db: AsyncSession):
     """创建默认管理员用户"""
     result = await db.execute(select(User).where(User.username == "admin"))
@@ -46,7 +180,11 @@ async def init_greenhouse_product(db: AsyncSession):
     )
     existing = product_result.scalar_one_or_none()
     if existing:
-        print("[Init] Smart Greenhouse product already exists")
+        updated = await refresh_product_ui_specs(db, existing.id)
+        if updated > 0:
+            print(f"[Init] Smart Greenhouse product UI specs updated: {updated} properties")
+        else:
+            print("[Init] Smart Greenhouse product already exists, UI specs up to date")
         return
 
     product = Product(
@@ -66,36 +204,36 @@ async def init_greenhouse_product(db: AsyncSession):
         {"identifier": "temperature", "name": "空气温度", "data_type": PropertyDataType.FLOAT,
          "access_type": PropertyAccessType.READ_ONLY, "unit": "℃",
          "min_value": "-40", "max_value": "85", "step": "0.1", "required": True,
-         "specs": {"min": -40, "max": 85, "step": 0.1, "unit": "℃"}},
+         "specs": {"min": -40, "max": 85, "step": 0.1, "unit": "℃", **UI_SPECS_CONFIG["temperature"]}},
         {"identifier": "humidity", "name": "空气湿度", "data_type": PropertyDataType.FLOAT,
          "access_type": PropertyAccessType.READ_ONLY, "unit": "%RH",
          "min_value": "0", "max_value": "100", "step": "0.1", "required": True,
-         "specs": {"min": 0, "max": 100, "step": 0.1, "unit": "%RH"}},
+         "specs": {"min": 0, "max": 100, "step": 0.1, "unit": "%RH", **UI_SPECS_CONFIG["humidity"]}},
         {"identifier": "light_intensity", "name": "光照强度", "data_type": PropertyDataType.FLOAT,
          "access_type": PropertyAccessType.READ_ONLY, "unit": "lux",
          "min_value": "0", "max_value": "100000", "step": "1", "required": True,
-         "specs": {"min": 0, "max": 100000, "step": 1, "unit": "lux"}},
+         "specs": {"min": 0, "max": 100000, "step": 1, "unit": "lux", **UI_SPECS_CONFIG["light_intensity"]}},
         {"identifier": "soil_moisture", "name": "土壤湿度", "data_type": PropertyDataType.FLOAT,
          "access_type": PropertyAccessType.READ_ONLY, "unit": "%",
          "min_value": "0", "max_value": "100", "step": "0.1", "required": True,
-         "specs": {"min": 0, "max": 100, "step": 0.1, "unit": "%"}},
+         "specs": {"min": 0, "max": 100, "step": 0.1, "unit": "%", **UI_SPECS_CONFIG["soil_moisture"]}},
         {"identifier": "co2", "name": "CO₂浓度", "data_type": PropertyDataType.FLOAT,
          "access_type": PropertyAccessType.READ_ONLY, "unit": "ppm",
          "min_value": "0", "max_value": "5000", "step": "1", "required": False,
-         "specs": {"min": 0, "max": 5000, "step": 1, "unit": "ppm"}},
+         "specs": {"min": 0, "max": 5000, "step": 1, "unit": "ppm", **UI_SPECS_CONFIG["co2"]}},
         {"identifier": "soil_temperature", "name": "土壤温度", "data_type": PropertyDataType.FLOAT,
          "access_type": PropertyAccessType.READ_ONLY, "unit": "℃",
          "min_value": "-20", "max_value": "60", "step": "0.1", "required": False,
-         "specs": {"min": -20, "max": 60, "step": 0.1, "unit": "℃"}},
+         "specs": {"min": -20, "max": 60, "step": 0.1, "unit": "℃", **UI_SPECS_CONFIG["soil_temperature"]}},
         {"identifier": "fan_status", "name": "通风扇状态", "data_type": PropertyDataType.BOOL,
          "access_type": PropertyAccessType.READ_WRITE, "unit": "",
-         "required": False, "specs": {}},
+         "required": False, "specs": {**UI_SPECS_CONFIG["fan_status"]}},
         {"identifier": "light_status", "name": "补光灯状态", "data_type": PropertyDataType.BOOL,
          "access_type": PropertyAccessType.READ_WRITE, "unit": "",
-         "required": False, "specs": {}},
+         "required": False, "specs": {**UI_SPECS_CONFIG["light_status"]}},
         {"identifier": "pump_status", "name": "灌溉水泵状态", "data_type": PropertyDataType.BOOL,
          "access_type": PropertyAccessType.READ_WRITE, "unit": "",
-         "required": False, "specs": {}},
+         "required": False, "specs": {**UI_SPECS_CONFIG["pump_status"]}},
         {"identifier": "brightness", "name": "补光灯亮度", "data_type": PropertyDataType.INT,
          "access_type": PropertyAccessType.READ_WRITE, "unit": "%",
          "min_value": "0", "max_value": "100", "step": "1", "required": False,

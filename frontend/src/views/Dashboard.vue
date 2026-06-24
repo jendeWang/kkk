@@ -1,5 +1,9 @@
 <template>
   <div class="dashboard">
+    <div class="page-header">
+      <h2 class="page-title">仪表盘</h2>
+      <el-button type="primary" :icon="FullScreen" @click="openBigScreen">进入大屏</el-button>
+    </div>
     <div class="stat-cards">
       <el-card class="stat-card stat-product">
         <div class="stat-inner">
@@ -249,7 +253,7 @@ import { useDeviceStore } from '../stores/device.js'
 import api from '../services/api.js'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
-import { Goods, Monitor, Warning, Connection, CircleCheck } from '@element-plus/icons-vue'
+import { Goods, Monitor, Warning, Connection, CircleCheck, FullScreen } from '@element-plus/icons-vue'
 
 const deviceStore = useDeviceStore()
 
@@ -523,6 +527,10 @@ async function changeMode(val) {
   }
 }
 
+function openBigScreen() {
+  window.open('/big-screen', '_blank')
+}
+
 async function refreshAll() {
   await Promise.all([
     loadOverview(),
@@ -554,6 +562,20 @@ onUnmounted(() => {
 <style scoped>
 .dashboard {
   padding: 0;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: #303133;
 }
 
 .stat-cards {
