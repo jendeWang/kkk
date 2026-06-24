@@ -6,6 +6,7 @@ from sqlalchemy import select
 from ..models.models import Device, Telemetry, Command, DeviceEventRecord, DeviceStatus, CommandStatus, AlertEvent, AlertType, AlertStatus, AlertSeverity, DeviceShadow
 from ..services.sse_service import sse_service
 from ..services.alert_service import alert_engine
+from ..services.scene_engine import scene_engine
 
 
 class MQTTHandler:
@@ -61,6 +62,9 @@ class MQTTHandler:
             db_device.last_seen = datetime.utcnow()
             await db.commit()
             await alert_engine.check_telemetry_alert(
+                db, db_device.id, payload.get("property_identifier"), payload.get("value")
+            )
+            await scene_engine.check_and_trigger(
                 db, db_device.id, payload.get("property_identifier"), payload.get("value")
             )
             await sse_service.publish_device_status({

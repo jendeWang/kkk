@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from ..models.models import AlertRule, AlertEvent, Device, Telemetry, AlertType, AlertStatus, ConditionOperator, AlertSeverity
 from .sse_service import sse_service
 
@@ -9,9 +9,10 @@ from .sse_service import sse_service
 class AlertEngine:
     def __init__(self):
         self._cooldowns = {}
+        self._duration_tracker = {}
+        self._active_alerts = {}
 
     async def check_telemetry_alert(self, db: AsyncSession, device_id: int, property_identifier: str, value):
-        """检查遥测值是否触发阈值告警"""
         try:
             float_val = float(value)
         except (ValueError, TypeError):
@@ -26,20 +27,11 @@ class AlertEngine:
             )
         )
         rules = result.scalars().all()
-        
-        print(f"[AlertEngine] Checking telemetry: device_id={device_id}, property={property_identifier}, value={float_val}")
-        print(f"[AlertEngine] Found {len(rules)} matching rules")
-        for rule in rules:
-            print(f"[AlertEngine] Rule: {rule.name}, threshold={rule.threshold_value}, operator={rule.operator}")
 
         for rule in rules:
-            if self._check_threshold(float_val, rule):
-                print(f"[AlertEngine] Threshold matched! Creating alert for rule {rule.name}")
-                if self._should_trigger(rule, device_id):
-                    await self._create_alert(db, rule, device_id, str(float_val))
+            await self._process_threshold_rule(db, rule, device_id, float_val)
 
     async def check_device_status_alert(self, db: AsyncSession, device_id: int, old_status, new_status):
-        """检查设备状态变更是否触发告警"""
         old_val = getattr(old_status, 'value', old_status) if old_status else None
         new_val = getattr(new_status, 'value', new_status) if new_status else None
 
@@ -64,6 +56,34 @@ class AlertEngine:
         for rule in rules:
             if self._should_trigger(rule, device_id):
                 await self._create_alert(db, rule, device_id, new_val)
+
+    async def _process_threshold_rule(self, db: AsyncSession, rule: AlertRule, device_id: int, value: float):
+        key = f"{rule.id}_{device_id}"
+        threshold_met = self._check_threshold(value, rule)
+        now = datetime.utcnow()
+
+        if threshold_met:
+            if rule.duration_seconds and rule.duration_seconds > 0:
+                if key not in self._duration_tracker:
+                    self._duration_tracker[key] = now
+                    return
+                elapsed = (now - self._duration_tracker[key]).total_seconds()
+                if elapsed < rule.duration_seconds:
+                    return
+            else:
+                self._duration_tracker[key] = now
+
+            if key not in self._active_alerts or not self._active_alerts[key]:
+                if self._should_trigger(rule, device_id):
+                    await self._create_alert(db, rule, device_id, str(value))
+                    self._active_alerts[key] = True
+        else:
+            if key in self._duration_tracker:
+                del self._duration_tracker[key]
+
+            if key in self._active_alerts and self._active_alerts[key]:
+                await self._resolve_alert(db, rule, device_id, str(value))
+                self._active_alerts[key] = False
 
     def _check_threshold(self, value: float, rule: AlertRule) -> bool:
         if rule.threshold_value is None or rule.operator is None:
@@ -116,7 +136,7 @@ class AlertEngine:
             rule_id=rule.id,
             device_id=device_id,
             property_identifier=rule.property_identifier,
-            message=f"{device.device_name}: 属性 {rule.property_identifier} 达到 {current_value} (阈值 {rule.threshold_value})",
+            message=f"{device.device_name}: {rule.property_identifier} = {current_value}，超过阈值 {rule.threshold_value}",
             severity=rule.severity,
             current_value=str(current_value) if current_value is not None else None,
             threshold_value=rule.threshold_value,
@@ -135,8 +155,41 @@ class AlertEngine:
             "severity": severity_val,
             "device_id": device_id,
             "device_name": device.device_name,
+            "status": "triggered",
             "created_at": alert.created_at.isoformat() if alert.created_at else datetime.utcnow().isoformat(),
         })
+
+    async def _resolve_alert(self, db: AsyncSession, rule: AlertRule, device_id: int, current_value: str):
+        device_result = await db.execute(select(Device).where(Device.id == device_id))
+        device = device_result.scalar_one_or_none()
+        if not device:
+            return
+
+        result = await db.execute(
+            select(AlertEvent).where(
+                AlertEvent.rule_id == rule.id,
+                AlertEvent.device_id == device_id,
+                AlertEvent.status == AlertStatus.TRIGGERED,
+            ).order_by(AlertEvent.created_at.desc()).limit(1)
+        )
+        alert = result.scalar_one_or_none()
+
+        if alert:
+            alert.status = AlertStatus.RESOLVED
+            alert.resolved_at = datetime.utcnow()
+            alert.resolution_notes = f"自动恢复: 当前值 {current_value}，已回到正常范围"
+            await db.commit()
+
+            severity_val = rule.severity.value if hasattr(rule.severity, 'value') else rule.severity
+            await sse_service.publish_alert({
+                "id": alert.id,
+                "message": f"{device.device_name}: {rule.property_identifier} 已恢复正常 (当前值: {current_value})",
+                "severity": severity_val,
+                "device_id": device_id,
+                "device_name": device.device_name,
+                "status": "resolved",
+                "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else datetime.utcnow().isoformat(),
+            })
 
 
 alert_engine = AlertEngine()

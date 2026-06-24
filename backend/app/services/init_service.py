@@ -2,7 +2,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..models.models import (
     User, Product, ProductProperty, ProductService, ProductEvent,
-    PropertyDataType, PropertyAccessType,
+    PropertyDataType, PropertyAccessType, DeviceGroup, DeviceGroupMember, Device,
+    AutomationScene, TriggerType, ActionType
 )
 from ..security.auth import get_password_hash
 from ..config import settings
@@ -164,3 +165,171 @@ async def init_greenhouse_product(db: AsyncSession):
     print(f"  - Properties: {len(properties)}")
     print(f"  - Services: {len(services)}")
     print(f"  - Events: {len(events)}")
+
+
+async def init_default_group(db: AsyncSession):
+    """为每个用户创建默认分组，并将已有设备加入"""
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+
+    for user in users:
+        group_result = await db.execute(
+            select(DeviceGroup).where(
+                DeviceGroup.name == "默认分组",
+                DeviceGroup.owner_id == user.id,
+            )
+        )
+        existing_group = group_result.scalar_one_or_none()
+        if existing_group:
+            print(f"[Init] Default group already exists for user: {user.username}")
+            continue
+
+        default_group = DeviceGroup(
+            name="默认分组",
+            description="系统默认设备分组",
+            owner_id=user.id,
+        )
+        db.add(default_group)
+        await db.flush()
+
+        devices_result = await db.execute(
+            select(Device.id).where(Device.owner_id == user.id)
+        )
+        device_ids = [row[0] for row in devices_result.all()]
+
+        for device_id in device_ids:
+            member = DeviceGroupMember(
+                group_id=default_group.id,
+                device_id=device_id,
+            )
+            db.add(member)
+
+        await db.commit()
+        print(f"[Init] Default group created for user: {user.username}, devices: {len(device_ids)}")
+
+
+async def init_default_scenes(db: AsyncSession):
+    """为智慧大棚产品创建预置自动化场景（需要已存在设备）"""
+    user_result = await db.execute(select(User).where(User.username == "admin"))
+    admin = user_result.scalar_one_or_none()
+    if not admin:
+        return
+
+    product_result = await db.execute(
+        select(Product).where(
+            Product.product_key == "smart_greenhouse",
+            Product.owner_id == admin.id,
+        )
+    )
+    product = product_result.scalar_one_or_none()
+    if not product:
+        return
+
+    device_result = await db.execute(
+        select(Device).where(
+            Device.product_id == product.id,
+            Device.owner_id == admin.id,
+        ).limit(1)
+    )
+    device = device_result.scalar_one_or_none()
+    if not device:
+        print("[Init] No greenhouse device found, skipping default scenes")
+        return
+
+    scenes_to_create = [
+        {
+            "name": "高温自动通风",
+            "description": "当空气温度超过30°C时，自动打开通风扇降温",
+            "trigger_type": TriggerType.THRESHOLD,
+            "trigger_config": {
+                "device_id": device.id,
+                "property_identifier": "temperature",
+                "operator": "gt",
+                "threshold_value": "30",
+            },
+            "action_type": ActionType.COMMAND,
+            "action_config": [
+                {
+                    "device_id": device.id,
+                    "service_identifier": "set_fan",
+                    "input_params": {"status": True},
+                }
+            ],
+            "enabled": True,
+            "cooldown_seconds": 60,
+        },
+        {
+            "name": "低温自动保温",
+            "description": "当空气温度低于15°C时，自动关闭通风扇保温",
+            "trigger_type": TriggerType.THRESHOLD,
+            "trigger_config": {
+                "device_id": device.id,
+                "property_identifier": "temperature",
+                "operator": "lt",
+                "threshold_value": "15",
+            },
+            "action_type": ActionType.COMMAND,
+            "action_config": [
+                {
+                    "device_id": device.id,
+                    "service_identifier": "set_fan",
+                    "input_params": {"status": False},
+                }
+            ],
+            "enabled": True,
+            "cooldown_seconds": 60,
+        },
+        {
+            "name": "干旱自动灌溉",
+            "description": "当土壤湿度低于30%时，自动打开灌溉水泵",
+            "trigger_type": TriggerType.THRESHOLD,
+            "trigger_config": {
+                "device_id": device.id,
+                "property_identifier": "soil_moisture",
+                "operator": "lt",
+                "threshold_value": "30",
+            },
+            "action_type": ActionType.COMMAND,
+            "action_config": [
+                {
+                    "device_id": device.id,
+                    "service_identifier": "set_pump",
+                    "input_params": {"status": True, "duration": 60},
+                }
+            ],
+            "enabled": True,
+            "cooldown_seconds": 300,
+        },
+    ]
+
+    created_count = 0
+    for scene_data in scenes_to_create:
+        existing_result = await db.execute(
+            select(AutomationScene).where(
+                AutomationScene.name == scene_data["name"],
+                AutomationScene.owner_id == admin.id,
+            )
+        )
+        existing = existing_result.scalar_one_or_none()
+        if existing:
+            continue
+
+        scene = AutomationScene(
+            name=scene_data["name"],
+            description=scene_data["description"],
+            owner_id=admin.id,
+            trigger_type=scene_data["trigger_type"],
+            trigger_config=scene_data["trigger_config"],
+            action_type=scene_data["action_type"],
+            action_config=scene_data["action_config"],
+            enabled=scene_data["enabled"],
+            cooldown_seconds=scene_data["cooldown_seconds"],
+        )
+        db.add(scene)
+        created_count += 1
+
+    if created_count > 0:
+        await db.commit()
+        print(f"[Init] {created_count} default automation scenes created for device: {device.device_name}")
+    else:
+        print("[Init] Default automation scenes already exist")

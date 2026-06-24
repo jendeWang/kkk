@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Enum as SQLEnum, JSON, Float
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Enum as SQLEnum, JSON, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database import Base
@@ -82,6 +82,8 @@ class User(Base):
     devices = relationship("Device", back_populates="owner")
     alert_rules = relationship("AlertRule", back_populates="owner")
     api_keys = relationship("APIKey", back_populates="owner")
+    groups = relationship("DeviceGroup", back_populates="owner")
+    automation_scenes = relationship("AutomationScene", back_populates="owner")
 
 
 class Product(Base):
@@ -182,6 +184,7 @@ class Device(Base):
     event_records = relationship("DeviceEventRecord", back_populates="device", cascade="all, delete-orphan")
     alert_events = relationship("AlertEvent", back_populates="device")
     shadow = relationship("DeviceShadow", back_populates="device", uselist=False, cascade="all, delete-orphan")
+    group_members = relationship("DeviceGroupMember", back_populates="device", cascade="all, delete-orphan")
 
 
 class Telemetry(Base):
@@ -312,3 +315,87 @@ class DeviceShadow(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     device = relationship("Device", back_populates="shadow")
+
+
+class DeviceGroup(Base):
+    __tablename__ = "device_groups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
+
+    owner = relationship("User", back_populates="groups")
+    members = relationship("DeviceGroupMember", back_populates="group", cascade="all, delete-orphan")
+
+
+class DeviceGroupMember(Base):
+    __tablename__ = "device_group_members"
+    __table_args__ = (
+        UniqueConstraint("group_id", "device_id", name="uq_group_device"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("device_groups.id"), nullable=False)
+    device_id = Column(Integer, ForeignKey("devices.id"), nullable=False)
+    joined_at = Column(DateTime, server_default=func.now())
+
+    group = relationship("DeviceGroup", back_populates="members")
+    device = relationship("Device", back_populates="group_members")
+
+
+class TriggerType(str, enum.Enum):
+    THRESHOLD = "threshold"
+    SCHEDULE = "schedule"
+    MANUAL = "manual"
+    DEVICE_STATUS = "device_status"
+
+
+class ActionType(str, enum.Enum):
+    COMMAND = "command"
+    ALERT = "alert"
+    WEBHOOK = "webhook"
+
+
+class ExecutionStatus(str, enum.Enum):
+    SUCCESS = "success"
+    FAILED = "failed"
+    EXECUTING = "executing"
+
+
+class AutomationScene(Base):
+    __tablename__ = "automation_scenes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    trigger_type = Column(SQLEnum(TriggerType), nullable=False)
+    trigger_config = Column(JSON, nullable=True)
+    action_type = Column(SQLEnum(ActionType), nullable=False)
+    action_config = Column(JSON, nullable=True)
+    enabled = Column(Boolean, default=True)
+    cooldown_seconds = Column(Integer, default=60)
+    last_triggered_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
+
+    owner = relationship("User", back_populates="automation_scenes")
+    execution_logs = relationship("AutomationExecutionLog", back_populates="scene", cascade="all, delete-orphan")
+
+
+class AutomationExecutionLog(Base):
+    __tablename__ = "automation_execution_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scene_id = Column(Integer, ForeignKey("automation_scenes.id"), nullable=False)
+    trigger_type = Column(SQLEnum(TriggerType), nullable=False)
+    trigger_data = Column(JSON, nullable=True)
+    status = Column(SQLEnum(ExecutionStatus), nullable=False, default=ExecutionStatus.EXECUTING)
+    result_data = Column(JSON, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    scene = relationship("AutomationScene", back_populates="execution_logs")

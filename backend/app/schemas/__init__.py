@@ -519,3 +519,100 @@ class DeviceShadowResponse(BaseModel):
 
 class DeviceShadowUpdateRequest(BaseModel):
     desired: Optional[Dict[str, Any]] = None
+
+
+class DeviceGroupCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class DeviceGroupUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class DeviceGroupResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    owner_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    device_count: Optional[int] = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DeviceGroupMemberAdd(BaseModel):
+    device_ids: List[int]
+
+
+class DeviceGroupMemberRemove(BaseModel):
+    device_ids: List[int]
+
+
+class AutomationSceneBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    trigger_type: str
+    trigger_config: Optional[Dict[str, Any]] = None
+    action_type: str
+    action_config: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
+    enabled: bool = True
+    cooldown_seconds: int = 60
+
+    @field_validator("trigger_type", "action_type", mode="before")
+    @classmethod
+    def _enum_to_str(cls, v):
+        if isinstance(v, _enum.Enum):
+            return v.value
+        return v
+
+
+class AutomationSceneCreate(AutomationSceneBase):
+    pass
+
+
+class AutomationSceneUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    trigger_type: Optional[str] = None
+    trigger_config: Optional[Dict[str, Any]] = None
+    action_type: Optional[str] = None
+    action_config: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
+    enabled: Optional[bool] = None
+    cooldown_seconds: Optional[int] = None
+
+
+class AutomationSceneResponse(AutomationSceneBase):
+    id: int
+    owner_id: int
+    last_triggered_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AutomationExecutionLogResponse(BaseModel):
+    id: int
+    scene_id: int
+    trigger_type: str
+    trigger_data: Optional[Dict[str, Any]] = None
+    status: str
+    result_data: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("trigger_type", "status", mode="before")
+    @classmethod
+    def _enum_to_str(cls, v):
+        if isinstance(v, _enum.Enum):
+            return v.value
+        return v
+
+
+class SceneTriggerRequest(BaseModel):
+    trigger_data: Optional[Dict[str, Any]] = None
