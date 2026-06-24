@@ -18,6 +18,7 @@ from ..schemas import (
     ProductPropertyCreate, ProductPropertyUpdate, ProductPropertyResponse,
     ProductServiceCreate, ProductServiceUpdate, ProductServiceResponse,
     ProductEventCreate, ProductEventUpdate, ProductEventResponse,
+    TSLModel, TSLImportResponse,
 )
 
 router = APIRouter(prefix="/products", tags=["产品管理"])
@@ -220,7 +221,11 @@ async def create_product_property(
         unit=prop_data.unit,
         min_value=prop_data.min_value,
         max_value=prop_data.max_value,
+        step=prop_data.step,
+        enum_values=prop_data.enum_values,
         default_value=prop_data.default_value,
+        required=prop_data.required,
+        specs=prop_data.specs,
         description=prop_data.description,
     )
     db.add(new_prop)
@@ -589,3 +594,221 @@ async def delete_product_event(
     await db.delete(event)
     await db.commit()
     return {"message": "Event deleted successfully"}
+
+
+# ========== TSL 物模型导出/导入 ==========
+
+@router.get("/{product_key}/tsl", response_model=TSLModel)
+async def export_tsl(
+    product_key: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """导出产品TSL物模型（标准JSON格式）"""
+    result = await db.execute(
+        select(Product)
+        .options(
+            selectinload(Product.properties),
+            selectinload(Product.services),
+            selectinload(Product.events),
+        )
+        .where(
+            Product.product_key == product_key,
+            Product.owner_id == current_user.id,
+        )
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    properties = []
+    for prop in product.properties:
+        specs = {}
+        if prop.min_value is not None:
+            specs["min"] = _parse_value_by_type(prop.data_type, prop.min_value)
+        if prop.max_value is not None:
+            specs["max"] = _parse_value_by_type(prop.data_type, prop.max_value)
+        if prop.step is not None:
+            specs["step"] = _parse_value_by_type(prop.data_type, prop.step)
+        if prop.unit:
+            specs["unit"] = prop.unit
+        if prop.enum_values:
+            specs["enum"] = [_parse_value_by_type(prop.data_type, v) for v in prop.enum_values]
+
+        properties.append({
+            "identifier": prop.identifier,
+            "name": prop.name,
+            "dataType": prop.data_type.value if hasattr(prop.data_type, 'value') else prop.data_type,
+            "accessType": prop.access_type.value if hasattr(prop.access_type, 'value') else prop.access_type,
+            "required": prop.required or False,
+            "specs": specs if specs else None,
+            "description": prop.description,
+        })
+
+    services = []
+    for svc in product.services:
+        input_params = []
+        output_params = []
+        if isinstance(svc.input_params, list):
+            for p in svc.input_params:
+                input_params.append({
+                    "identifier": p.get("identifier", ""),
+                    "name": p.get("name", ""),
+                    "dataType": p.get("dataType", "string"),
+                    "specs": p.get("specs"),
+                })
+        if isinstance(svc.output_params, list):
+            for p in svc.output_params:
+                output_params.append({
+                    "identifier": p.get("identifier", ""),
+                    "name": p.get("name", ""),
+                    "dataType": p.get("dataType", "string"),
+                    "specs": p.get("specs"),
+                })
+        services.append({
+            "identifier": svc.identifier,
+            "name": svc.name,
+            "description": svc.description,
+            "inputParams": input_params,
+            "outputParams": output_params,
+        })
+
+    events = []
+    for evt in product.events:
+        output_params = []
+        if isinstance(evt.output_params, list):
+            for p in evt.output_params:
+                output_params.append({
+                    "identifier": p.get("identifier", ""),
+                    "name": p.get("name", ""),
+                    "dataType": p.get("dataType", "string"),
+                    "specs": p.get("specs"),
+                })
+        events.append({
+            "identifier": evt.identifier,
+            "name": evt.name,
+            "eventType": evt.event_type or "info",
+            "description": evt.description,
+            "outputParams": output_params,
+        })
+
+    return TSLModel(
+        version=product.tsl_version or "1.0",
+        product_key=product.product_key,
+        name=product.name,
+        category=product.category,
+        description=product.description,
+        properties=properties,
+        services=services,
+        events=events,
+    )
+
+
+@router.post("/tsl/import", response_model=TSLImportResponse)
+async def import_tsl(
+    tsl_data: TSLModel,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """通过TSL物模型创建产品（属性、服务、事件）"""
+    product_key = tsl_data.product_key or _generate_product_key()
+
+    existing = await db.execute(
+        select(Product).where(
+            Product.product_key == product_key,
+            Product.owner_id == current_user.id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail=f"Product '{product_key}' already exists")
+
+    new_product = Product(
+        product_key=product_key,
+        name=tsl_data.name,
+        category=tsl_data.category,
+        description=tsl_data.description,
+        tsl_version=tsl_data.version,
+        owner_id=current_user.id,
+    )
+    db.add(new_product)
+    await db.flush()
+
+    for prop in tsl_data.properties:
+        specs = prop.specs.model_dump() if prop.specs else {}
+        min_val = str(specs.get("min")) if specs.get("min") is not None else None
+        max_val = str(specs.get("max")) if specs.get("max") is not None else None
+        step_val = str(specs.get("step")) if specs.get("step") is not None else None
+        enum_vals = [str(v) for v in specs.get("enum", [])] if specs.get("enum") else None
+
+        new_prop = ProductProperty(
+            product_id=new_product.id,
+            identifier=prop.identifier,
+            name=prop.name,
+            data_type=PropertyDataType(prop.dataType),
+            access_type=PropertyAccessType(prop.accessType),
+            unit=specs.get("unit"),
+            min_value=min_val,
+            max_value=max_val,
+            step=step_val,
+            enum_values=enum_vals,
+            required=prop.required or False,
+            specs=specs if specs else None,
+            description=prop.description,
+        )
+        db.add(new_prop)
+
+    for svc in tsl_data.services:
+        input_params = [p.model_dump() for p in svc.inputParams] if svc.inputParams else []
+        output_params = [p.model_dump() for p in svc.outputParams] if svc.outputParams else []
+
+        new_svc = ProductService(
+            product_id=new_product.id,
+            identifier=svc.identifier,
+            name=svc.name,
+            description=svc.description,
+            input_params=input_params,
+            output_params=output_params,
+        )
+        db.add(new_svc)
+
+    for evt in tsl_data.events:
+        output_params = [p.model_dump() for p in evt.outputParams] if evt.outputParams else []
+
+        new_evt = ProductEvent(
+            product_id=new_product.id,
+            identifier=evt.identifier,
+            name=evt.name,
+            event_type=evt.eventType,
+            description=evt.description,
+            output_params=output_params,
+        )
+        db.add(new_evt)
+
+    await db.commit()
+    await db.refresh(new_product)
+
+    return TSLImportResponse(
+        product_key=new_product.product_key,
+        name=new_product.name,
+        properties_count=len(tsl_data.properties),
+        services_count=len(tsl_data.services),
+        events_count=len(tsl_data.events),
+    )
+
+
+def _parse_value_by_type(data_type, value_str):
+    """根据数据类型解析值字符串"""
+    if value_str is None:
+        return None
+    try:
+        dt = data_type.value if hasattr(data_type, 'value') else data_type
+        if dt == "int":
+            return int(float(value_str))
+        elif dt == "float":
+            return float(value_str)
+        elif dt == "bool":
+            return value_str.lower() in ("true", "1", "yes")
+        else:
+            return value_str
+    except (ValueError, TypeError):
+        return value_str

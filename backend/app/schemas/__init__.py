@@ -39,6 +39,7 @@ class ProductBase(BaseModel):
     model: Optional[str] = None
     manufacturer: Optional[str] = None
     description: Optional[str] = None
+    tsl_version: Optional[str] = "1.0"
 
 
 class ProductCreate(ProductBase):
@@ -51,6 +52,7 @@ class ProductUpdate(BaseModel):
     model: Optional[str] = None
     manufacturer: Optional[str] = None
     description: Optional[str] = None
+    tsl_version: Optional[str] = None
 
 
 class ProductResponse(ProductBase):
@@ -58,6 +60,7 @@ class ProductResponse(ProductBase):
     product_key: str
     owner_id: int
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -77,8 +80,11 @@ class ProductPropertyBase(BaseModel):
     unit: Optional[str] = None
     min_value: Optional[str] = None
     max_value: Optional[str] = None
+    step: Optional[str] = None
     enum_values: Optional[List[str]] = None
     default_value: Optional[str] = None
+    required: Optional[bool] = False
+    specs: Optional[Dict[str, Any]] = None
     description: Optional[str] = None
 
     @field_validator("data_type", "access_type", mode="before")
@@ -101,8 +107,11 @@ class ProductPropertyUpdate(BaseModel):
     unit: Optional[str] = None
     min_value: Optional[str] = None
     max_value: Optional[str] = None
+    step: Optional[str] = None
     enum_values: Optional[List[str]] = None
     default_value: Optional[str] = None
+    required: Optional[bool] = None
+    specs: Optional[Dict[str, Any]] = None
     description: Optional[str] = None
 
 
@@ -435,3 +444,63 @@ class APIKeyResponse(BaseModel):
 
 ProductDetailResponse.model_rebuild()
 DeviceDetailResponse.model_rebuild()
+
+
+class TSLPropertySpec(BaseModel):
+    min: Optional[Any] = None
+    max: Optional[Any] = None
+    step: Optional[Any] = None
+    unit: Optional[str] = None
+    enum: Optional[List[Any]] = None
+
+
+class TSLProperty(BaseModel):
+    identifier: str
+    name: str
+    dataType: str
+    accessType: str
+    required: Optional[bool] = False
+    specs: Optional[TSLPropertySpec] = None
+    description: Optional[str] = None
+
+
+class TSLServiceParam(BaseModel):
+    identifier: str
+    name: str
+    dataType: str
+    specs: Optional[TSLPropertySpec] = None
+
+
+class TSLService(BaseModel):
+    identifier: str
+    name: str
+    description: Optional[str] = None
+    inputParams: Optional[List[TSLServiceParam]] = []
+    outputParams: Optional[List[TSLServiceParam]] = []
+
+
+class TSLEvent(BaseModel):
+    identifier: str
+    name: str
+    eventType: Optional[str] = "info"
+    description: Optional[str] = None
+    outputParams: Optional[List[TSLServiceParam]] = []
+
+
+class TSLModel(BaseModel):
+    version: str = "1.0"
+    product_key: Optional[str] = None
+    name: str
+    category: Optional[str] = None
+    description: Optional[str] = None
+    properties: List[TSLProperty] = []
+    services: List[TSLService] = []
+    events: List[TSLEvent] = []
+
+
+class TSLImportResponse(BaseModel):
+    product_key: str
+    name: str
+    properties_count: int
+    services_count: int
+    events_count: int

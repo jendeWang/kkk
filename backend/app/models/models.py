@@ -94,6 +94,7 @@ class Product(Base):
     model = Column(String(50), nullable=True)
     manufacturer = Column(String(100), nullable=True)
     description = Column(Text, nullable=True)
+    tsl_version = Column(String(20), default="1.0")
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
@@ -117,8 +118,11 @@ class ProductProperty(Base):
     unit = Column(String(20), nullable=True)
     min_value = Column(String, nullable=True)
     max_value = Column(String, nullable=True)
+    step = Column(String, nullable=True)
     enum_values = Column(JSON, nullable=True)
     default_value = Column(String, nullable=True)
+    required = Column(Boolean, default=False)
+    specs = Column(JSON, nullable=True)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
@@ -293,3 +297,17 @@ class APIKey(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     owner = relationship("User", back_populates="api_keys")
+
+
+class DeviceShadow(Base):
+    __tablename__ = "device_shadows"
+
+    id = Column(Integer, primary_key=True, index=True)
+    device_id = Column(Integer, ForeignKey("devices.id"), unique=True, nullable=False)
+    reported = Column(JSON, nullable=True)
+    desired = Column(JSON, nullable=True)
+    version = Column(Integer, default=1)
+    last_updated = Column(DateTime, onupdate=func.now())
+    created_at = Column(DateTime, server_default=func.now())
+
+    device = relationship("Device", back_populates="shadow")
