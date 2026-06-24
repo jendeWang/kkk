@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from ..models.models import Device, Telemetry, Command, DeviceEventRecord, DeviceStatus, CommandStatus, AlertEvent, AlertType, AlertStatus, AlertSeverity
+from ..models.models import Device, Telemetry, Command, DeviceEventRecord, DeviceStatus, CommandStatus, AlertEvent, AlertType, AlertStatus, AlertSeverity, DeviceShadow
 from ..services.sse_service import sse_service
 from ..services.alert_service import alert_engine
 
@@ -163,3 +163,88 @@ class MQTTHandler:
                 })
             else:
                 print(f"[MQTT] Command {command_id} not found")
+
+    async def handle_shadow_update(self, device_key: str, payload: dict):
+        """处理设备上报影子状态（reported）"""
+        device_secret = payload.pop("device_secret", None)
+        device = await self.verify_device(device_key, device_secret) if device_secret else None
+
+        if not device:
+            async with self.db_session_factory() as db:
+                result = await db.execute(select(Device).where(Device.device_key == device_key))
+                device = result.scalar_one_or_none()
+
+        if not device:
+            print(f"[MQTT] Device verification failed for shadow update: {device_key}")
+            return
+
+        state = payload.get("state", {})
+        reported = state.get("reported", {}) if isinstance(state, dict) else {}
+
+        async with self.db_session_factory() as db:
+            shadow_result = await db.execute(
+                select(DeviceShadow).where(DeviceShadow.device_id == device.id)
+            )
+            shadow = shadow_result.scalar_one_or_none()
+
+            if not shadow:
+                shadow = DeviceShadow(
+                    device_id=device.id,
+                    reported=reported,
+                    desired={},
+                    version=1,
+                )
+                db.add(shadow)
+            else:
+                if shadow.reported and isinstance(shadow.reported, dict):
+                    merged = {**shadow.reported, **reported}
+                    shadow.reported = merged
+                else:
+                    shadow.reported = reported
+                shadow.version = (shadow.version or 0) + 1
+
+            device.status = DeviceStatus.ONLINE
+            device.last_seen = datetime.utcnow()
+            await db.commit()
+
+    async def handle_shadow_get(self, device_key: str, payload: dict, publish_callback):
+        """处理设备获取影子请求"""
+        device_secret = payload.get("device_secret")
+        token = payload.get("token", "")
+        device = await self.verify_device(device_key, device_secret) if device_secret else None
+
+        if not device:
+            async with self.db_session_factory() as db:
+                result = await db.execute(select(Device).where(Device.device_key == device_key))
+                device = result.scalar_one_or_none()
+
+        if not device:
+            print(f"[MQTT] Device verification failed for shadow get: {device_key}")
+            return
+
+        async with self.db_session_factory() as db:
+            shadow_result = await db.execute(
+                select(DeviceShadow).where(DeviceShadow.device_id == device.id)
+            )
+            shadow = shadow_result.scalar_one_or_none()
+
+            reported = shadow.reported if shadow and shadow.reported else {}
+            desired = shadow.desired if shadow and shadow.desired else {}
+            version = shadow.version if shadow else 0
+
+            response = {
+                "token": token,
+                "state": {
+                    "reported": reported,
+                    "desired": desired,
+                },
+                "version": version,
+                "metadata": {
+                    "reported": {"timestamp": datetime.utcnow().isoformat()},
+                    "desired": {"timestamp": datetime.utcnow().isoformat()},
+                },
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+            topic = f"devices/{device_key}/shadow/get/response"
+            publish_callback(topic, json.dumps(response))

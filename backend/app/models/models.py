@@ -181,6 +181,7 @@ class Device(Base):
     commands = relationship("Command", back_populates="device", cascade="all, delete-orphan")
     event_records = relationship("DeviceEventRecord", back_populates="device", cascade="all, delete-orphan")
     alert_events = relationship("AlertEvent", back_populates="device")
+    shadow = relationship("DeviceShadow", back_populates="device", uselist=False, cascade="all, delete-orphan")
 
 
 class Telemetry(Base):

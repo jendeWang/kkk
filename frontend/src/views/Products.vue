@@ -126,6 +126,59 @@
             </el-table-column>
           </el-table>
         </el-tab-pane>
+        <el-tab-pane label="物模型TSL" name="tsl">
+          <div class="tsl-actions">
+            <el-button type="primary" @click="exportTSL">
+              <el-icon><Download /></el-icon>
+              导出TSL (JSON)
+            </el-button>
+            <el-upload
+              :show-file-list="false"
+              :before-upload="importTSL"
+              accept=".json"
+              style="display: inline-block; margin-left: 12px;"
+            >
+              <el-button type="success">
+                <el-icon><Upload /></el-icon>
+                导入TSL
+              </el-button>
+            </el-upload>
+          </div>
+          <el-descriptions :column="2" border style="margin-top: 20px;">
+            <el-descriptions-item label="版本">{{ tslData.version || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="产品名称">{{ tslData.name || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="属性数量">{{ tslData.properties?.length || 0 }}</el-descriptions-item>
+            <el-descriptions-item label="服务数量">{{ tslData.services?.length || 0 }}</el-descriptions-item>
+            <el-descriptions-item label="事件数量">{{ tslData.events?.length || 0 }}</el-descriptions-item>
+            <el-descriptions-item label="分类">{{ tslData.category || '-' }}</el-descriptions-item>
+          </el-descriptions>
+          <div style="margin-top: 20px;">
+            <div class="tsl-section-title">属性列表 (Properties)</div>
+            <el-table :data="tslData.properties || []" size="small" style="width: 100%">
+              <el-table-column prop="identifier" label="标识符" width="140" />
+              <el-table-column prop="name" label="名称" width="120" />
+              <el-table-column prop="dataType" label="类型" width="80" />
+              <el-table-column prop="accessType" label="读写" width="100">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="row.accessType === 'read_only' ? 'info' : 'success'">
+                    {{ row.accessType === 'read_only' ? '只读' : '读写' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="规格">
+                <template #default="{ row }">
+                  <span v-if="row.specs">
+                    <template v-if="row.specs.min !== undefined && row.specs.min !== null">min:{{ row.specs.min }} </template>
+                    <template v-if="row.specs.max !== undefined && row.specs.max !== null">max:{{ row.specs.max }} </template>
+                    <template v-if="row.specs.step !== undefined && row.specs.step !== null">step:{{ row.specs.step }} </template>
+                    <template v-if="row.specs.unit">单位:{{ row.specs.unit }}</template>
+                  </span>
+                  <span v-else>-</span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </el-tab-pane>
       </el-tabs>
       <template #footer>
         <el-button @click="showEditDialog = false">{{ $t('common.cancel') }}</el-button>
@@ -282,9 +335,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useProductStore } from '../stores/product.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Download, Upload, Plus } from '@element-plus/icons-vue'
+import api from '../services/api.js'
 
 const productStore = useProductStore()
 
@@ -535,6 +590,74 @@ const eventForm = reactive({
   event_type: 'info'
 })
 
+const tslData = reactive({
+  version: '',
+  product_key: '',
+  name: '',
+  category: '',
+  description: '',
+  properties: [],
+  services: [],
+  events: []
+})
+
+watch(activeTab, async (newTab) => {
+  if (newTab === 'tsl' && editForm.product_key) {
+    await loadTSL()
+  }
+})
+
+async function loadTSL() {
+  try {
+    const resp = await api.get(`/products/${editForm.product_key}/tsl`)
+    Object.assign(tslData, resp.data)
+  } catch (e) {
+    console.error('Failed to load TSL:', e)
+  }
+}
+
+async function exportTSL() {
+  try {
+    const resp = await api.get(`/products/${editForm.product_key}/tsl`, {
+      responseType: 'blob'
+    })
+    const url = window.URL.createObjectURL(new Blob([resp.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `${editForm.product_key}_tsl.json`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    ElMessage.success('TSL导出成功')
+  } catch (e) {
+    ElMessage.error('TSL导出失败')
+  }
+}
+
+function importTSL(file) {
+  const reader = new FileReader()
+  reader.onload = async (e) => {
+    try {
+      const tslJson = JSON.parse(e.target.result)
+      await ElMessageBox.confirm(
+        `确定要导入物模型创建新产品吗？\n产品名称: ${tslJson.name}\n属性: ${tslJson.properties?.length || 0}个\n服务: ${tslJson.services?.length || 0}个`,
+        '导入确认',
+        { type: 'info' }
+      )
+      const resp = await api.post('/products/tsl/import', tslJson)
+      ElMessage.success(`产品"${resp.data.name}"创建成功`)
+      showEditDialog.value = false
+      await loadProducts()
+    } catch (err) {
+      if (err !== 'cancel') {
+        ElMessage.error('导入失败: ' + (err.response?.data?.detail || err.message))
+      }
+    }
+  }
+  reader.readAsText(file)
+  return false
+}
+
 async function loadProducts() {
   loading.value = true
   try {
@@ -721,5 +844,17 @@ onMounted(() => {
 
 .param-form .el-form-item {
   margin-bottom: 8px;
+}
+
+.tsl-actions {
+  display: flex;
+  align-items: center;
+}
+
+.tsl-section-title {
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 12px;
+  font-size: 14px;
 }
 </style>

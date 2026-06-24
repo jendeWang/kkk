@@ -42,6 +42,8 @@ class MQTTService:
             "devices/+/status",
             "devices/+/events",
             "devices/+/commands/response",
+            "devices/+/shadow/update",
+            "devices/+/shadow/get",
         ]
         for topic in topics:
             client.subscribe(topic, qos=1)
@@ -66,8 +68,22 @@ class MQTTService:
                     await self.handler.handle_event(device_key, data)
                 elif msg_type == "commands" and len(parts) > 3 and parts[3] == "response":
                     await self.handler.handle_command_response(device_key, data)
+                elif msg_type == "shadow" and len(parts) > 3:
+                    shadow_action = parts[3]
+                    if shadow_action == "update":
+                        await self.handler.handle_shadow_update(device_key, data)
+                    elif shadow_action == "get":
+                        await self.handler.handle_shadow_get(device_key, data, self._publish_safe)
         except Exception as e:
             print(f"[MQTT] Error handling message on {topic}: {e}")
+
+    def _publish_safe(self, topic: str, payload: str):
+        """安全发布消息（用于回调）"""
+        try:
+            if self._connected and self.client:
+                self.client.publish(topic, payload)
+        except Exception as e:
+            print(f"[MQTT] Failed to publish on {topic}: {e}")
 
     def _on_disconnect(self, client, packet, exc=None):
         self._connected = False

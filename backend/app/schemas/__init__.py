@@ -504,3 +504,18 @@ class TSLImportResponse(BaseModel):
     properties_count: int
     services_count: int
     events_count: int
+
+
+class DeviceShadowResponse(BaseModel):
+    device_id: int
+    reported: Optional[Dict[str, Any]] = None
+    desired: Optional[Dict[str, Any]] = None
+    version: int
+    last_updated: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DeviceShadowUpdateRequest(BaseModel):
+    desired: Optional[Dict[str, Any]] = None

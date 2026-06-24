@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from .database import init_db, async_session_maker
-from .api import auth, products, devices, telemetry, commands, alerts, apikeys, sse
-from .services.init_service import init_default_user
+from .api import auth, products, devices, telemetry, commands, alerts, apikeys, sse, dashboard
+from .services.init_service import init_default_user, init_greenhouse_product
 from .services.sse_service import sse_service
 from .mqtt.service import mqtt_service
 from .config import settings
@@ -17,6 +17,7 @@ async def lifespan(app: FastAPI):
 
     async with async_session_maker() as db:
         await init_default_user(db)
+        await init_greenhouse_product(db)
 
     await mqtt_service.start(async_session_maker)
 
@@ -49,6 +50,7 @@ app.include_router(commands.router, prefix=settings.API_V1_PREFIX)
 app.include_router(alerts.router, prefix=settings.API_V1_PREFIX)
 app.include_router(apikeys.router, prefix=settings.API_V1_PREFIX)
 app.include_router(sse.router, prefix=settings.API_V1_PREFIX)
+app.include_router(dashboard.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")

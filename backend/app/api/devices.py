@@ -11,11 +11,11 @@ import json
 import logging
 
 from .deps import get_current_active_user, get_db
-from ..models.models import User, Device, Product, ProductProperty, Command, Telemetry, DeviceEventRecord, DeviceStatus, CommandStatus
+from ..models.models import User, Device, Product, ProductProperty, Command, Telemetry, DeviceEventRecord, DeviceStatus, CommandStatus, DeviceShadow
 from ..schemas import (
     DeviceCreate, DeviceUpdate, DeviceResponse, DeviceDetailResponse,
     PropertyWithValueResponse, CommandResponse, DeviceEventRecordResponse,
-    CommandSendRequest, CommandCreate
+    CommandSendRequest, CommandCreate, DeviceShadowResponse, DeviceShadowUpdateRequest
 )
 from ..mqtt.service import mqtt_service
 
@@ -366,3 +366,127 @@ async def list_device_commands(
         .limit(limit)
     )
     return result.scalars().all()
+
+
+# ========== 设备影子 (Device Shadow) ==========
+
+@router.get("/{device_id}/shadow", response_model=DeviceShadowResponse)
+async def get_device_shadow(
+    device_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取设备影子"""
+    device_result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    device = device_result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    shadow_result = await db.execute(
+        select(DeviceShadow).where(DeviceShadow.device_id == device_id)
+    )
+    shadow = shadow_result.scalar_one_or_none()
+
+    if not shadow:
+        shadow = DeviceShadow(
+            device_id=device_id,
+            reported={},
+            desired={},
+            version=1,
+        )
+        db.add(shadow)
+        await db.commit()
+        await db.refresh(shadow)
+
+    return shadow
+
+
+@router.patch("/{device_id}/shadow", response_model=DeviceShadowResponse)
+async def update_device_shadow(
+    device_id: int,
+    shadow_data: DeviceShadowUpdateRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """更新设备影子的desired状态（平台下发期望状态）"""
+    device_result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    device = device_result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    shadow_result = await db.execute(
+        select(DeviceShadow).where(DeviceShadow.device_id == device_id)
+    )
+    shadow = shadow_result.scalar_one_or_none()
+
+    if not shadow:
+        shadow = DeviceShadow(
+            device_id=device_id,
+            reported={},
+            desired={},
+            version=1,
+        )
+        db.add(shadow)
+        await db.flush()
+
+    if shadow_data.desired is not None:
+        if shadow.desired:
+            merged = {**shadow.desired, **shadow_data.desired}
+            shadow.desired = merged
+        else:
+            shadow.desired = shadow_data.desired
+        shadow.version += 1
+
+    await db.commit()
+    await db.refresh(shadow)
+
+    try:
+        if mqtt_service and mqtt_service._connected:
+            topic = f"devices/{device.device_key}/shadow/update/desired"
+            payload = {
+                "state": {"desired": shadow.desired},
+                "version": shadow.version,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+            mqtt_service.client.publish(topic, json.dumps(payload))
+    except Exception as e:
+        logger.exception(f"Failed to publish shadow desired update: {e}")
+
+    return shadow
+
+
+@router.delete("/{device_id}/shadow")
+async def delete_device_shadow(
+    device_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """重置设备影子"""
+    device_result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    if not device_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    shadow_result = await db.execute(
+        select(DeviceShadow).where(DeviceShadow.device_id == device_id)
+    )
+    shadow = shadow_result.scalar_one_or_none()
+    if shadow:
+        await db.delete(shadow)
+        await db.commit()
+
+    return {"message": "Device shadow reset successfully"}
