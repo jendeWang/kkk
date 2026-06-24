@@ -489,10 +489,10 @@ function getDeviceZone(device) {
 function getOverviewDevicePosition(device, index) {
   const zone = getDeviceZone(device)
   const zoneConfigs = {
-    east: { startX: 100, startY: 100, cols: 3, gapX: 180, gapY: 160 },
-    west: { startX: 400, startY: 100, cols: 3, gapX: 180, gapY: 160 },
-    south: { startX: 250, startY: 350, cols: 3, gapX: 180, gapY: 160 },
-    north: { startX: 250, startY: 50, cols: 3, gapX: 180, gapY: 160 }
+    east: { startX: 250, startY: 100, cols: 3, gapX: 180, gapY: 160 },
+    west: { startX: 550, startY: 100, cols: 3, gapX: 180, gapY: 160 },
+    south: { startX: 400, startY: 350, cols: 3, gapX: 180, gapY: 160 },
+    north: { startX: 400, startY: 50, cols: 3, gapX: 180, gapY: 160 }
   }
   const config = zoneConfigs[zone] || zoneConfigs.east
   const filteredZoneDevices = allDevices.value.filter(d => getDeviceZone(d) === zone)

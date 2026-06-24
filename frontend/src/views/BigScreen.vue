@@ -16,25 +16,29 @@
         <div class="subtitle">INTELLIGENT GREENHOUSE IOT MONITORING PLATFORM</div>
       </div>
       <div class="header-right">
-        <div class="stat-item">
-          <span class="stat-label">活跃告警</span>
-          <span class="stat-value alert" :class="{ blink: (overview.active_alerts || 0) > 0 }">
-            {{ overview.active_alerts || 0 }}
-          </span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">当前时间</span>
-          <span class="stat-value time">{{ currentTime }}</span>
-        </div>
+      <button class="reset-btn" @click="resetAll" title="复位执行器状态+刷新数据">
+        <el-icon><Refresh /></el-icon>
+        <span>一键复位</span>
+      </button>
+      <div class="stat-item">
+        <span class="stat-label">活跃告警</span>
+        <span class="stat-value alert" :class="{ blink: (overview.active_alerts || 0) > 0 }">
+          {{ overview.active_alerts || 0 }}
+        </span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">当前时间</span>
+        <span class="stat-value time">{{ currentTime }}</span>
       </div>
     </div>
+  </div>
 
-    <button class="exit-btn" @click="exitBigScreen">
-      <el-icon><Close /></el-icon>
-      <span>退出大屏</span>
-    </button>
+  <button class="exit-btn" @click="exitBigScreen">
+    <el-icon><Close /></el-icon>
+    <span>退出大屏</span>
+  </button>
 
-    <div class="main-content">
+  <div class="main-content">
       <div class="left-panel">
         <div class="panel">
           <div class="panel-header">
@@ -248,7 +252,7 @@ import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api.js'
 import * as echarts from 'echarts'
-import { Close } from '@element-plus/icons-vue'
+import { Close, Refresh } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
@@ -658,6 +662,35 @@ function exitBigScreen() {
   }, 100)
 }
 
+async function resetAll() {
+  try {
+    const ElMessage = (await import('element-plus')).ElMessage
+    
+    const confirmed = confirm('确认复位吗？\n- 所有执行器将关闭\n- 图表数据将重新拉取\n- 此操作不可撤销')
+    if (!confirmed) return
+    
+    // 1. 关闭所有执行器
+    const resetPromises = []
+    for (const actuator of ['fan_switch', 'light_switch', 'pump_switch']) {
+      resetPromises.push(
+        api.post(`/devices/${currentDeviceId || 1}/commands`, {
+          command: actuator,
+          params: { value: false }
+        }).catch(e => console.warn(`关闭${actuator}失败:`, e))
+      )
+    }
+    await Promise.all(resetPromises)
+    
+    // 2. 重新拉取数据
+    await refreshData()
+    
+    ElMessage.success('复位完成，执行器已全部关闭')
+  } catch (e) {
+    console.error('复位失败:', e)
+    alert('复位失败: ' + (e.message || '未知错误'))
+  }
+}
+
 function handleKeydown(e) {
   if (e.key === 'Escape') {
     exitBigScreen()
@@ -684,6 +717,27 @@ onUnmounted(() => {
   padding: 15px;
   box-sizing: border-box;
   position: relative;
+}
+
+.reset-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(255, 184, 0, 0.15);
+  border: 1px solid rgba(255, 184, 0, 0.3);
+  border-radius: 4px;
+  color: rgba(255, 184, 0, 0.9);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-right: 16px;
+}
+
+.reset-btn:hover {
+  background: rgba(255, 184, 0, 0.25);
+  border-color: rgba(255, 184, 0, 0.5);
+  color: #ffb800;
 }
 
 .exit-btn {

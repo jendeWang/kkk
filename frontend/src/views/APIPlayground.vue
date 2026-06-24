@@ -374,6 +374,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
+import api from '../services/api.js'
 
 const baseUrl = location.origin + '/api/v1'
 
@@ -671,26 +672,26 @@ function clearSseMessages() {
 
 async function loadApiKeys() {
   try {
-    const resp = await axios.get('/api/v1/api-keys/')
+    const resp = await api.get('/api-keys/')
     apiKeys.value = resp.data
     if (resp.data.length > 0) {
       selectedApiKey.value = resp.data[0].key
       requestHeaders['Authorization'] = 'Bearer ' + resp.data[0].key
     }
   } catch (e) {
-    ElMessage.error('加载 API Key 失败')
+    console.error('加载API Key失败:', e)
   }
 }
 
 async function loadDevices() {
   try {
-    const resp = await axios.get('/api/v1/devices/')
+    const resp = await api.get('/devices/')
     devices.value = resp.data
     if (resp.data.length > 0) {
       commandForm.device_id = resp.data[0].id
     }
   } catch (e) {
-    ElMessage.error('加载设备失败')
+    console.error('加载设备失败:', e)
   }
 }
 
