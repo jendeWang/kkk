@@ -17,8 +17,13 @@ api.interceptors.response.use(
   response => response,
   error => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      // 检查是否在需要认证的页面
+      const publicRoutes = ['/login', '/register', '/big-screen']
+      const isPublicRoute = publicRoutes.includes(window.location.pathname)
+      if (!isPublicRoute) {
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
