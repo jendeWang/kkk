@@ -528,7 +528,7 @@ async function changeMode(val) {
 }
 
 function openBigScreen() {
-  window.open('/big-screen', '_blank')
+  router.push('/big-screen')
 }
 
 async function refreshAll() {

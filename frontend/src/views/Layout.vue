@@ -116,7 +116,7 @@ function handleCommand(command) {
 }
 
 function openBigScreen() {
-  window.open('/big-screen', '_blank')
+  router.push('/big-screen')
 }
 </script>
 
