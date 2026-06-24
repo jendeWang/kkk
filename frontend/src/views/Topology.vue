@@ -3,22 +3,37 @@
     <div class="topology-container">
       <div class="toolbar">
         <div class="toolbar-left">
-          <el-button-group>
-            <el-button @click="zoomIn" :disabled="scale >= 2">
-              <el-icon><ZoomIn /></el-icon>
-            </el-button>
-            <el-button @click="zoomOut" :disabled="scale <= 0.3">
-              <el-icon><ZoomOut /></el-icon>
-            </el-button>
-            <el-button @click="resetView">
-              <el-icon><Refresh /></el-icon>
-            </el-button>
-          </el-button-group>
-          <span class="scale-text">{{ Math.round(scale * 100) }}%</span>
-          <el-divider direction="vertical" />
+        <el-button-group>
+          <el-button @click="zoomIn" :disabled="scale >= 2">
+            <el-icon><ZoomIn /></el-icon>
+          </el-button>
+          <el-button @click="zoomOut" :disabled="scale <= 0.3">
+            <el-icon><ZoomOut /></el-icon>
+          </el-button>
+          <el-button @click="resetView">
+            <el-icon><Refresh /></el-icon>
+          </el-button>
+        </el-button-group>
+        <span class="scale-text">{{ Math.round(scale * 100) }}%</span>
+        <el-divider direction="vertical" />
+        <el-button-group>
+          <el-button :type="viewMode === 'overview' ? 'primary' : 'default'" size="small" @click="switchToOverview">
+            🌐 总览
+          </el-button>
+          <el-button :type="viewMode === 'detail' ? 'primary' : 'default'" size="small" @click="switchToDetail" :disabled="!currentOverviewDevice">
+            🏠 大棚详情
+          </el-button>
+        </el-button-group>
+        <el-divider direction="vertical" />
+        <template v-if="viewMode === 'detail'">
           <span class="device-name">🏠 {{ deviceInfo.device_name || '智慧大棚' }}</span>
           <el-tag :type="deviceStatusType" size="small">{{ deviceStatusText }}</el-tag>
-        </div>
+        </template>
+        <template v-else>
+          <span class="device-name">🌐 园区总览</span>
+          <el-tag type="info" size="small">{{ allDevices.length }} 个设备</el-tag>
+        </template>
+      </div>
         <div class="toolbar-right">
           <el-select v-model="currentTheme" size="default" style="width: 140px; margin-right: 12px;" @change="onThemeChange">
             <el-option label="科技黑" value="tech-dark" />
@@ -52,80 +67,111 @@
           :class="['canvas-theme-' + currentTheme]"
           :style="canvasStyle"
         >
-          <div
-            v-if="currentTheme === 'custom' && config.background_image"
-            class="background-image"
-            :style="{ backgroundImage: 'url(' + config.background_image + ')' }"
-          ></div>
-
-          <div v-if="currentTheme === 'tech-dark'" class="tech-dark-bg">
-            <div class="grid-lines"></div>
-            <div class="glow-effect"></div>
-          </div>
-
-          <div v-if="currentTheme === 'light'" class="light-bg">
-            <div class="light-grid"></div>
-          </div>
-
-          <div v-if="currentTheme === 'greenhouse'" class="background-greenhouse">
-            <div class="greenhouse-outline">
-              <div class="greenhouse-roof"></div>
-              <div class="greenhouse-body">
-                <div class="greenhouse-label">智慧大棚</div>
+          <!-- 总览模式：显示所有设备 -->
+          <template v-if="viewMode === 'overview'">
+            <div
+              v-for="device in overviewDeviceNodes"
+              :key="device.id"
+              class="node-icon overview-device-node"
+              :class="[
+                'device-' + device.id,
+                {
+                  'status-online': device.status === 'online',
+                  'status-offline': device.status !== 'online',
+                  dragging: draggingNode?.id === ('device_' + device.id)
+                }
+              ]"
+              :style="getOverviewDeviceStyle(device)"
+              @mousedown.stop="editMode && handleOverviewDeviceMouseDown($event, device)"
+              @click.stop="!editMode && handleOverviewDeviceClick(device)"
+            >
+              <div class="node-icon-inner overview-device-icon">
+                <span class="node-emoji">🏠</span>
+              </div>
+              <div class="overview-device-name">{{ device.device_name }}</div>
+              <div class="overview-device-status" :class="'status-' + device.status">
+                {{ device.status === 'online' ? '在线' : '离线' }}
               </div>
             </div>
-          </div>
+          </template>
 
-          <div
-            v-for="node in sensorNodes"
-            :key="node.id"
-            class="node-icon sensor-node"
-            :class="[
-              'node-' + node.id,
-              { 
-                'status-warning': node.isWarning,
-                'status-normal': !node.isWarning && hasData,
-                'status-offline': !hasData,
-                dragging: draggingNode?.id === node.id
-              }
-            ]"
-            :style="getNodeStyle(node)"
-            @mousedown.stop="editMode && handleNodeMouseDown($event, node)"
-            @click.stop="!editMode && handleSensorClick(node)"
-          >
-            <div class="node-icon-inner" :style="getNodeIconStyle(node)">
-              <span class="node-emoji">{{ node.icon }}</span>
-            </div>
-            <div class="node-value" v-if="hasData && node.value !== undefined">
-              {{ formatValue(node.value, node.decimals) }}
-              <span class="node-unit">{{ node.unit }}</span>
-            </div>
-            <div class="node-value no-data" v-else>--</div>
-            <div class="node-label">{{ node.name }}</div>
-          </div>
+          <!-- 详情模式：显示传感器和执行器 -->
+          <template v-else>
+            <div
+              v-if="currentTheme === 'custom' && config.background_image"
+              class="background-image"
+              :style="{ backgroundImage: 'url(' + config.background_image + ')' }"
+            ></div>
 
-          <div
-            v-for="node in actuatorNodes"
-            :key="node.id"
-            class="node-icon actuator-node"
-            :class="[
-              'node-' + node.id,
-              { 
-                'status-on': node.isOn,
-                'status-off': !node.isOn,
-                dragging: draggingNode?.id === node.id
-              }
-            ]"
-            :style="getNodeStyle(node)"
-            @mousedown.stop="editMode && handleNodeMouseDown($event, node)"
-            @click.stop="!editMode && handleActuatorClick(node)"
-          >
-            <div class="node-icon-inner" :class="{ 'rotating': node.isRotating && node.isOn }">
-              <span class="node-emoji">{{ node.icon }}</span>
+            <div v-if="currentTheme === 'tech-dark'" class="tech-dark-bg">
+              <div class="grid-lines"></div>
+              <div class="glow-effect"></div>
             </div>
-            <div class="node-actuator-status">{{ node.isOn ? '运行中' : '已关闭' }}</div>
-            <div class="node-label">{{ node.name }}</div>
-          </div>
+
+            <div v-if="currentTheme === 'light'" class="light-bg">
+              <div class="light-grid"></div>
+            </div>
+
+            <div v-if="currentTheme === 'greenhouse'" class="background-greenhouse">
+              <div class="greenhouse-outline">
+                <div class="greenhouse-roof"></div>
+                <div class="greenhouse-body">
+                  <div class="greenhouse-label">{{ deviceInfo.device_name || '智慧大棚' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-for="node in sensorNodes"
+              :key="node.id"
+              class="node-icon sensor-node"
+              :class="[
+                'node-' + node.id,
+                { 
+                  'status-warning': node.isWarning,
+                  'status-normal': !node.isWarning && hasData,
+                  'status-offline': !hasData,
+                  dragging: draggingNode?.id === node.id
+                }
+              ]"
+              :style="getNodeStyle(node)"
+              @mousedown.stop="editMode && handleNodeMouseDown($event, node)"
+              @click.stop="!editMode && handleSensorClick(node)"
+            >
+              <div class="node-icon-inner" :style="getNodeIconStyle(node)">
+                <span class="node-emoji">{{ node.icon }}</span>
+              </div>
+              <div class="node-value" v-if="hasData && node.value !== undefined">
+                {{ formatValue(node.value, node.decimals) }}
+                <span class="node-unit">{{ node.unit }}</span>
+              </div>
+              <div class="node-value no-data" v-else>--</div>
+              <div class="node-label">{{ node.name }}</div>
+            </div>
+
+            <div
+              v-for="node in actuatorNodes"
+              :key="node.id"
+              class="node-icon actuator-node"
+              :class="[
+                'node-' + node.id,
+                { 
+                  'status-on': node.isOn,
+                  'status-off': !node.isOn,
+                  dragging: draggingNode?.id === node.id
+                }
+              ]"
+              :style="getNodeStyle(node)"
+              @mousedown.stop="editMode && handleNodeMouseDown($event, node)"
+              @click.stop="!editMode && handleActuatorClick(node)"
+            >
+              <div class="node-icon-inner" :class="{ 'rotating': node.isRotating && node.isOn }">
+                <span class="node-emoji">{{ node.icon }}</span>
+              </div>
+              <div class="node-actuator-status">{{ node.isOn ? '运行中' : '已关闭' }}</div>
+              <div class="node-label">{{ node.name }}</div>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -247,6 +293,8 @@ const panX = ref(0)
 const panY = ref(0)
 const editMode = ref(false)
 const currentTheme = ref('tech-dark')
+const viewMode = ref('overview')
+const currentOverviewDevice = ref(null)
 
 const deviceInfo = reactive({
   id: null,
@@ -254,6 +302,8 @@ const deviceInfo = reactive({
   status: 'offline',
   product_id: null
 })
+
+const allDevices = ref([])
 
 const config = reactive({
   id: null,
@@ -275,6 +325,7 @@ const panStart = reactive({ x: 0, y: 0 })
 const shadowData = reactive({})
 const hasData = ref(false)
 const lastUpdateTime = ref('--')
+let shadowDataRef = shadowData
 
 const showSensorDetail = ref(false)
 const selectedSensor = ref(null)
@@ -365,6 +416,30 @@ const actuatorNodes = computed(() => {
   })
 })
 
+const overviewDeviceNodes = computed(() => {
+  return allDevices.value.map((device, index) => {
+    const posKey = `device_${device.id}`
+    const defaultPos = overviewDefaultPositions[index] || { x: 100 + (index % 4) * 200, y: 150 + Math.floor(index / 4) * 200 }
+    const pos = nodePositions[posKey] || defaultPos
+    return {
+      ...device,
+      x: pos.x,
+      y: pos.y
+    }
+  })
+})
+
+const overviewDefaultPositions = [
+  { x: 150, y: 150 },
+  { x: 450, y: 150 },
+  { x: 150, y: 350 },
+  { x: 450, y: 350 },
+  { x: 300, y: 100 },
+  { x: 600, y: 100 },
+  { x: 300, y: 450 },
+  { x: 600, y: 450 }
+]
+
 const deviceStatusType = computed(() => {
   const map = { online: 'success', offline: 'info', error: 'danger' }
   return map[deviceInfo.status] || 'info'
@@ -386,6 +461,13 @@ function getNodeStyle(node) {
   return {
     left: node.x + 'px',
     top: node.y + 'px'
+  }
+}
+
+function getOverviewDeviceStyle(device) {
+  return {
+    left: device.x + 'px',
+    top: device.y + 'px'
   }
 }
 
@@ -555,8 +637,14 @@ function handleCanvasMouseMove(e) {
     const rect = canvasContainer.value.getBoundingClientRect()
     const x = (e.clientX - rect.left - panX.value - dragOffset.x) / scale.value
     const y = (e.clientY - rect.top - panY.value - dragOffset.y) / scale.value
-    draggingNode.value.x = Math.max(0, Math.min(config.canvas_width - 80, x))
-    draggingNode.value.y = Math.max(0, Math.min(config.canvas_height - 80, y))
+    
+    if (viewMode.value === 'overview' && draggingNode.value.id.startsWith('device_')) {
+      draggingNode.value.x = Math.max(0, Math.min(config.canvas_width - 100, x))
+      draggingNode.value.y = Math.max(0, Math.min(config.canvas_height - 100, y))
+    } else {
+      draggingNode.value.x = Math.max(0, Math.min(config.canvas_width - 80, x))
+      draggingNode.value.y = Math.max(0, Math.min(config.canvas_height - 80, y))
+    }
   }
 }
 
@@ -565,9 +653,17 @@ function handleCanvasMouseUp() {
     isPanning.value = false
   }
   if (draggingNode.value) {
-    nodePositions[draggingNode.value.id] = {
-      x: draggingNode.value.x,
-      y: draggingNode.value.y
+    if (viewMode.value === 'overview' && draggingNode.value.id.startsWith('device_')) {
+      const deviceId = draggingNode.value.id.replace('device_', '')
+      nodePositions[draggingNode.value.id] = {
+        x: draggingNode.value.x,
+        y: draggingNode.value.y
+      }
+    } else {
+      nodePositions[draggingNode.value.id] = {
+        x: draggingNode.value.x,
+        y: draggingNode.value.y
+      }
     }
     savePositions()
     draggingNode.value = null
@@ -579,6 +675,49 @@ function handleNodeMouseDown(e, node) {
   const rect = e.currentTarget.getBoundingClientRect()
   dragOffset.x = e.clientX - rect.left
   dragOffset.y = e.clientY - rect.top
+}
+
+function handleOverviewDeviceMouseDown(e, device) {
+  draggingNode.value = { id: 'device_' + device.id, x: device.x, y: device.y }
+  const rect = e.currentTarget.getBoundingClientRect()
+  dragOffset.x = e.clientX - rect.left
+  dragOffset.y = e.clientY - rect.top
+}
+
+async function handleOverviewDeviceClick(device) {
+  currentOverviewDevice.value = device
+  deviceInfo.id = device.id
+  deviceInfo.device_name = device.device_name
+  deviceInfo.status = device.status
+  deviceInfo.product_id = device.product_id || device.product_key
+  
+  viewMode.value = 'detail'
+  loadPositions()
+  
+  if (deviceInfo.product_id) {
+    await loadTsl(deviceInfo.product_id)
+  }
+  
+  await loadDeviceShadow()
+  refreshTimer = setInterval(() => {
+    loadDeviceShadow()
+  }, 3000)
+}
+
+function switchToOverview() {
+  viewMode.value = 'overview'
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+  Object.keys(shadowData).forEach(key => delete shadowData[key])
+  hasData.value = false
+}
+
+function switchToDetail() {
+  if (currentOverviewDevice.value) {
+    handleOverviewDeviceClick(currentOverviewDevice.value)
+  }
 }
 
 function handleSensorClick(node) {
@@ -725,18 +864,19 @@ onMounted(async () => {
   loadTheme()
   sensorConfigs.value = defaultFallbackConfigs.sensors
   actuatorConfigs.value = defaultFallbackConfigs.actuators
-  await Promise.all([loadDevice(), loadConfig()])
-  if (deviceInfo.product_id) {
-    await loadTsl(deviceInfo.product_id)
-  }
+  await loadAllDevices()
   loadPositions()
-  if (deviceInfo.id) {
-    await loadDeviceShadow()
-  }
-  refreshTimer = setInterval(() => {
-    loadDeviceShadow()
-  }, 3000)
 })
+
+async function loadAllDevices() {
+  try {
+    const res = await api.get('/devices/', { params: { page_size: 100 } })
+    allDevices.value = res.data || []
+  } catch (error) {
+    console.error('Failed to load devices:', error)
+    allDevices.value = []
+  }
+}
 
 onBeforeUnmount(() => {
   if (refreshTimer) clearInterval(refreshTimer)
@@ -1048,6 +1188,58 @@ onBeforeUnmount(() => {
 .actuator-node.status-off .node-icon-inner {
   border-color: #c0c4cc;
   opacity: 0.7;
+}
+
+.overview-device-node {
+  width: 100px;
+}
+
+.overview-device-icon {
+  width: 60px;
+  height: 60px;
+  border-width: 4px;
+}
+
+.overview-device-node.status-online .overview-device-icon {
+  border-color: #67c23a;
+  box-shadow: 0 0 0 4px rgba(103, 194, 58, 0.3);
+  background: #f0f9eb;
+}
+
+.overview-device-node.status-offline .overview-device-icon {
+  border-color: #c0c4cc;
+  opacity: 0.6;
+  background: #f5f5f5;
+}
+
+.overview-device-name {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+  margin-top: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.overview-device-status {
+  text-align: center;
+  font-size: 11px;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.overview-device-status.status-online {
+  color: #67c23a;
+  font-weight: 500;
+}
+
+.overview-device-status.status-offline {
+  color: #909399;
 }
 
 .node-icon-inner.rotating {
