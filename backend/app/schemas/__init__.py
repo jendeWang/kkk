@@ -128,7 +128,7 @@ class ProductServiceBase(BaseModel):
     name: str
     description: Optional[str] = None
     input_params: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
-    output_params: Optional[Dict[str, Any]] = None
+    output_params: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
 
 
 class ProductServiceCreate(ProductServiceBase):
@@ -140,7 +140,7 @@ class ProductServiceUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     input_params: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
-    output_params: Optional[Dict[str, Any]] = None
+    output_params: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
 
 
 class ProductServiceResponse(ProductServiceBase):
@@ -156,7 +156,7 @@ class ProductEventBase(BaseModel):
     name: str
     event_type: Optional[str] = None
     description: Optional[str] = None
-    output_params: Optional[Dict[str, Any]] = None
+    output_params: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
 
 
 class ProductEventCreate(ProductEventBase):
@@ -168,7 +168,7 @@ class ProductEventUpdate(BaseModel):
     name: Optional[str] = None
     event_type: Optional[str] = None
     description: Optional[str] = None
-    output_params: Optional[Dict[str, Any]] = None
+    output_params: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
 
 
 class ProductEventResponse(ProductEventBase):
