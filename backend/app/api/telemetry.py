@@ -105,9 +105,15 @@ async def export_telemetry_csv(
     output.seek(0)
     filename = f"telemetry_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
 
+    csv_content = output.getvalue()
+    if isinstance(csv_content, str):
+        csv_content = csv_content.encode('utf-8-sig')
+    else:
+        csv_content = '\ufeff'.encode('utf-8') + csv_content
+
     return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
+        iter([csv_content]),
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 

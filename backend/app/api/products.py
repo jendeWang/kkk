@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
 from sqlalchemy.orm import selectinload
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
+import json
 import uuid
 import random
 import string
@@ -702,6 +704,24 @@ async def export_tsl(
         properties=properties,
         services=services,
         events=events,
+    )
+
+
+@router.get("/{product_key}/tsl/export")
+async def export_tsl_file(
+    product_key: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """导出产品TSL物模型为JSON文件下载"""
+    tsl_data = await export_tsl(product_key, current_user, db)
+    json_str = json.dumps(tsl_data.model_dump(), ensure_ascii=False, indent=2)
+    json_bytes = json_str.encode('utf-8-sig')
+    filename = f"{product_key}_tsl.json"
+    return StreamingResponse(
+        iter([json_bytes]),
+        media_type="application/json; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
 
