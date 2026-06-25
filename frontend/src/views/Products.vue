@@ -618,19 +618,68 @@ async function loadTSL() {
 
 async function exportTSL() {
   try {
-    const resp = await api.get(`/products/${editForm.product_key}/tsl`, {
-      responseType: 'blob'
-    })
-    const url = window.URL.createObjectURL(new Blob([resp.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `${editForm.product_key}_tsl.json`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    ElMessage.success('TSL导出成功')
+    const resp = await api.get(`/products/${editForm.product_key}/tsl`)
+    // 直接在新窗口展示JSON，用户可手动Ctrl+S保存
+    // 避免浏览器下载策略拦截
+    const jsonStr = JSON.stringify(resp.data, null, 2)
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' })
+    const url = window.URL.createObjectURL(blob)
+    const escJson = jsonStr.replace(/</g, '&lt;')
+    const safeJson = JSON.stringify(jsonStr)
+    const fname = `${editForm.product_key}_tsl.json`
+    // 用 \u003c 转义 < 字符，避免 Vue SFC parser 编译时误识别
+    const LT = '\u003c'
+    const cssText = 'body{font-family:monospace;padding:20px;background:#f5f5f5}'
+      + 'pre{background:#fff;padding:16px;border-radius:4px;overflow:auto}'
+      + '.toolbar{margin-bottom:12px}'
+      + 'button{padding:8px 16px;background:#409eff;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-right:8px}'
+      + 'button:hover{background:#66b1ff}'
+    const html = LT + '!DOCTYPE html>'
+      + LT + 'html>'
+      + LT + 'head>'
+      + LT + 'meta charset="utf-8"/>'
+      + LT + 'title>TSL导出 - ' + editForm.product_key + LT + '/title>'
+      + LT + 'style>' + cssText + LT + '/style>'
+      + LT + '/head>'
+      + LT + 'body>'
+      + LT + 'div class="toolbar">'
+      + LT + 'button onclick="downloadJson()">下载JSON文件' + LT + '/button>'
+      + LT + 'button onclick="copyJson()">复制到剪贴板' + LT + '/button>'
+      + LT + '/div>'
+      + LT + 'pre id="content">' + escJson + LT + '/pre>'
+      + LT + 'script>'
+      + 'function downloadJson(){'
+      + 'var b=new Blob([' + safeJson + '],{type:"application/json"});'
+      + 'var u=URL.createObjectURL(b);'
+      + 'var a=document.createElement("a");'
+      + 'a.href=u;a.download="' + fname + '";'
+      + 'document.body.appendChild(a);a.click();'
+      + 'document.body.removeChild(a);URL.revokeObjectURL(u)'
+      + '}'
+      + 'function copyJson(){'
+      + 'navigator.clipboard.writeText(' + safeJson + ').then(function(){alert("已复制到剪贴板")})'
+      + '}'
+      + LT + '/script>'
+      + LT + '/body>'
+      + LT + '/html>'
+
+    const newWindow = window.open('', '_blank')
+    if (newWindow) {
+      newWindow.document.write(html)
+      newWindow.document.close()
+    } else {
+      // 浏览器拦截弹窗时，提示用户复制内容
+      await ElMessageBox.alert(
+        '浏览器拦截了弹窗。请在终端使用 curl 命令获取TSL。\n\n命令：\ncurl -H "Authorization: Bearer YOUR_TOKEN" \\\n  http://localhost:8000/api/v1/products/' + editForm.product_key + '/tsl',
+        'TSL导出',
+        { type: 'warning' }
+      )
+    }
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('TSL已在新窗口打开')
   } catch (e) {
-    ElMessage.error('TSL导出失败')
+    console.error('TSL导出失败:', e)
+    ElMessage.error('TSL导出失败: ' + (e.response?.data?.detail || e.message))
   }
 }
 
