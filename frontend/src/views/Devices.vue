@@ -20,7 +20,11 @@
           </template>
         </el-table-column>
         <el-table-column prop="device_name" :label="$t('devices.deviceName')" />
-        <el-table-column prop="product_id" :label="$t('devices.product')" />
+        <el-table-column :label="$t('devices.product')">
+          <template #default="{ row }">
+            {{ getProductName(row.product_id) }}
+          </template>
+        </el-table-column>
         <el-table-column :label="$t('devices.status')" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
@@ -84,8 +88,13 @@ function getStatusType(status) {
 }
 
 function getStatusText(status) {
-  const texts = { online: 'Online', offline: 'Offline', error: 'Error' }
+  const texts = { online: '在线', offline: '离线', error: '异常' }
   return texts[status] || status
+}
+
+function getProductName(product_id) {
+  const product = productStore.products.find(p => p.id === product_id)
+  return product ? product.name : `产品 #${product_id}`
 }
 
 function formatTime(time) {

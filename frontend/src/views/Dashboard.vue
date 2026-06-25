@@ -37,11 +37,11 @@
             <el-icon :size="32"><Warning /></el-icon>
           </div>
           <div class="stat-info">
-            <div class="stat-label">活跃告警</div>
+            <div class="stat-label">未处理告警</div>
             <div class="stat-value" :class="{ 'alert-blink': (overview.active_alerts || 0) > 0 }">
               {{ overview.active_alerts || 0 }}
             </div>
-            <div class="stat-sub">今日 {{ overview.today_alerts || 0 }} 条</div>
+            <div class="stat-sub">今日新增 {{ overview.today_alerts || 0 }} 条</div>
           </div>
         </div>
       </el-card>

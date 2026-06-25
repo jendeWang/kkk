@@ -15,7 +15,7 @@
         <el-table-column prop="name" :label="$t('apiKeys.name')" />
         <el-table-column :label="$t('apiKeys.permission')" width="120">
           <template #default="{ row }">
-            {{ getPermissionText(row.permission_level) }}
+            {{ getPermissionText(row.permissions) }}
           </template>
         </el-table-column>
         <el-table-column prop="key" :label="$t('apiKeys.key')">
@@ -26,7 +26,7 @@
         </el-table-column>
         <el-table-column :label="$t('apiKeys.lastUsed')" width="180">
           <template #default="{ row }">
-            {{ row.last_used_at ? formatTime(row.last_used_at) : $t('apiKeys.never') }}
+            {{ row.last_used ? formatTime(row.last_used) : $t('apiKeys.never') }}
           </template>
         </el-table-column>
         <el-table-column :label="$t('common.actions')" width="100">
@@ -43,7 +43,7 @@
           <el-input v-model="keyForm.name" />
         </el-form-item>
         <el-form-item :label="$t('apiKeys.permission')">
-          <el-select v-model="keyForm.permission_level">
+          <el-select v-model="keyForm.permissionLevel">
             <el-option value="read" :label="$t('apiKeys.read')" />
             <el-option value="write" :label="$t('apiKeys.write')" />
             <el-option value="admin" :label="$t('apiKeys.admin')" />
@@ -73,12 +73,15 @@ const showAddDialog = ref(false)
 
 const keyForm = reactive({
   name: '',
-  permission_level: 'read'
+  permissionLevel: 'read'
 })
 
-function getPermissionText(level) {
-  const texts = { read: t('apiKeys.read'), write: t('apiKeys.write'), admin: t('apiKeys.admin') }
-  return texts[level] || level
+function getPermissionText(permissions) {
+  if (!permissions) return '-'
+  if (permissions.admin) return t('apiKeys.admin')
+  if (permissions.write) return t('apiKeys.write')
+  if (permissions.read) return t('apiKeys.read')
+  return '-'
 }
 
 function formatTime(time) {
@@ -101,12 +104,20 @@ async function loadApiKeys() {
 async function handleAdd() {
   saving.value = true
   try {
-    const response = await api.post('/api-keys/', keyForm)
+    const permissions = {
+      read: true,
+      write: keyForm.permissionLevel === 'write' || keyForm.permissionLevel === 'admin',
+      admin: keyForm.permissionLevel === 'admin'
+    }
+    const response = await api.post('/api-keys/', {
+      name: keyForm.name,
+      permissions: permissions
+    })
     ElMessage.success(t('apiKeys.createSuccess'))
     ElMessage.info(`${response.data.key} (${t('apiKeys.saveKey')})`)
     showAddDialog.value = false
     keyForm.name = ''
-    keyForm.permission_level = 'read'
+    keyForm.permissionLevel = 'read'
     await loadApiKeys()
   } catch (error) {
     ElMessage.error(t('apiKeys.createError'))

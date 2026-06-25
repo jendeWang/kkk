@@ -348,26 +348,39 @@ async def send_command_to_device(
             reported = dict(shadow.reported or {})
             service = command_data.service_identifier
             input_params = params or {}
+            now = datetime.utcnow()
             
             if service == "set_fan" and "status" in input_params:
                 reported["fan_status"] = input_params["status"]
                 new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
             elif service == "set_light":
                 if "status" in input_params:
                     reported["light_status"] = input_params["status"]
                 if "brightness" in input_params:
                     reported["brightness"] = input_params["brightness"]
                 new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
             elif service == "set_pump" and "status" in input_params:
                 reported["pump_status"] = input_params["status"]
                 new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
             elif service == "set_mode" and "mode" in input_params:
                 reported["work_mode"] = input_params["mode"]
                 new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
             
             shadow.reported = reported
             shadow.version += 1
-            shadow.last_updated = datetime.utcnow()
+            shadow.last_updated = now
     except Exception as e:
         logger.exception(f"Failed to update shadow after command: {e}")
 
@@ -535,6 +548,8 @@ async def update_device_topology(
     db: AsyncSession = Depends(get_db),
 ):
     """更新设备拓扑位置"""
+    from sqlalchemy.orm.attributes import flag_modified
+    
     result = await db.execute(
         select(Device).where(
             Device.id == device_id,
@@ -545,12 +560,13 @@ async def update_device_topology(
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
-    extra = device.extra or {}
+    extra = dict(device.extra or {})
     if "topology" not in extra or not isinstance(extra["topology"], dict):
         extra["topology"] = {}
     extra["topology"]["x"] = topology_data.x
     extra["topology"]["y"] = topology_data.y
     device.extra = extra
+    flag_modified(device, "extra")
 
     await db.commit()
     await db.refresh(device)
