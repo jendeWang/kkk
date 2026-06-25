@@ -380,9 +380,9 @@ const defaultFallbackConfigs = {
     { id: 'soil_temperature', name: '土壤温度', icon: '🪴', unit: '°C', decimals: 1, min: 15, max: 28, color: '#8e44ad' }
   ],
   actuators: [
-    { id: 'fan_status', name: '通风扇', icon: '🌀', service: 'set_fan', param: 'fan_status', isRotating: true },
-    { id: 'light_status', name: '补光灯', icon: '💡', service: 'set_light', param: 'light_status', isRotating: false },
-    { id: 'pump_status', name: '灌溉水泵', icon: '🚿', service: 'set_pump', param: 'pump_status', isRotating: false }
+    { id: 'fan_status', name: '通风扇', icon: '🌀', service: 'set_fan', param: 'status', isRotating: true },
+    { id: 'light_status', name: '补光灯', icon: '💡', service: 'set_light', param: 'status', isRotating: false },
+    { id: 'pump_status', name: '灌溉水泵', icon: '🚿', service: 'set_pump', param: 'status', isRotating: false }
   ],
   positions: {
     temperature: { x: 100, y: 120 },

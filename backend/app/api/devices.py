@@ -337,6 +337,40 @@ async def send_command_to_device(
     except Exception as e:
         logger.exception(f"Failed to publish MQTT command: {e}")
 
+    # 模拟设备响应：更新设备影子的 reported 状态
+    try:
+        shadow_result = await db.execute(
+            select(DeviceShadow).where(DeviceShadow.device_id == device_id)
+        )
+        shadow = shadow_result.scalar_one_or_none()
+        
+        if shadow:
+            reported = dict(shadow.reported or {})
+            service = command_data.service_identifier
+            input_params = params or {}
+            
+            if service == "set_fan" and "status" in input_params:
+                reported["fan_status"] = input_params["status"]
+                new_command.status = CommandStatus.EXECUTED
+            elif service == "set_light":
+                if "status" in input_params:
+                    reported["light_status"] = input_params["status"]
+                if "brightness" in input_params:
+                    reported["brightness"] = input_params["brightness"]
+                new_command.status = CommandStatus.EXECUTED
+            elif service == "set_pump" and "status" in input_params:
+                reported["pump_status"] = input_params["status"]
+                new_command.status = CommandStatus.EXECUTED
+            elif service == "set_mode" and "mode" in input_params:
+                reported["work_mode"] = input_params["mode"]
+                new_command.status = CommandStatus.EXECUTED
+            
+            shadow.reported = reported
+            shadow.version += 1
+            shadow.last_updated = datetime.utcnow()
+    except Exception as e:
+        logger.exception(f"Failed to update shadow after command: {e}")
+
     await db.commit()
     await db.refresh(new_command)
     return new_command

@@ -5,6 +5,7 @@ from .database import init_db, async_session_maker
 from .api import auth, products, devices, telemetry, commands, alerts, apikeys, sse, dashboard, groups, scenes, topology
 from .services.init_service import init_default_user, init_greenhouse_product, init_default_group, init_default_scenes
 from .services.sse_service import sse_service
+from .services.simulator_service import simulator_service
 from .mqtt.service import mqtt_service
 from .config import settings
 
@@ -22,11 +23,13 @@ async def lifespan(app: FastAPI):
         await init_default_scenes(db)
 
     await mqtt_service.start(async_session_maker)
+    await simulator_service.start(async_session_maker)
 
     yield
 
     print("Shutting down IOTPlatform...")
     await mqtt_service.stop()
+    await simulator_service.stop()
 
 
 app = FastAPI(
