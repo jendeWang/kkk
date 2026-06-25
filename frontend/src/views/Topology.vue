@@ -368,7 +368,7 @@ const sensorConfigs = ref([])
 const actuatorConfigs = ref([])
 
 let refreshTimer = null
-let nodePositions = {}
+const nodePositions = reactive({})
 
 const defaultFallbackConfigs = {
   sensors: [
@@ -555,13 +555,13 @@ function loadPositions() {
   try {
     const key = getPositionsKey()
     const saved = localStorage.getItem(key)
+    Object.keys(nodePositions).forEach(key => delete nodePositions[key])
     if (saved) {
-      nodePositions = JSON.parse(saved)
-    } else {
-      nodePositions = {}
+      const parsed = JSON.parse(saved)
+      Object.assign(nodePositions, parsed)
     }
   } catch (e) {
-    nodePositions = {}
+    Object.keys(nodePositions).forEach(key => delete nodePositions[key])
   }
 }
 
@@ -703,12 +703,23 @@ function handleCanvasMouseMove(e) {
     const x = (e.clientX - rect.left - panX.value - dragOffset.x) / scale.value
     const y = (e.clientY - rect.top - panY.value - dragOffset.y) / scale.value
     
+    let newX, newY
     if (viewMode.value === 'overview' && draggingNode.value.id.startsWith('device_')) {
-      draggingNode.value.x = Math.max(0, Math.min(config.canvas_width - 100, x))
-      draggingNode.value.y = Math.max(0, Math.min(config.canvas_height - 100, y))
+      newX = Math.max(0, Math.min(config.canvas_width - 100, x))
+      newY = Math.max(0, Math.min(config.canvas_height - 100, y))
     } else {
-      draggingNode.value.x = Math.max(0, Math.min(config.canvas_width - 80, x))
-      draggingNode.value.y = Math.max(0, Math.min(config.canvas_height - 80, y))
+      newX = Math.max(0, Math.min(config.canvas_width - 80, x))
+      newY = Math.max(0, Math.min(config.canvas_height - 80, y))
+    }
+    
+    draggingNode.value.x = newX
+    draggingNode.value.y = newY
+    
+    if (nodePositions[draggingNode.value.id]) {
+      nodePositions[draggingNode.value.id].x = newX
+      nodePositions[draggingNode.value.id].y = newY
+    } else {
+      nodePositions[draggingNode.value.id] = { x: newX, y: newY }
     }
   }
 }
