@@ -4,10 +4,24 @@
       <h1 class="title">{{ $t('login.title') }}</h1>
       <el-form @submit.prevent="handleLogin" :model="form" class="login-form">
         <el-form-item>
-          <el-input v-model="form.username" :placeholder="$t('login.username')" size="large" prefix-icon="User" />
+          <el-input
+            v-model="form.username"
+            :placeholder="$t('login.username')"
+            size="large"
+            prefix-icon="User"
+            @keyup.enter="handleLogin"
+          />
         </el-form-item>
         <el-form-item>
-          <el-input v-model="form.password" type="password" :placeholder="$t('login.password')" size="large" prefix-icon="Lock" show-password />
+          <el-input
+            v-model="form.password"
+            type="password"
+            :placeholder="$t('login.password')"
+            size="large"
+            prefix-icon="Lock"
+            show-password
+            @keyup.enter="handleLogin"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" size="large" style="width: 100%" :loading="loading" native-type="submit">
