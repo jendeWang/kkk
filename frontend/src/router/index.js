@@ -20,6 +20,7 @@ const routes = [
       { path: 'alert-rules', name: 'AlertRules', component: () => import('../views/AlertRules.vue') },
       { path: 'alerts', name: 'Alerts', component: () => import('../views/Alerts.vue') },
       { path: 'scenes', name: 'Scenes', component: () => import('../views/Scenes.vue') },
+      { path: 'groups', name: 'Groups', component: () => import('../views/Groups.vue') },
       { path: 'api-keys', name: 'APIKeys', component: () => import('../views/APIKeys.vue') },
       { path: 'api-playground', name: 'APIPlayground', component: () => import('../views/APIPlayground.vue'), meta: { requiresAuth: true } },
       { path: 'topology', name: 'Topology', component: () => import('../views/Topology.vue') },

@@ -306,44 +306,65 @@ async def init_greenhouse_product(db: AsyncSession):
 
 
 async def init_default_group(db: AsyncSession):
-    """为每个用户创建默认分组，并将已有设备加入"""
+    """为每个用户创建默认3个大棚分组，并将已有设备加入"""
     result = await db.execute(select(User))
     users = result.scalars().all()
 
     for user in users:
-        group_result = await db.execute(
+        # 检查是否已经有预设分组
+        existing_groups_result = await db.execute(
             select(DeviceGroup).where(
-                DeviceGroup.name == "默认分组",
                 DeviceGroup.owner_id == user.id,
             )
         )
-        existing_group = group_result.scalar_one_or_none()
-        if existing_group:
-            print(f"[Init] Default group already exists for user: {user.username}")
+        existing_groups = existing_groups_result.scalars().all()
+        
+        if len(existing_groups) >= 3:
+            print(f"[Init] Default groups already exist for user: {user.username}")
             continue
 
-        default_group = DeviceGroup(
-            name="默认分组",
-            description="系统默认设备分组",
-            owner_id=user.id,
-        )
-        db.add(default_group)
-        await db.flush()
+        # 创建3个大棚分组
+        default_groups = [
+            {"name": "1号大棚", "description": "第1号种植大棚"},
+            {"name": "2号大棚", "description": "第2号种植大棚"},
+            {"name": "3号大棚", "description": "第3号种植大棚"},
+        ]
 
-        devices_result = await db.execute(
-            select(Device.id).where(Device.owner_id == user.id)
-        )
-        device_ids = [row[0] for row in devices_result.all()]
-
-        for device_id in device_ids:
-            member = DeviceGroupMember(
-                group_id=default_group.id,
-                device_id=device_id,
+        for group_data in default_groups:
+            group_result = await db.execute(
+                select(DeviceGroup).where(
+                    DeviceGroup.name == group_data["name"],
+                    DeviceGroup.owner_id == user.id,
+                )
             )
-            db.add(member)
+            existing_group = group_result.scalar_one_or_none()
+            if existing_group:
+                continue
+
+            new_group = DeviceGroup(
+                name=group_data["name"],
+                description=group_data["description"],
+                owner_id=user.id,
+            )
+            db.add(new_group)
+            await db.flush()
+
+            # 如果是第1号大棚，自动将已有设备加入
+            if group_data["name"] == "1号大棚":
+                devices_result = await db.execute(
+                    select(Device.id).where(Device.owner_id == user.id)
+                )
+                device_ids = [row[0] for row in devices_result.all()]
+
+                for device_id in device_ids:
+                    member = DeviceGroupMember(
+                        group_id=new_group.id,
+                        device_id=device_id,
+                    )
+                    db.add(member)
 
         await db.commit()
-        print(f"[Init] Default group created for user: {user.username}, devices: {len(device_ids)}")
+        print(f"[Init] Default greenhouse groups (3) created for user: {user.username}")
 
 
 async def init_default_scenes(db: AsyncSession):

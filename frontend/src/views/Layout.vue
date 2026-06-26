@@ -42,6 +42,10 @@
             <el-icon><Timer /></el-icon>
             <span>场景联动</span>
           </el-menu-item>
+          <el-menu-item index="/groups">
+            <el-icon><Folder /></el-icon>
+            <span>设备分组</span>
+          </el-menu-item>
           <el-menu-item index="/api-keys">
             <el-icon><Key /></el-icon>
             <span>{{ $t('menu.apiKeys') }}</span>

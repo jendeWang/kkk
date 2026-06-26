@@ -48,11 +48,16 @@
     <el-dialog v-model="showAddDialog" :title="$t('devices.addDevice')" width="500px">
       <el-form :model="deviceForm" label-width="120px">
         <el-form-item :label="$t('devices.deviceName')">
-          <el-input v-model="deviceForm.device_name" />
+          <el-input v-model="deviceForm.device_name" placeholder="给设备起个名字" />
         </el-form-item>
         <el-form-item :label="$t('devices.product')">
-          <el-select v-model="deviceForm.product_id" placeholder="Select product">
+          <el-select v-model="deviceForm.product_id" placeholder="选择产品">
             <el-option v-for="p in productStore.products" :key="p.id" :label="p.name" :value="p.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="归属分组">
+          <el-select v-model="deviceForm.group_id" placeholder="选择设备归属的分组（可选）" clearable>
+            <el-option v-for="g in groups" :key="g.id" :label="g.name" :value="g.id" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -69,6 +74,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useDeviceStore } from '../stores/device.js'
 import { useProductStore } from '../stores/product.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { groupService } from '../services/group.js'
 
 const deviceStore = useDeviceStore()
 const productStore = useProductStore()
@@ -76,11 +82,21 @@ const productStore = useProductStore()
 const loading = ref(false)
 const saving = ref(false)
 const showAddDialog = ref(false)
+const groups = ref([])
 
 const deviceForm = reactive({
   device_name: '',
-  product_id: null
+  product_id: null,
+  group_id: null
 })
+
+async function loadGroups() {
+  try {
+    groups.value = await groupService.getGroups()
+  } catch (e) {
+    console.error('Failed to load groups:', e)
+  }
+}
 
 function getStatusType(status) {
   const types = { online: 'success', offline: 'info', error: 'danger' }
@@ -120,14 +136,29 @@ async function handleAdd() {
   saving.value = true
   try {
     const device = await deviceStore.createDevice(deviceForm)
-    ElMessage.success('Device created')
-    ElMessage.info(`Device Secret: ${device.device_secret} (Save it!)`)
+    
+    // 如果选择了分组，自动添加设备到分组
+    if (deviceForm.group_id) {
+      try {
+        await groupService.addDevicesToGroup(deviceForm.group_id, [device.id])
+        const group = groups.value.find(g => g.id === deviceForm.group_id)
+        ElMessage.success(`设备已创建并添加到 ${group?.name || '分组'}`)
+      } catch (e) {
+        console.error('Failed to add device to group:', e)
+        ElMessage.warning('设备已创建，但添加到分组失败，请手动添加')
+      }
+    } else {
+      ElMessage.success('设备已创建')
+    }
+    
+    ElMessage.info(`设备密钥: ${device.device_secret}（请妥善保管）`)
     showAddDialog.value = false
     deviceForm.device_name = ''
     deviceForm.product_id = null
+    deviceForm.group_id = null
     await loadDevices()
   } catch (error) {
-    ElMessage.error('Failed to create device')
+    ElMessage.error('创建设备失败')
   } finally {
     saving.value = false
   }
@@ -163,6 +194,7 @@ function copySecret(secret) {
 
 onMounted(() => {
   loadDevices()
+  loadGroups()
 })
 </script>
 
