@@ -88,14 +88,22 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { ElMessage } from 'element-plus'
+import { loadPropertyMappings } from '../services/propertyMapper.js'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+
+// 启动时加载物模型属性映射，用于通用口语化
+onMounted(async () => {
+  if (authStore.isAuthenticated) {
+    await loadPropertyMappings()
+  }
+})
 
 const activeMenu = computed(() => route.path)
 

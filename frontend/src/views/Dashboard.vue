@@ -291,6 +291,7 @@ import api from '../services/api.js'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
 import { Goods, Monitor, Warning, Connection, CircleCheck, FullScreen } from '@element-plus/icons-vue'
+import { formatAlertMessage } from '../services/propertyMapper.js'
 
 const deviceStore = useDeviceStore()
 const router = useRouter()
@@ -455,23 +456,6 @@ function getCo2Tip(val) {
 function isSoilTempWarning(val) {
   if (!val) return false
   return val < 15 || val > 28
-}
-
-function formatAlertMessage(alert) {
-  if (!alert || !alert.message) return ''
-  let msg = alert.message
-  
-  msg = msg.replace(/temperature\s*=\s*([\d.]+)/g, '温度 $1°C')
-  msg = msg.replace(/humidity\s*=\s*([\d.]+)/g, '湿度 $1%')
-  msg = msg.replace(/soil_moisture\s*=\s*([\d.]+)/g, '土壤湿度 $1%')
-  msg = msg.replace(/co2\s*=\s*([\d.]+)/g, 'CO₂浓度 $1 ppm')
-  msg = msg.replace(/light_intensity\s*=\s*([\d.]+)/g, '光照强度 $1 lux')
-  msg = msg.replace(/soil_temperature\s*=\s*([\d.]+)/g, '土壤温度 $1°C')
-  
-  msg = msg.replace(/超过阈值\s*([\d.]+)/g, '超过警戒值 $1')
-  msg = msg.replace(/低于阈值\s*([\d.]+)/g, '低于警戒值 $1')
-  
-  return msg
 }
 
 async function loadOverview() {

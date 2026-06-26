@@ -424,7 +424,8 @@ import {
   Collection, CircleCheck, Timer, Plus, Clock, Delete,
   Edit, VideoPlay, Pointer, Files, Refresh, MagicStick
 } from '@element-plus/icons-vue'
-import { sceneService, sceneTemplates, propertyLabels, operatorLabels, serviceLabels } from '../services/scene.js'
+import { sceneService, sceneTemplates, serviceLabels } from '../services/scene.js'
+import { getPropertyLabel, getOperatorLabel, loadPropertyMappings } from '../services/propertyMapper.js'
 import api from '../services/api.js'
 
 const scenes = ref([])
@@ -648,14 +649,6 @@ function getSceneIcon(triggerType) {
   return icons[triggerType] || '📋'
 }
 
-function getPropertyLabel(prop) {
-  return propertyLabels[prop] || prop
-}
-
-function getOperatorLabel(op) {
-  return operatorLabels[op] || op
-}
-
 function getServiceLabel(service) {
   return serviceLabels[service] || service
 }
@@ -667,7 +660,10 @@ function getPropertyUnit(prop) {
     soil_moisture: '%',
     soil_temperature: '°C',
     light_intensity: ' lux',
-    co2: ' ppm'
+    co2: ' ppm',
+    soil_ph: '',
+    wind_speed: ' m/s',
+    rain_fall: ' mm'
   }
   return units[prop] || ''
 }
@@ -694,7 +690,7 @@ function formatTime(time) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadScenes(), loadDevices()])
+  await Promise.all([loadScenes(), loadDevices(), loadPropertyMappings()])
 })
 </script>
 

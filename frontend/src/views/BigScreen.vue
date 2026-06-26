@@ -253,6 +253,7 @@ import { useRouter } from 'vue-router'
 import api from '../services/api.js'
 import * as echarts from 'echarts'
 import { Close, Refresh } from '@element-plus/icons-vue'
+import { formatAlertMessage, loadPropertyMappings } from '../services/propertyMapper.js'
 
 const router = useRouter()
 
@@ -400,31 +401,6 @@ function formatTime(time) {
   if (!time) return '--'
   const d = new Date(time)
   return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-}
-
-function formatAlertMessage(alert) {
-  if (!alert || !alert.message) return ''
-  let msg = alert.message
-  
-  // 把技术术语替换成大白话
-  msg = msg.replace(/temperature\s*=\s*([\d.]+)/g, '温度 $1°C')
-  msg = msg.replace(/humidity\s*=\s*([\d.]+)/g, '湿度 $1%')
-  msg = msg.replace(/soil_moisture\s*=\s*([\d.]+)/g, '土壤湿度 $1%')
-  msg = msg.replace(/co2\s*=\s*([\d.]+)/g, 'CO₂浓度 $1 ppm')
-  msg = msg.replace(/light_intensity\s*=\s*([\d.]+)/g, '光照强度 $1 lux')
-  msg = msg.replace(/soil_temperature\s*=\s*([\d.]+)/g, '土壤温度 $1°C')
-  
-  // 阈值相关
-  msg = msg.replace(/超过阈值\s*([\d.]+)/g, '超过警戒值 $1')
-  msg = msg.replace(/低于阈值\s*([\d.]+)/g, '低于警戒值 $1')
-  msg = msg.replace(/超过上限阈值/g, '超过最高限制')
-  msg = msg.replace(/低于下限阈值/g, '低于最低限制')
-  
-  // 设备名称优化
-  msg = msg.replace(/设备离线/g, '设备连接断开')
-  msg = msg.replace(/device.*offline/g, '设备连接断开')
-  
-  return msg
 }
 
 async function loadOverview() {
@@ -660,6 +636,9 @@ async function refreshData() {
 onMounted(async () => {
   updateTime()
   timeTimer = setInterval(updateTime, 1000)
+  
+  // 加载物模型属性映射，用于通用口语化
+  await loadPropertyMappings()
   
   generateMockSensorData()
   await refreshData()
