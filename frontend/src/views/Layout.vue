@@ -38,6 +38,10 @@
             <el-icon><Bell /></el-icon>
             <span>{{ $t('menu.alerts') }}</span>
           </el-menu-item>
+          <el-menu-item index="/scenes">
+            <el-icon><Timer /></el-icon>
+            <span>场景联动</span>
+          </el-menu-item>
           <el-menu-item index="/api-keys">
             <el-icon><Key /></el-icon>
             <span>{{ $t('menu.apiKeys') }}</span>
