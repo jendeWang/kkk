@@ -1,0 +1,542 @@
+{
+  "name": "智慧大棚全量传感器模板",
+  "description": "包含38个传感器属性、6个服务、5个事件的完整物模型模板。根据实际需求删减不需要的属性即可。",
+  "properties": [
+    {
+      "identifier": "temperature",
+      "name": "空气温度",
+      "data_type": "float",
+      "unit": "°C",
+      "description": "大棚内空气温度监测",
+      "access_mode": "r",
+      "min": -40,
+      "max": 80,
+      "step": 0.1
+    },
+    {
+      "identifier": "humidity",
+      "name": "空气湿度",
+      "data_type": "float",
+      "unit": "%",
+      "description": "大棚内空气湿度监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 100,
+      "step": 0.1
+    },
+    {
+      "identifier": "soil_moisture",
+      "name": "土壤湿度",
+      "data_type": "float",
+      "unit": "%",
+      "description": "土壤含水量监测，指导灌溉",
+      "access_mode": "r",
+      "min": 0,
+      "max": 100,
+      "step": 0.1
+    },
+    {
+      "identifier": "soil_temperature",
+      "name": "土壤温度",
+      "data_type": "float",
+      "unit": "°C",
+      "description": "土壤温度监测，影响根系生长",
+      "access_mode": "r",
+      "min": -20,
+      "max": 60,
+      "step": 0.1
+    },
+    {
+      "identifier": "light_intensity",
+      "name": "光照强度",
+      "data_type": "float",
+      "unit": "lux",
+      "description": "光照强度监测，决定补光时机",
+      "access_mode": "r",
+      "min": 0,
+      "max": 100000,
+      "step": 1
+    },
+    {
+      "identifier": "co2",
+      "name": "CO₂浓度",
+      "data_type": "float",
+      "unit": "ppm",
+      "description": "二氧化碳浓度监测，影响光合作用",
+      "access_mode": "r",
+      "min": 0,
+      "max": 5000,
+      "step": 1
+    },
+    {
+      "identifier": "soil_ph",
+      "name": "土壤pH值",
+      "data_type": "float",
+      "unit": "",
+      "description": "土壤酸碱度监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 14,
+      "step": 0.01
+    },
+    {
+      "identifier": "wind_speed",
+      "name": "风速",
+      "data_type": "float",
+      "unit": "m/s",
+      "description": "棚内风速监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 20,
+      "step": 0.1
+    },
+    {
+      "identifier": "rain_fall",
+      "name": "降雨量",
+      "data_type": "float",
+      "unit": "mm",
+      "description": "外部降雨量监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 500,
+      "step": 0.1
+    },
+    {
+      "identifier": "atmospheric_pressure",
+      "name": "大气压强",
+      "data_type": "float",
+      "unit": "hPa",
+      "description": "大气压强监测，辅助天气预测",
+      "access_mode": "r",
+      "min": 800,
+      "max": 1100,
+      "step": 0.1
+    },
+    {
+      "identifier": "soil_nitrogen",
+      "name": "土壤氮含量",
+      "data_type": "float",
+      "unit": "mg/kg",
+      "description": "土壤氮素含量监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 500,
+      "step": 0.1
+    },
+    {
+      "identifier": "soil_phosphorus",
+      "name": "土壤磷含量",
+      "data_type": "float",
+      "unit": "mg/kg",
+      "description": "土壤磷素含量监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 100,
+      "step": 0.1
+    },
+    {
+      "identifier": "soil_potassium",
+      "name": "土壤钾含量",
+      "data_type": "float",
+      "unit": "mg/kg",
+      "description": "土壤钾素含量监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 500,
+      "step": 0.1
+    },
+    {
+      "identifier": "leaf_temperature",
+      "name": "叶面温度",
+      "data_type": "float",
+      "unit": "°C",
+      "description": "叶面温度监测，判断蒸腾状态",
+      "access_mode": "r",
+      "min": -20,
+      "max": 60,
+      "step": 0.1
+    },
+    {
+      "identifier": "leaf_humidity",
+      "name": "叶面湿度",
+      "data_type": "float",
+      "unit": "%",
+      "description": "叶面湿度监测，预警病害",
+      "access_mode": "r",
+      "min": 0,
+      "max": 100,
+      "step": 0.1
+    },
+    {
+      "identifier": "water_level",
+      "name": "水位",
+      "data_type": "float",
+      "unit": "m",
+      "description": "蓄水池水位监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 5,
+      "step": 0.01
+    },
+    {
+      "identifier": "power_voltage",
+      "name": "电压",
+      "data_type": "float",
+      "unit": "V",
+      "description": "供电电压监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 300,
+      "step": 0.1
+    },
+    {
+      "identifier": "power_current",
+      "name": "电流",
+      "data_type": "float",
+      "unit": "A",
+      "description": "用电电流监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 50,
+      "step": 0.01
+    },
+    {
+      "identifier": "ec_value",
+      "name": "土壤电导率",
+      "data_type": "float",
+      "unit": "mS/cm",
+      "description": "土壤电导率监测，反映肥料浓度",
+      "access_mode": "r",
+      "min": 0,
+      "max": 10,
+      "step": 0.01
+    },
+    {
+      "identifier": "tds_value",
+      "name": "总溶解固体",
+      "data_type": "float",
+      "unit": "ppm",
+      "description": "灌溉水质监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 2000,
+      "step": 1
+    },
+    {
+      "identifier": "water_ph",
+      "name": "水质pH值",
+      "data_type": "float",
+      "unit": "",
+      "description": "灌溉水pH值监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 14,
+      "step": 0.01
+    },
+    {
+      "identifier": "water_temp",
+      "name": "水温",
+      "data_type": "float",
+      "unit": "°C",
+      "description": "灌溉水温监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 50,
+      "step": 0.1
+    },
+    {
+      "identifier": "dissolved_oxygen",
+      "name": "溶解氧",
+      "data_type": "float",
+      "unit": "mg/L",
+      "description": "水体溶解氧监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 20,
+      "step": 0.01
+    },
+    {
+      "identifier": "ammonia",
+      "name": "氨气浓度",
+      "data_type": "float",
+      "unit": "ppm",
+      "description": "棚内氨气浓度监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 100,
+      "step": 0.1
+    },
+    {
+      "identifier": "hydrogen_sulfide",
+      "name": "硫化氢浓度",
+      "data_type": "float",
+      "unit": "ppm",
+      "description": "棚内硫化氢浓度监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 50,
+      "step": 0.1
+    },
+    {
+      "identifier": "uv_index",
+      "name": "紫外线指数",
+      "data_type": "float",
+      "unit": "",
+      "description": "紫外线强度监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 15,
+      "step": 0.1
+    },
+    {
+      "identifier": "par",
+      "name": "光合有效辐射",
+      "data_type": "float",
+      "unit": "μmol/m²/s",
+      "description": "光合有效辐射监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 2000,
+      "step": 1
+    },
+    {
+      "identifier": "vapor_pressure",
+      "name": "蒸气压亏缺",
+      "data_type": "float",
+      "unit": "kPa",
+      "description": "蒸气压亏缺监测，辅助灌溉决策",
+      "access_mode": "r",
+      "min": 0,
+      "max": 10,
+      "step": 0.01
+    },
+    {
+      "identifier": "canopy_temp",
+      "name": "冠层温度",
+      "data_type": "float",
+      "unit": "°C",
+      "description": "作物冠层温度监测",
+      "access_mode": "r",
+      "min": -20,
+      "max": 60,
+      "step": 0.1
+    },
+    {
+      "identifier": "stem_diameter",
+      "name": "茎秆直径",
+      "data_type": "float",
+      "unit": "mm",
+      "description": "作物茎秆直径监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 100,
+      "step": 0.01
+    },
+    {
+      "identifier": "fruit_diameter",
+      "name": "果实直径",
+      "data_type": "float",
+      "unit": "mm",
+      "description": "果实直径监测，产量预测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 300,
+      "step": 0.1
+    },
+    {
+      "identifier": "pest_count",
+      "name": "害虫数量",
+      "data_type": "int",
+      "unit": "只",
+      "description": "害虫数量监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 1000,
+      "step": 1
+    },
+    {
+      "identifier": "dust_density",
+      "name": "粉尘浓度",
+      "data_type": "float",
+      "unit": "μg/m³",
+      "description": "空气质量粉尘监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 1000,
+      "step": 0.1
+    },
+    {
+      "identifier": "noise_level",
+      "name": "噪音水平",
+      "data_type": "float",
+      "unit": "dB",
+      "description": "环境噪音监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 150,
+      "step": 0.1
+    },
+    {
+      "identifier": "solar_radiation",
+      "name": "太阳辐射",
+      "data_type": "float",
+      "unit": "W/m²",
+      "description": "太阳辐射强度监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 2000,
+      "step": 1
+    },
+    {
+      "identifier": "soil_salinity",
+      "name": "土壤盐分",
+      "data_type": "float",
+      "unit": "dS/m",
+      "description": "土壤盐分监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 20,
+      "step": 0.01
+    },
+    {
+      "identifier": "soil_bulk_density",
+      "name": "土壤容重",
+      "data_type": "float",
+      "unit": "g/cm³",
+      "description": "土壤容重监测",
+      "access_mode": "r",
+      "min": 0,
+      "max": 3,
+      "step": 0.01
+    },
+    {
+      "identifier": "root_zone_temp",
+      "name": "根区温度",
+      "data_type": "float",
+      "unit": "°C",
+      "description": "根区温度监测",
+      "access_mode": "r",
+      "min": -20,
+      "max": 60,
+      "step": 0.1
+    }
+  ],
+  "services": [
+    {
+      "identifier": "set_fan",
+      "name": "设置通风扇",
+      "description": "控制通风扇开关",
+      "input_params": [
+        {
+          "identifier": "status",
+          "name": "开关状态",
+          "data_type": "bool",
+          "description": "true=开启，false=关闭"
+        }
+      ]
+    },
+    {
+      "identifier": "set_light",
+      "name": "设置补光灯",
+      "description": "控制补光灯开关和亮度",
+      "input_params": [
+        {
+          "identifier": "status",
+          "name": "开关状态",
+          "data_type": "bool",
+          "description": "true=开启，false=关闭"
+        },
+        {
+          "identifier": "brightness",
+          "name": "亮度",
+          "data_type": "int",
+          "description": "亮度百分比，范围10~100"
+        }
+      ]
+    },
+    {
+      "identifier": "set_pump",
+      "name": "设置灌溉水泵",
+      "description": "控制灌溉水泵开关",
+      "input_params": [
+        {
+          "identifier": "status",
+          "name": "开关状态",
+          "data_type": "bool",
+          "description": "true=开启，false=关闭"
+        }
+      ]
+    },
+    {
+      "identifier": "set_heater",
+      "name": "设置加热器",
+      "description": "控制加热器开关",
+      "input_params": [
+        {
+          "identifier": "status",
+          "name": "开关状态",
+          "data_type": "bool",
+          "description": "true=开启，false=关闭"
+        }
+      ]
+    },
+    {
+      "identifier": "set_humidifier",
+      "name": "设置加湿器",
+      "description": "控制加湿器开关",
+      "input_params": [
+        {
+          "identifier": "status",
+          "name": "开关状态",
+          "data_type": "bool",
+          "description": "true=开启，false=关闭"
+        }
+      ]
+    },
+    {
+      "identifier": "set_vent",
+      "name": "设置通风窗",
+      "description": "控制通风窗开合程度",
+      "input_params": [
+        {
+          "identifier": "open_percent",
+          "name": "开启百分比",
+          "data_type": "int",
+          "description": "开启程度，范围0~100"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "identifier": "high_temp_alert",
+      "name": "高温告警",
+      "type": "warning",
+      "description": "空气温度超过设定阈值"
+    },
+    {
+      "identifier": "low_temp_alert",
+      "name": "低温告警",
+      "type": "warning",
+      "description": "空气温度低于设定阈值"
+    },
+    {
+      "identifier": "device_offline_alert",
+      "name": "设备离线告警",
+      "type": "error",
+      "description": "设备与平台断开连接"
+    },
+    {
+      "identifier": "high_humidity_alert",
+      "name": "高湿告警",
+      "type": "warning",
+      "description": "空气湿度超过设定阈值"
+    },
+    {
+      "identifier": "soil_dry_alert",
+      "name": "土壤干旱告警",
+      "type": "warning",
+      "description": "土壤湿度低于设定阈值"
+    }
+  ]
+}
