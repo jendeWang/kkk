@@ -71,68 +71,104 @@
             </div>
           </template>
           <div class="sensor-grid">
-            <div class="sensor-card sensor-temp">
-              <div class="sensor-icon">🌡️</div>
-              <div class="sensor-name">温度</div>
+            <div class="sensor-card sensor-temp" :class="{ 'sensor-warning': isTempWarning(sensorData.temperature) && !isTempDanger(sensorData.temperature), 'sensor-danger': isTempDanger(sensorData.temperature) }">
+              <div class="sensor-icon-wrap">
+                <div class="sensor-icon-circle icon-temp">温</div>
+              </div>
+              <div class="sensor-name">空气温度</div>
               <div class="sensor-value">
                 {{ formatValue(sensorData.temperature, 1) }}
                 <span class="sensor-unit">°C</span>
+                <el-tooltip v-if="isTempWarning(sensorData.temperature)" :content="getTempTip(sensorData.temperature)" placement="top">
+                  <span class="sensor-warning-icon" :class="{ 'danger': isTempDanger(sensorData.temperature) }">⚠</span>
+                </el-tooltip>
               </div>
+              <div class="sensor-normal-range">正常：15~30°C</div>
               <div class="sensor-bar">
                 <div class="sensor-bar-fill" :style="{ width: getTempPercent(sensorData.temperature) + '%' }"></div>
               </div>
             </div>
-            <div class="sensor-card sensor-humidity">
-              <div class="sensor-icon">💧</div>
+            <div class="sensor-card sensor-humidity" :class="{ 'sensor-warning': isHumidityWarning(sensorData.humidity) && !isHumidityDanger(sensorData.humidity), 'sensor-danger': isHumidityDanger(sensorData.humidity) }">
+              <div class="sensor-icon-wrap">
+                <div class="sensor-icon-circle icon-humidity">湿</div>
+              </div>
               <div class="sensor-name">空气湿度</div>
               <div class="sensor-value">
                 {{ formatValue(sensorData.humidity, 1) }}
                 <span class="sensor-unit">%</span>
+                <el-tooltip v-if="isHumidityWarning(sensorData.humidity)" :content="getHumidityTip(sensorData.humidity)" placement="top">
+                  <span class="sensor-warning-icon" :class="{ 'danger': isHumidityDanger(sensorData.humidity) }">⚠</span>
+                </el-tooltip>
               </div>
+              <div class="sensor-normal-range">正常：40~80%</div>
               <div class="sensor-bar">
                 <div class="sensor-bar-fill" :style="{ width: sensorData.humidity + '%' }"></div>
               </div>
             </div>
-            <div class="sensor-card sensor-light">
-              <div class="sensor-icon">☀️</div>
+            <div class="sensor-card sensor-light" :class="{ 'sensor-warning': isLightWarning(sensorData.light_intensity) }">
+              <div class="sensor-icon-wrap">
+                <div class="sensor-icon-circle icon-light">光</div>
+              </div>
               <div class="sensor-name">光照强度</div>
               <div class="sensor-value">
                 {{ formatValue(sensorData.light_intensity, 0) }}
                 <span class="sensor-unit">lux</span>
+                <el-tooltip v-if="isLightWarning(sensorData.light_intensity)" content="光照异常，请注意调整" placement="top">
+                  <span class="sensor-warning-icon">⚠</span>
+                </el-tooltip>
               </div>
+              <div class="sensor-normal-range">正常：5千~5万lux</div>
               <div class="sensor-bar">
                 <div class="sensor-bar-fill" :style="{ width: getLightPercent(sensorData.light_intensity) + '%' }"></div>
               </div>
             </div>
-            <div class="sensor-card sensor-soil">
-              <div class="sensor-icon">🌱</div>
+            <div class="sensor-card sensor-soil" :class="{ 'sensor-warning': isSoilMoistureWarning(sensorData.soil_moisture) && !isSoilMoistureDanger(sensorData.soil_moisture), 'sensor-danger': isSoilMoistureDanger(sensorData.soil_moisture) }">
+              <div class="sensor-icon-wrap">
+                <div class="sensor-icon-circle icon-soil">土</div>
+              </div>
               <div class="sensor-name">土壤湿度</div>
               <div class="sensor-value">
                 {{ formatValue(sensorData.soil_moisture, 1) }}
                 <span class="sensor-unit">%</span>
+                <el-tooltip v-if="isSoilMoistureWarning(sensorData.soil_moisture)" :content="getSoilMoistureTip(sensorData.soil_moisture)" placement="top">
+                  <span class="sensor-warning-icon" :class="{ 'danger': isSoilMoistureDanger(sensorData.soil_moisture) }">⚠</span>
+                </el-tooltip>
               </div>
+              <div class="sensor-normal-range">正常：50~80%</div>
               <div class="sensor-bar">
                 <div class="sensor-bar-fill" :style="{ width: sensorData.soil_moisture + '%' }"></div>
               </div>
             </div>
-            <div class="sensor-card sensor-co2">
-              <div class="sensor-icon">💨</div>
+            <div class="sensor-card sensor-co2" :class="{ 'sensor-warning': isCo2Warning(sensorData.co2) && !isCo2Danger(sensorData.co2), 'sensor-danger': isCo2Danger(sensorData.co2) }">
+              <div class="sensor-icon-wrap">
+                <div class="sensor-icon-circle icon-co2">气</div>
+              </div>
               <div class="sensor-name">CO₂浓度</div>
               <div class="sensor-value">
                 {{ formatValue(sensorData.co2, 0) }}
                 <span class="sensor-unit">ppm</span>
+                <el-tooltip v-if="isCo2Warning(sensorData.co2)" :content="getCo2Tip(sensorData.co2)" placement="top">
+                  <span class="sensor-warning-icon" :class="{ 'danger': isCo2Danger(sensorData.co2) }">⚠</span>
+                </el-tooltip>
               </div>
+              <div class="sensor-normal-range">正常：400~1500ppm</div>
               <div class="sensor-bar">
                 <div class="sensor-bar-fill" :style="{ width: getCo2Percent(sensorData.co2) + '%' }"></div>
               </div>
             </div>
-            <div class="sensor-card sensor-soil-temp">
-              <div class="sensor-icon">🪴</div>
+            <div class="sensor-card sensor-soil-temp" :class="{ 'sensor-warning': isSoilTempWarning(sensorData.soil_temperature) }">
+              <div class="sensor-icon-wrap">
+                <div class="sensor-icon-circle icon-soil-temp">地</div>
+              </div>
               <div class="sensor-name">土壤温度</div>
               <div class="sensor-value">
                 {{ formatValue(sensorData.soil_temperature, 1) }}
                 <span class="sensor-unit">°C</span>
+                <el-tooltip v-if="isSoilTempWarning(sensorData.soil_temperature)" content="土壤温度异常，请注意" placement="top">
+                  <span class="sensor-warning-icon">⚠</span>
+                </el-tooltip>
               </div>
+              <div class="sensor-normal-range">正常：15~28°C</div>
               <div class="sensor-bar">
                 <div class="sensor-bar-fill" :style="{ width: getSoilTempPercent(sensorData.soil_temperature) + '%' }"></div>
               </div>
@@ -208,7 +244,7 @@
                 <div class="actuator-name">工作模式</div>
                 <div class="actuator-status">{{ modeText }}</div>
               </div>
-              <el-select v-model="actuatorData.work_mode" size="small" style="width: 100px;" @change="changeMode">
+              <el-select v-model="actuatorData.work_mode" size="small" @change="changeMode">
                 <el-option label="手动" value="manual" />
                 <el-option label="自动" value="auto" />
                 <el-option label="节能" value="eco" />
@@ -236,7 +272,7 @@
                 {{ getSeverityText(alert.severity) }}
               </el-tag>
               <div class="alert-content">
-                <div class="alert-msg">{{ alert.message }}</div>
+                <div class="alert-msg">{{ formatAlertMessage(alert) }}</div>
                 <div class="alert-time">{{ formatTime(alert.created_at) }}</div>
               </div>
             </div>
@@ -346,6 +382,96 @@ function formatTime(time) {
   if (!time) return '--'
   const d = new Date(time)
   return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+function isTempWarning(val) {
+  if (!val) return false
+  return val < 15 || val > 30
+}
+function isTempDanger(val) {
+  if (!val) return false
+  return val < 10 || val > 35
+}
+function getTempTip(val) {
+  if (val < 10) return '温度过低！建议采取保温措施'
+  if (val < 15) return '温度偏低，注意保温'
+  if (val > 35) return '温度过高！建议立即开启通风降温'
+  if (val > 30) return '温度偏高，建议开启通风'
+  return ''
+}
+
+function isHumidityWarning(val) {
+  if (!val) return false
+  return val < 40 || val > 80
+}
+function isHumidityDanger(val) {
+  if (!val) return false
+  return val < 30 || val > 90
+}
+function getHumidityTip(val) {
+  if (val < 30) return '湿度过低！建议立即灌溉增湿'
+  if (val < 40) return '湿度偏低，注意增湿'
+  if (val > 90) return '湿度过高！建议立即通风排湿'
+  if (val > 80) return '湿度偏高，建议通风排湿'
+  return ''
+}
+
+function isLightWarning(val) {
+  if (!val) return false
+  return val < 5000 || val > 50000
+}
+
+function isSoilMoistureWarning(val) {
+  if (!val) return false
+  return val < 50 || val > 80
+}
+function isSoilMoistureDanger(val) {
+  if (!val) return false
+  return val < 30 || val > 90
+}
+function getSoilMoistureTip(val) {
+  if (val < 30) return '土壤过干！建议立即灌溉'
+  if (val < 50) return '土壤偏干，建议浇水'
+  if (val > 90) return '土壤过湿！建议停止灌溉，加强通风'
+  if (val > 80) return '土壤偏湿，注意排水'
+  return ''
+}
+
+function isCo2Warning(val) {
+  if (!val) return false
+  return val < 400 || val > 1500
+}
+function isCo2Danger(val) {
+  if (!val) return false
+  return val > 2000
+}
+function getCo2Tip(val) {
+  if (val > 2000) return 'CO₂浓度过高！建议立即通风换气'
+  if (val > 1500) return 'CO₂浓度偏高，建议通风'
+  if (val < 400) return 'CO₂浓度偏低，可适当增施气肥'
+  return ''
+}
+
+function isSoilTempWarning(val) {
+  if (!val) return false
+  return val < 15 || val > 28
+}
+
+function formatAlertMessage(alert) {
+  if (!alert || !alert.message) return ''
+  let msg = alert.message
+  
+  msg = msg.replace(/temperature\s*=\s*([\d.]+)/g, '温度 $1°C')
+  msg = msg.replace(/humidity\s*=\s*([\d.]+)/g, '湿度 $1%')
+  msg = msg.replace(/soil_moisture\s*=\s*([\d.]+)/g, '土壤湿度 $1%')
+  msg = msg.replace(/co2\s*=\s*([\d.]+)/g, 'CO₂浓度 $1 ppm')
+  msg = msg.replace(/light_intensity\s*=\s*([\d.]+)/g, '光照强度 $1 lux')
+  msg = msg.replace(/soil_temperature\s*=\s*([\d.]+)/g, '土壤温度 $1°C')
+  
+  msg = msg.replace(/超过阈值\s*([\d.]+)/g, '超过警戒值 $1')
+  msg = msg.replace(/低于阈值\s*([\d.]+)/g, '低于警戒值 $1')
+  
+  return msg
 }
 
 async function loadOverview() {
@@ -715,10 +841,28 @@ onUnmounted(() => {
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-.sensor-icon {
-  font-size: 24px;
-  margin-bottom: 8px;
+.sensor-icon-wrap {
+  margin-bottom: 10px;
 }
+
+.sensor-icon-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.icon-temp { background: linear-gradient(135deg, #ff9a56, #f56c6c); }
+.icon-humidity { background: linear-gradient(135deg, #67c2ff, #409eff); }
+.icon-light { background: linear-gradient(135deg, #ffd76e, #e6a23c); }
+.icon-soil { background: linear-gradient(135deg, #85ce61, #67c23a); }
+.icon-co2 { background: linear-gradient(135deg, #76d1c9, #13c2c2); }
+.icon-soil-temp { background: linear-gradient(135deg, #c9a87c, #a0826d); }
 
 .sensor-name {
   font-size: 13px;
@@ -761,6 +905,50 @@ onUnmounted(() => {
 .sensor-co2 .sensor-bar-fill { background: linear-gradient(90deg, #67c23a, #e6a23c, #f56c6c); }
 .sensor-soil-temp .sensor-bar-fill { background: linear-gradient(90deg, #409eff, #67c23a, #f56c6c); }
 
+.sensor-card.sensor-warning {
+  background: #fdf6ec;
+  border: 1px solid #e6a23c;
+}
+.sensor-card.sensor-warning .sensor-value {
+  color: #e6a23c;
+}
+.sensor-card.sensor-danger {
+  background: #fef0f0;
+  border: 1px solid #f56c6c;
+  animation: sensor-pulse 1.5s infinite;
+}
+.sensor-card.sensor-danger .sensor-value {
+  color: #f56c6c;
+}
+
+@keyframes sensor-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 108, 108, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(245, 108, 108, 0); }
+}
+
+.sensor-warning-icon {
+  margin-left: 6px;
+  font-size: 16px;
+  color: #e6a23c;
+}
+
+.sensor-warning-icon.danger {
+  color: #f56c6c;
+  animation: icon-shake 0.5s infinite;
+}
+
+@keyframes icon-shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+}
+
+.sensor-normal-range {
+  font-size: 11px;
+  color: #909399;
+  margin-bottom: 8px;
+}
+
 .chart-card {
   margin-bottom: 0;
 }
@@ -795,22 +983,34 @@ onUnmounted(() => {
 
 .actuator-info {
   flex: 1;
+  min-width: 0;
 }
 
 .actuator-name {
   font-size: 14px;
   font-weight: 500;
   color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .actuator-status {
   font-size: 12px;
   color: #909399;
   margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mode-item {
   background: #f4f4f5;
+}
+
+.mode-item .el-select {
+  width: 90px;
+  flex-shrink: 0;
 }
 
 .alert-list {
