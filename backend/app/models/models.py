@@ -250,6 +250,8 @@ class AlertRule(Base):
     silent_from_hour = Column(Integer, nullable=True)
     silent_to_hour = Column(Integer, nullable=True)
     notification_config = Column(JSON, nullable=True)
+    linked_scene_id = Column(Integer, ForeignKey("automation_scenes.id"), nullable=True)
+    auto_execute_scene = Column(Boolean, default=False)
     enabled = Column(Boolean, default=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     last_triggered_at = Column(DateTime, nullable=True)
@@ -258,6 +260,7 @@ class AlertRule(Base):
 
     owner = relationship("User", back_populates="alert_rules")
     device = relationship("Device")
+    linked_scene = relationship("AutomationScene", foreign_keys=[linked_scene_id])
     alert_events = relationship("AlertEvent", back_populates="rule")
 
 
@@ -413,3 +416,24 @@ class TopologyConfig(Base):
     updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
 
     owner = relationship("User")
+
+
+class OperationLog(Base):
+    __tablename__ = "operation_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    username = Column(String(100), nullable=False)
+    action = Column(String(100), nullable=False)
+    resource_type = Column(String(50), nullable=True)
+    resource_id = Column(Integer, nullable=True)
+    description = Column(Text, nullable=True)
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    request_path = Column(String(200), nullable=True)
+    request_method = Column(String(10), nullable=True)
+    status = Column(String(20), default="success")
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User")

@@ -27,6 +27,7 @@ async def create_alert_rule(
     db: AsyncSession = Depends(get_db),
 ):
     """创建告警规则"""
+    from sqlalchemy.orm import selectinload
     if rule.device_id:
         device_result = await db.execute(
             select(Device).where(
@@ -36,6 +37,17 @@ async def create_alert_rule(
         )
         if not device_result.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="Device not found")
+
+    if rule.linked_scene_id:
+        from ..models.models import AutomationScene
+        scene_result = await db.execute(
+            select(AutomationScene).where(
+                AutomationScene.id == rule.linked_scene_id,
+                AutomationScene.owner_id == current_user.id,
+            )
+        )
+        if not scene_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Linked scene not found")
 
     db_rule = AlertRule(
         name=rule.name,
@@ -50,13 +62,25 @@ async def create_alert_rule(
         cooldown_seconds=rule.cooldown_seconds,
         silent_from_hour=rule.silent_from_hour,
         silent_to_hour=rule.silent_to_hour,
+        notification_config=rule.notification_config,
+        linked_scene_id=rule.linked_scene_id,
+        auto_execute_scene=rule.auto_execute_scene,
         enabled=rule.enabled if rule.enabled is not None else True,
         owner_id=current_user.id,
     )
     db.add(db_rule)
     await db.commit()
     await db.refresh(db_rule)
-    return db_rule
+
+    result = await db.execute(
+        select(AlertRule)
+        .options(selectinload(AlertRule.linked_scene))
+        .where(AlertRule.id == db_rule.id)
+    )
+    rule_with_scene = result.scalar_one()
+    rule_dict = {c.name: getattr(rule_with_scene, c.name) for c in rule_with_scene.__table__.columns}
+    rule_dict["linked_scene_name"] = rule_with_scene.linked_scene.name if rule_with_scene.linked_scene else None
+    return rule_dict
 
 
 @router.get("/rules", response_model=List[AlertRuleResponse])
@@ -65,10 +89,20 @@ async def list_alert_rules(
     db: AsyncSession = Depends(get_db),
 ):
     """获取告警规则列表"""
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(AlertRule).where(AlertRule.owner_id == current_user.id).order_by(desc(AlertRule.created_at))
+        select(AlertRule)
+        .options(selectinload(AlertRule.linked_scene))
+        .where(AlertRule.owner_id == current_user.id)
+        .order_by(desc(AlertRule.created_at))
     )
-    return result.scalars().all()
+    rules = result.scalars().all()
+    response = []
+    for rule in rules:
+        rule_dict = {c.name: getattr(rule, c.name) for c in rule.__table__.columns}
+        rule_dict["linked_scene_name"] = rule.linked_scene.name if rule.linked_scene else None
+        response.append(rule_dict)
+    return response
 
 
 @router.get("/rules/{rule_id}", response_model=AlertRuleResponse)
@@ -78,8 +112,11 @@ async def get_alert_rule(
     db: AsyncSession = Depends(get_db),
 ):
     """获取告警规则详情"""
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(AlertRule).where(
+        select(AlertRule)
+        .options(selectinload(AlertRule.linked_scene))
+        .where(
             AlertRule.id == rule_id,
             AlertRule.owner_id == current_user.id,
         )
@@ -87,7 +124,9 @@ async def get_alert_rule(
     rule = result.scalar_one_or_none()
     if not rule:
         raise HTTPException(status_code=404, detail="Alert rule not found")
-    return rule
+    rule_dict = {c.name: getattr(rule, c.name) for c in rule.__table__.columns}
+    rule_dict["linked_scene_name"] = rule.linked_scene.name if rule.linked_scene else None
+    return rule_dict
 
 
 @router.put("/rules/{rule_id}", response_model=AlertRuleResponse)
@@ -98,6 +137,8 @@ async def update_alert_rule(
     db: AsyncSession = Depends(get_db),
 ):
     """更新告警规则"""
+    from sqlalchemy.orm import selectinload
+    from ..models.models import AutomationScene
     result = await db.execute(
         select(AlertRule).where(
             AlertRule.id == rule_id,
@@ -108,12 +149,32 @@ async def update_alert_rule(
     if not db_rule:
         raise HTTPException(status_code=404, detail="Alert rule not found")
 
-    for field, value in rule.model_dump(exclude_unset=True).items():
+    update_data = rule.model_dump(exclude_unset=True)
+
+    if "linked_scene_id" in update_data and update_data["linked_scene_id"]:
+        scene_result = await db.execute(
+            select(AutomationScene).where(
+                AutomationScene.id == update_data["linked_scene_id"],
+                AutomationScene.owner_id == current_user.id,
+            )
+        )
+        if not scene_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Linked scene not found")
+
+    for field, value in update_data.items():
         setattr(db_rule, field, value)
 
     await db.commit()
-    await db.refresh(db_rule)
-    return db_rule
+
+    result = await db.execute(
+        select(AlertRule)
+        .options(selectinload(AlertRule.linked_scene))
+        .where(AlertRule.id == rule_id)
+    )
+    rule_with_scene = result.scalar_one()
+    rule_dict = {c.name: getattr(rule_with_scene, c.name) for c in rule_with_scene.__table__.columns}
+    rule_dict["linked_scene_name"] = rule_with_scene.linked_scene.name if rule_with_scene.linked_scene else None
+    return rule_dict
 
 
 @router.delete("/rules/{rule_id}")

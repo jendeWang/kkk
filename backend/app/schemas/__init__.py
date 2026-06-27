@@ -340,6 +340,8 @@ class AlertRuleBase(BaseModel):
     silent_from_hour: Optional[int] = None
     silent_to_hour: Optional[int] = None
     notification_config: Optional[Dict[str, Any]] = None
+    linked_scene_id: Optional[int] = None
+    auto_execute_scene: bool = False
     enabled: bool = True
 
     @field_validator("alert_type", "severity", "operator", mode="before")
@@ -370,6 +372,8 @@ class AlertRuleUpdate(BaseModel):
     silent_from_hour: Optional[int] = None
     silent_to_hour: Optional[int] = None
     notification_config: Optional[Dict[str, Any]] = None
+    linked_scene_id: Optional[int] = None
+    auto_execute_scene: Optional[bool] = None
     enabled: Optional[bool] = None
 
 
@@ -379,6 +383,7 @@ class AlertRuleResponse(AlertRuleBase):
     last_triggered_at: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    linked_scene_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

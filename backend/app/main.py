@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from .database import init_db, async_session_maker
-from .api import auth, products, devices, telemetry, commands, alerts, apikeys, sse, dashboard, groups, scenes, topology
+from .api import auth, products, devices, telemetry, commands, alerts, apikeys, sse, dashboard, groups, scenes, topology, operation_logs
 from .services.init_service import init_default_user, init_greenhouse_product, init_default_group, init_default_scenes
 from .services.sse_service import sse_service
 from .services.simulator_service import simulator_service
@@ -59,6 +59,7 @@ app.include_router(dashboard.router, prefix=settings.API_V1_PREFIX)
 app.include_router(groups.router, prefix=settings.API_V1_PREFIX)
 app.include_router(scenes.router, prefix=settings.API_V1_PREFIX)
 app.include_router(topology.router, prefix=settings.API_V1_PREFIX)
+app.include_router(operation_logs.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")

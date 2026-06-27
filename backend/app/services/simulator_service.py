@@ -4,6 +4,9 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from ..models.models import Device, DeviceShadow, Product, Telemetry
+from .sse_service import sse_service
+from .alert_service import alert_engine
+from .scene_engine import scene_engine
 import logging
 
 logger = logging.getLogger(__name__)
@@ -50,21 +53,39 @@ class DeviceSimulator:
             devices = result.scalars().all()
 
             for device in devices:
-                await self._update_device_shadow(db, device.id)
+                updated_props = await self._update_device_shadow(db, device)
+                
+                for prop_id, new_val in updated_props:
+                    await alert_engine.check_telemetry_alert(
+                        db, device.id, prop_id, str(new_val)
+                    )
+                    await scene_engine.check_and_trigger(
+                        db, device.id, prop_id, str(new_val)
+                    )
+                    await sse_service.publish_device_status({
+                        "device_key": device.device_key,
+                        "device_name": device.device_name,
+                        "device_id": device.id,
+                        "status": "online",
+                        "property_identifier": prop_id,
+                        "value": str(new_val),
+                        "timestamp": datetime.utcnow().isoformat(),
+                    })
 
             await db.commit()
 
-    async def _update_device_shadow(self, db, device_id: int):
+    async def _update_device_shadow(self, db, device) -> list:
         shadow_result = await db.execute(
-            select(DeviceShadow).where(DeviceShadow.device_id == device_id)
+            select(DeviceShadow).where(DeviceShadow.device_id == device.id)
         )
         shadow = shadow_result.scalar_one_or_none()
 
         if not shadow:
-            return
+            return []
 
         reported = dict(shadow.reported or {})
         now = datetime.utcnow()
+        updated_props = []
 
         sensor_configs = [
             ("temperature", 25.0, 15.0, 35.0, 0.5),
@@ -81,9 +102,10 @@ class DeviceSimulator:
                 change = random.uniform(-max_change, max_change)
                 new_val = round(max(min_val, min(max_val, base + change)), 1 if max_change < 1 else 0)
                 reported[prop_id] = new_val
+                updated_props.append((prop_id, new_val))
                 
                 telemetry = Telemetry(
-                    device_id=device_id,
+                    device_id=device.id,
                     property_identifier=prop_id,
                     value=str(new_val),
                     timestamp=now,
@@ -94,6 +116,8 @@ class DeviceSimulator:
         shadow.reported = reported
         shadow.version += 1
         shadow.last_updated = now
+        
+        return updated_props
 
 
 simulator_service = DeviceSimulator()

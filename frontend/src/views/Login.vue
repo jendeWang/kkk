@@ -28,6 +28,12 @@
             {{ $t('login.loginBtn') }}
           </el-button>
         </el-form-item>
+        <el-form-item>
+          <el-button type="success" size="large" style="width: 100%" :loading="demoLoading" @click="handleDemoLogin">
+            <el-icon><MagicStick /></el-icon>
+            一键体验（无需注册）
+          </el-button>
+        </el-form-item>
       </el-form>
       <p class="hint">
         <router-link to="/register">{{ $t('login.register') || 'Register a new account' }}</router-link>
@@ -41,6 +47,7 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { ElMessage } from 'element-plus'
+import { MagicStick } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -51,18 +58,32 @@ const form = reactive({
 })
 
 const loading = ref(false)
+const demoLoading = ref(false)
 
 async function handleLogin() {
   if (!form.username || !form.password) return
   loading.value = true
   try {
     await authStore.login(form.username, form.password)
-    ElMessage.success('Login successful')
+    ElMessage.success('登录成功')
     router.push('/dashboard')
   } catch (error) {
-    ElMessage.error(error.response?.data?.detail || 'Login failed')
+    ElMessage.error(error.response?.data?.detail || '登录失败')
   } finally {
     loading.value = false
+  }
+}
+
+async function handleDemoLogin() {
+  demoLoading.value = true
+  try {
+    await authStore.login('admin', 'admin123')
+    ElMessage.success('欢迎体验智慧大棚物联网平台！')
+    router.push('/dashboard')
+  } catch (error) {
+    ElMessage.error(error.response?.data?.detail || '演示登录失败，请使用管理员账号登录')
+  } finally {
+    demoLoading.value = false
   }
 }
 </script>

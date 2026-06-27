@@ -24,6 +24,7 @@ const routes = [
       { path: 'api-keys', name: 'APIKeys', component: () => import('../views/APIKeys.vue') },
       { path: 'api-playground', name: 'APIPlayground', component: () => import('../views/APIPlayground.vue'), meta: { requiresAuth: true } },
       { path: 'topology', name: 'Topology', component: () => import('../views/Topology.vue') },
+      { path: 'operation-logs', name: 'OperationLogs', component: () => import('../views/OperationLogs.vue') },
     ]
   },
 ]

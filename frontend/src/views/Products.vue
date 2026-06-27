@@ -1,13 +1,36 @@
 <template>
   <div class="products-page">
-    <el-card>
+    <el-alert
+      type="success"
+      :closable="false"
+      show-icon
+      class="page-intro"
+    >
+      <template #title>📦 产品 = 设备的"模板/型号"</template>
+      <template #default>
+        产品定义了一类设备的<strong>物模型</strong>（有哪些传感器、能执行什么命令、会触发什么事件）。
+        例如："智慧大棚标准款"、"畜牧养殖款"等。
+        <br/>
+        <strong>设备</strong>是产品下的具体实例（一台真实的设备），
+        而<strong>设备分组</strong>是把设备按位置/用途归类整理。
+        <router-link to="/groups" style="margin-left: 8px;">去管理设备分组 →</router-link>
+      </template>
+    </el-alert>
+
+    <el-card style="margin-top: 16px;">
       <template #header>
         <div class="card-header">
           <span>{{ $t('products.title') }}</span>
-          <el-button type="primary" @click="showAddDialog = true">
-            <el-icon><Plus /></el-icon>
-            {{ $t('products.addProduct') }}
-          </el-button>
+          <div class="header-buttons">
+            <el-button type="success" @click="showTemplateDialog = true">
+              <el-icon><MagicStick /></el-icon>
+              从模板创建
+            </el-button>
+            <el-button type="primary" @click="showAddDialog = true">
+              <el-icon><Plus /></el-icon>
+              {{ $t('products.addProduct') }}
+            </el-button>
+          </div>
         </div>
       </template>
 
@@ -48,6 +71,56 @@
         <el-button @click="showAddDialog = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" @click="handleAdd" :loading="saving">{{ $t('common.save') }}</el-button>
       </template>
+    </el-dialog>
+
+    <!-- 模板选择对话框 -->
+    <el-dialog v-model="showTemplateDialog" title="选择产品模板" width="900px" class="template-dialog">
+      <div class="template-intro">
+        <el-alert
+          type="info"
+          :closable="false"
+          title="选择一个模板，一键创建产品 + 设备 + 告警规则 + 自动化场景"
+          description="新手推荐使用模板，免去手动配置的麻烦。如果需要完全自定义，请选择「新建产品」。"
+        />
+      </div>
+      <div class="template-grid" v-loading="templatesLoading">
+        <div
+          v-for="tpl in templates"
+          :key="tpl.template_id"
+          class="template-card"
+        >
+          <div class="template-header">
+            <span class="template-icon">{{ tpl.icon }}</span>
+            <el-tag :color="getLevelColor(tpl.level)" effect="dark" size="small">{{ tpl.level }}</el-tag>
+          </div>
+          <div class="template-name">{{ tpl.name }}</div>
+          <div class="template-desc">{{ tpl.description }}</div>
+          <div class="template-stats">
+            <div class="stat-item">
+              <span class="stat-num">{{ tpl.sensor_count }}</span>
+              <span class="stat-label">传感器</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-num">{{ tpl.actuator_count }}</span>
+              <span class="stat-label">执行器</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-num">{{ tpl.alert_count }}</span>
+              <span class="stat-label">告警</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-num">{{ tpl.scene_count }}</span>
+              <span class="stat-label">场景</span>
+            </div>
+          </div>
+          <div class="template-tags">
+            <el-tag v-for="tag in tpl.tags" :key="tag" size="small" type="info" effect="plain">{{ tag }}</el-tag>
+          </div>
+          <el-button type="primary" class="use-template-btn" @click="useTemplate(tpl)" :loading="templateCreating">
+            使用此模板
+          </el-button>
+        </div>
+      </div>
     </el-dialog>
 
     <el-dialog v-model="showEditDialog" :title="$t('products.editProduct')" width="800px">
@@ -338,7 +411,7 @@
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useProductStore } from '../stores/product.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Download, Upload, Plus } from '@element-plus/icons-vue'
+import { Download, Upload, Plus, MagicStick } from '@element-plus/icons-vue'
 import api from '../services/api.js'
 
 const productStore = useProductStore()
@@ -346,6 +419,7 @@ const productStore = useProductStore()
 const loading = ref(false)
 const saving = ref(false)
 const showAddDialog = ref(false)
+const showTemplateDialog = ref(false)
 const showEditDialog = ref(false)
 const showPropertyDialog = ref(false)
 const showServiceDialog = ref(false)
@@ -685,6 +759,68 @@ async function handleAdd() {
   }
 }
 
+// ===== 模板相关 =====
+const templates = ref([])
+const templatesLoading = ref(false)
+const templateCreating = ref(false)
+
+async function loadTemplates() {
+  templatesLoading.value = true
+  try {
+    const resp = await api.get('/products/templates/list')
+    templates.value = resp.data || []
+  } catch (e) {
+    console.error('加载模板失败:', e)
+    ElMessage.error('加载模板列表失败')
+  } finally {
+    templatesLoading.value = false
+  }
+}
+
+watch(showTemplateDialog, (val) => {
+  if (val) {
+    loadTemplates()
+  }
+})
+
+function getLevelColor(level) {
+  const colors = {
+    '入门': '#909399',
+    '推荐': '#67c23a',
+    '专业': '#e6a23c',
+  }
+  return colors[level] || '#409eff'
+}
+
+async function useTemplate(template) {
+  try {
+    await ElMessageBox.confirm(
+      `确定使用【${template.name}】创建产品吗？\n\n将自动为您创建：\n• ${template.sensor_count} 个传感器属性\n• ${template.actuator_count} 个执行器/服务\n• ${template.alert_count} 条告警规则\n• ${template.scene_count} 个自动化场景\n\n（还会自动创建1台默认设备）`,
+      '确认使用模板',
+      {
+        confirmButtonText: '立即创建',
+        cancelButtonText: '我再想想',
+        type: 'info',
+      }
+    )
+  } catch {
+    return
+  }
+
+  templateCreating.value = true
+  try {
+    await api.post(`/products/from-template/${template.template_id}`)
+    ElMessage.success(`🎉 已从模板【${template.name}】创建成功！`)
+    showTemplateDialog.value = false
+    await loadProducts()
+  } catch (e) {
+    console.error('从模板创建失败:', e)
+    ElMessage.error(e.response?.data?.detail || '创建失败')
+  } finally {
+    templateCreating.value = false
+  }
+}
+
 async function editProduct(product) {
   try {
     const fullProduct = await productStore.fetchProduct(product.product_key)
@@ -800,6 +936,104 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.template-intro {
+  margin-bottom: 20px;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.template-card {
+  border: 1px solid #e4e7ed;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.template-card:hover {
+  border-color: #409eff;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.template-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.template-icon {
+  font-size: 36px;
+}
+
+.template-name {
+  font-size: 18px;
+  font-weight: bold;
+  color: #303133;
+  margin-bottom: 8px;
+}
+
+.template-desc {
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.6;
+  margin-bottom: 16px;
+  min-height: 42px;
+}
+
+.template-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-num {
+  display: block;
+  font-size: 20px;
+  font-weight: bold;
+  color: #409eff;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.template-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.use-template-btn {
+  width: 100%;
+  margin-top: auto;
+}
+
+:deep(.template-dialog .el-dialog__body) {
+  padding-top: 10px;
 }
 
 .tab-actions {

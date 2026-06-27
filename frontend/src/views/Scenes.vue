@@ -1,6 +1,21 @@
 <template>
   <div class="scenes-page">
-    <div class="page-header">
+    <el-alert
+      type="success"
+      :closable="false"
+      show-icon
+      class="page-intro"
+    >
+      <template #title>⚡ 场景联动 = 触发 + 执行</template>
+      <template #default>
+        场景联动负责<strong>自动执行动作</strong>（如控制设备开关、调节参数）。
+        如果只需要<strong>异常监测和告警通知</strong>，请使用「告警规则」。
+        场景可以独立使用，也可以被告警规则触发实现联动处置。
+        <router-link to="/alert-rules" style="margin-left: 8px;">去配置告警规则 →</router-link>
+      </template>
+    </el-alert>
+
+    <div class="page-header" style="margin-top: 16px;">
       <h2 class="page-title">场景联动</h2>
       <el-button type="primary" @click="showTemplatesDialog = true">
         <el-icon><MagicStick /></el-icon>

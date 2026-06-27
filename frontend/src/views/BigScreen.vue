@@ -407,10 +407,30 @@ async function loadOverview() {
   try {
     const resp = await api.get('/dashboard/overview')
     Object.assign(overview, resp.data)
-    updateDeviceList()
+    await loadDeviceList()
   } catch (e) {
     console.error('Failed to load overview:', e)
     generateMockData()
+  }
+}
+
+async function loadDeviceList() {
+  try {
+    const resp = await api.get('/devices/')
+    const devices = resp.data.items || resp.data || []
+    if (devices.length > 0) {
+      deviceList.value = devices.map(device => ({
+        id: device.id,
+        name: device.device_name,
+        location: device.description || '未设置位置',
+        status: device.status
+      }))
+    } else {
+      updateDeviceList()
+    }
+  } catch (e) {
+    console.error('Failed to load device list:', e)
+    updateDeviceList()
   }
 }
 

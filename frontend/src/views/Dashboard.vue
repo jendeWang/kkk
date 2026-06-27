@@ -288,6 +288,7 @@ import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDeviceStore } from '../stores/device.js'
 import api from '../services/api.js'
+import sseManager from '../services/sse.js'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
 import { Goods, Monitor, Warning, Connection, CircleCheck, FullScreen } from '@element-plus/icons-vue'
@@ -643,6 +644,29 @@ function openBigScreen() {
   router.push('/big-screen')
 }
 
+function handleDeviceStatus(data) {
+  const eventData = data.data || data
+  if (eventData.device_id === currentDeviceId && eventData.property_identifier) {
+    const prop = eventData.property_identifier
+    const val = parseFloat(eventData.value)
+    
+    if (prop in sensorData) {
+      sensorData[prop] = isNaN(val) ? eventData.value : val
+    }
+    if (prop in actuatorData) {
+      actuatorData[prop] = isNaN(val) ? eventData.value : val
+    }
+    
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  }
+}
+
+function handleNewAlert(data) {
+  loadAlertSummary()
+  loadRecentAlerts()
+  loadOverview()
+}
+
 async function refreshAll() {
   await Promise.all([
     loadOverview(),
@@ -656,17 +680,16 @@ onMounted(async () => {
   await refreshAll()
   await nextTick()
   await loadTrendData()
-  refreshTimer = setInterval(() => {
-    loadDeviceRealtime()
-    loadAlertSummary()
-    loadRecentAlerts()
-  }, 5000)
+  
+  sseManager.on('devices', 'device_status', handleDeviceStatus)
+  sseManager.on('alerts', 'new_alert', handleNewAlert)
 
   window.addEventListener('resize', () => trendChartInstance?.resize())
 })
 
 onUnmounted(() => {
-  if (refreshTimer) clearInterval(refreshTimer)
+  sseManager.off('devices', 'device_status', handleDeviceStatus)
+  sseManager.off('alerts', 'new_alert', handleNewAlert)
   if (trendChartInstance) trendChartInstance.dispose()
 })
 </script>

@@ -8,10 +8,50 @@ import io
 import csv
 
 from .deps import get_current_active_user, get_db
-from ..models.models import Telemetry, Device, User
+from ..models.models import Telemetry, Device, User, ProductProperty, PropertyDataType
 from ..schemas import TelemetryResponse
 
 router = APIRouter(prefix="/telemetry", tags=["遥测数据"])
+
+
+def _convert_value_by_type(value: str, data_type: Optional[str]) -> Any:
+    """根据数据类型转换值的类型"""
+    if value is None:
+        return None
+    
+    if data_type is None:
+        # 尝试自动推断
+        try:
+            if '.' in value:
+                return float(value)
+            return int(value)
+        except (ValueError, TypeError):
+            return value
+    
+    try:
+        if data_type == PropertyDataType.INT or data_type == "int":
+            return int(float(value))
+        elif data_type == PropertyDataType.FLOAT or data_type == "float":
+            return float(value)
+        elif data_type == PropertyDataType.BOOL or data_type == "bool":
+            return str(value).lower() in ('true', '1', 'yes', 'on')
+        else:
+            return value
+    except (ValueError, TypeError):
+        return value
+
+
+async def _get_property_data_types(db: AsyncSession, user_id: int) -> Dict[str, str]:
+    """获取用户所有产品属性的数据类型映射"""
+    result = await db.execute(
+        select(ProductProperty.identifier, ProductProperty.data_type)
+        .join(Device, Device.product_id == ProductProperty.product_id)
+        .where(Device.owner_id == user_id)
+        .distinct()
+    )
+    rows = result.all()
+    return {identifier: data_type.value if hasattr(data_type, 'value') else data_type 
+            for identifier, data_type in rows}
 
 
 @router.get("/", response_model=Dict[str, Any])
@@ -48,6 +88,14 @@ async def list_telemetry(
     result = await db.execute(query)
     items = result.scalars().all()
     items_dict = [TelemetryResponse.model_validate(item).model_dump() for item in items]
+    
+    type_map = await _get_property_data_types(db, current_user.id)
+    for item in items_dict:
+        prop_id = item.get('property_identifier')
+        if prop_id and prop_id in type_map:
+            item['value'] = _convert_value_by_type(str(item['value']), type_map[prop_id])
+            item['data_type'] = type_map[prop_id]
+    
     return {
         "items": items_dict,
         "skip": skip,

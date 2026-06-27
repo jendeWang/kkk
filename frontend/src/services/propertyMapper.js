@@ -57,6 +57,7 @@ const defaultOperatorLabels = {
 // 运行时动态加载的映射（从后端物模型获取）
 let dynamicPropertyLabels = {}
 let dynamicPropertyUnits = {}
+let dynamicPropertyRanges = {}
 
 // 是否已加载动态配置
 let isLoaded = false
@@ -82,6 +83,22 @@ export async function loadPropertyMappings() {
           if (prop.identifier && prop.unit) {
             dynamicPropertyUnits[prop.identifier] = prop.unit
           }
+          if (prop.identifier) {
+            const specs = prop.specs || {}
+            const normalMin = specs.ui_normal_min
+            const normalMax = specs.ui_normal_max
+            const minVal = prop.min_value !== null && prop.min_value !== undefined ? parseFloat(prop.min_value) : null
+            const maxVal = prop.max_value !== null && prop.max_value !== undefined ? parseFloat(prop.max_value) : null
+            
+            if (normalMin !== undefined || normalMax !== undefined || minVal !== null || maxVal !== null) {
+              dynamicPropertyRanges[prop.identifier] = {
+                normal_min: normalMin !== undefined ? parseFloat(normalMin) : null,
+                normal_max: normalMax !== undefined ? parseFloat(normalMax) : null,
+                min: minVal,
+                max: maxVal
+              }
+            }
+          }
         })
       }
     })
@@ -89,7 +106,8 @@ export async function loadPropertyMappings() {
     isLoaded = true
     console.log('[PropertyMapper] 已加载物模型属性映射:', {
       labels: Object.keys(dynamicPropertyLabels).length,
-      units: Object.keys(dynamicPropertyUnits).length
+      units: Object.keys(dynamicPropertyUnits).length,
+      ranges: Object.keys(dynamicPropertyRanges).length
     })
   } catch (e) {
     console.error('[PropertyMapper] 加载物模型失败，使用默认配置:', e)
@@ -115,6 +133,86 @@ export function getPropertyUnit(identifier) {
   return dynamicPropertyUnits[identifier]
     || defaultPropertyUnits[identifier]
     || ''
+}
+
+/**
+ * 获取属性正常范围（从物模型读取）
+ * 返回 { min, max } 对象，没有则返回 null
+ */
+export function getPropertyRange(identifier) {
+  return dynamicPropertyRanges[identifier] || null
+}
+
+/**
+ * 检查值是否在正常范围内
+ * 返回状态: 'normal' | 'warning' | 'danger'
+ * - normal: 在正常范围内
+ * - warning: 超出正常范围（轻度异常）
+ * - danger: 超出物理量程或严重超出正常范围
+ */
+export function checkValueStatus(identifier, value) {
+  const range = getPropertyRange(identifier)
+  if (!range || value === null || value === undefined || isNaN(value)) {
+    return 'normal'
+  }
+  
+  const numVal = parseFloat(value)
+  const { normal_min, normal_max, min, max } = range
+  
+  // 优先使用正常范围判断
+  if (normal_min !== null && normal_max !== null) {
+    const normalRange = normal_max - normal_min
+    const warningThreshold = normalRange * 0.2
+    
+    if (numVal < normal_min - warningThreshold || numVal > normal_max + warningThreshold) {
+      return 'danger'
+    }
+    if (numVal < normal_min || numVal > normal_max) {
+      return 'warning'
+    }
+    return 'normal'
+  }
+  
+  // 如果没有正常范围，使用物理量程
+  if (min !== null && max !== null) {
+    const rangeSize = max - min
+    const dangerThreshold = rangeSize * 0.1
+    const warningThreshold = rangeSize * 0.05
+    
+    if (numVal < min - dangerThreshold || numVal > max + dangerThreshold) {
+      return 'danger'
+    }
+    if (numVal < min + warningThreshold || numVal > max - warningThreshold) {
+      return 'warning'
+    }
+    return 'normal'
+  }
+  
+  // 只有下限
+  if (normal_min !== null || min !== null) {
+    const threshold = normal_min !== null ? normal_min : min
+    if (numVal < threshold * 0.8) {
+      return 'danger'
+    }
+    if (numVal < threshold) {
+      return 'warning'
+    }
+    return 'normal'
+  }
+  
+  // 只有上限
+  if (normal_max !== null || max !== null) {
+    const threshold = normal_max !== null ? normal_max : max
+    if (numVal > threshold * 1.2) {
+      return 'danger'
+    }
+    if (numVal > threshold) {
+      return 'warning'
+    }
+    return 'normal'
+  }
+  
+  return 'normal'
 }
 
 /**
@@ -202,6 +300,8 @@ export default {
   loadPropertyMappings,
   getPropertyLabel,
   getPropertyUnit,
+  getPropertyRange,
+  checkValueStatus,
   getOperatorLabel,
   formatAlertMessage,
   formatSensorValue,

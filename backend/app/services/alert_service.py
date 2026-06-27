@@ -2,8 +2,9 @@ import asyncio
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from ..models.models import AlertRule, AlertEvent, Device, Telemetry, AlertType, AlertStatus, ConditionOperator, AlertSeverity
+from ..models.models import AlertRule, AlertEvent, Device, Telemetry, AlertType, AlertStatus, ConditionOperator, AlertSeverity, AutomationScene
 from .sse_service import sse_service
+from .scene_engine import scene_engine
 
 
 class AlertEngine:
@@ -158,6 +159,28 @@ class AlertEngine:
             "status": "triggered",
             "created_at": alert.created_at.isoformat() if alert.created_at else datetime.utcnow().isoformat(),
         })
+
+        if rule.auto_execute_scene and rule.linked_scene_id:
+            try:
+                scene_result = await db.execute(
+                    select(AutomationScene).where(
+                        AutomationScene.id == rule.linked_scene_id,
+                        AutomationScene.enabled == True,
+                    )
+                )
+                scene = scene_result.scalar_one_or_none()
+                if scene:
+                    trigger_data = {
+                        "trigger_type": "alert",
+                        "alert_rule_id": rule.id,
+                        "alert_event_id": alert.id,
+                        "device_id": device_id,
+                        "property_identifier": rule.property_identifier,
+                        "value": current_value,
+                    }
+                    asyncio.create_task(scene_engine.execute_scene(db, scene, trigger_data))
+            except Exception as e:
+                print(f"[AlertEngine] Auto execute scene failed: {e}")
 
     async def _resolve_alert(self, db: AsyncSession, rule: AlertRule, device_id: int, current_value: str):
         device_result = await db.execute(select(Device).where(Device.id == device_id))

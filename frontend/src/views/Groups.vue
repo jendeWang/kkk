@@ -1,6 +1,23 @@
 <template>
   <div class="groups-page">
-    <div class="page-header">
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      class="page-intro"
+    >
+      <template #title>🏷️ 设备分组 = 按物理位置/用途归类设备</template>
+      <template #default>
+        设备分组是把<strong>实际的设备</strong>按大棚、区域等进行分组管理，方便批量查看和操作。
+        例如：1号大棚、2号大棚、育苗区等。
+        <br/>
+        <strong>产品</strong>是设备的"模板/型号"，定义了设备有哪些传感器和功能；
+        而<strong>设备分组</strong>是对已有的设备进行归类整理。
+        <router-link to="/products" style="margin-left: 8px;">去了解产品概念 →</router-link>
+      </template>
+    </el-alert>
+
+    <div class="page-header" style="margin-top: 16px;">
       <h2 class="page-title">设备分组</h2>
       <el-button type="primary" @click="showAddDialog = true">
         <el-icon><Plus /></el-icon>

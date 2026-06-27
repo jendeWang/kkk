@@ -916,6 +916,51 @@ async def refresh_ui_specs(
     }
 
 
+# ========== Product Templates ==========
+
+@router.get("/templates/list")
+async def list_product_templates(
+    current_user: User = Depends(get_current_active_user),
+):
+    """获取产品模板列表"""
+    from ..services.template_service import list_templates
+    return list_templates()
+
+
+@router.post("/from-template/{template_id}")
+async def create_product_from_template(
+    template_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+    custom_name: str | None = None,
+    create_default_device: bool = True,
+    create_alert_rules: bool = True,
+    create_scenes: bool = True,
+):
+    """从模板创建产品（一键生成产品、属性、服务、事件、默认设备、告警规则、自动化场景）"""
+    from ..services.template_service import create_product_from_template as create_from_tpl
+
+    try:
+        product = await create_from_tpl(
+            db=db,
+            current_user=current_user,
+            template_id=template_id,
+            custom_name=custom_name,
+            create_default_device=create_default_device,
+            create_alert_rules=create_alert_rules,
+            create_scenes=create_scenes,
+        )
+        return {
+            "product_key": product.product_key,
+            "name": product.name,
+            "properties_count": len(product.properties),
+            "services_count": len(product.services),
+            "events_count": len(product.events),
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 def _parse_value_by_type(data_type, value_str):
     """根据数据类型解析值字符串"""
     if value_str is None:
