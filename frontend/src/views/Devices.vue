@@ -15,7 +15,7 @@
       <el-col :span="6">
         <el-card class="stats-card online">
           <div class="stats-icon">
-            <el-icon><CheckCircle /></el-icon>
+            <el-icon><CircleCheck /></el-icon>
           </div>
           <div class="stats-info">
             <div class="stats-value">{{ statusSummary.online }}</div>
@@ -195,7 +195,7 @@ import { useDeviceStore } from '../stores/device.js'
 import { useProductStore } from '../stores/product.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { groupService } from '../services/group.js'
-import { Monitor, CheckCircle, Clock, Warning, Plus, Setting, Edit, Delete, Search } from '@element-plus/icons-vue'
+import { Monitor, CircleCheck, Clock, Warning, Plus, Setting, Edit, Delete, Search } from '@element-plus/icons-vue'
 
 const deviceStore = useDeviceStore()
 const productStore = useProductStore()

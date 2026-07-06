@@ -40,6 +40,14 @@
             <el-icon><DataAnalysis /></el-icon>
             <span>传感器监控</span>
           </el-menu-item>
+          <el-menu-item index="/actuators">
+            <el-icon><SwitchButton /></el-icon>
+            <span>执行器控制</span>
+          </el-menu-item>
+          <el-menu-item index="/rule-editor">
+            <el-icon><Filter /></el-icon>
+            <span>规则编辑器</span>
+          </el-menu-item>
             <el-menu-item index="/commands">
               <el-icon><MessageBox /></el-icon>
               <span>{{ $t('menu.commands') }}</span>
@@ -126,7 +134,7 @@ import { useSettingsStore } from '../stores/settings.js'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { loadPropertyMappings } from '../services/propertyMapper.js'
-import { MagicStick, Setting, SwitchButton, DataAnalysis } from '@element-plus/icons-vue'
+import { MagicStick, Setting, SwitchButton, DataAnalysis, Filter } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -173,6 +181,8 @@ const pageTitle = computed(() => {
     '/devices': '设备管理',
     '/telemetry': '遥测数据',
     '/sensors': '传感器监控',
+    '/actuators': '执行器控制',
+    '/rule-editor': '规则编辑器',
     '/commands': '命令下发',
     '/alert-rules': '告警规则',
     '/alerts': '告警事件',

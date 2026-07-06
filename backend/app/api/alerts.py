@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
-from typing import List, Optional
-from datetime import datetime
+from sqlalchemy import select, desc, func
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
 from .deps import get_current_active_user
 from ..core.database import get_db
-from ..models.models import User, AlertRule, AlertEvent, Device, AlertType, AlertStatus, AlertSeverity
+from ..models.models import User, AlertRule, AlertEvent, Device, AlertType, AlertStatus, AlertSeverity, ConditionOperator
 from ..schemas import AlertRuleCreate, AlertRuleUpdate, AlertRuleResponse, AlertEventResponse, AlertEventStatusUpdate
+from ..services.alert_engine import alert_engine
 
 router = APIRouter(prefix="/alerts", tags=["告警管理"])
 
@@ -253,3 +254,124 @@ async def update_alert_event_status(
     await db.commit()
     await db.refresh(event)
     return event
+
+
+@router.get("/stats", response_model=Dict[str, Any])
+async def get_alert_stats(
+    days: int = Query(7, ge=1, le=30),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取告警统计信息"""
+    end_time = datetime.utcnow()
+    start_time = end_time - timedelta(days=days)
+
+    total_result = await db.execute(
+        select(func.count(AlertEvent.id))
+        .join(Device)
+        .where(Device.owner_id == current_user.id, AlertEvent.created_at >= start_time)
+    )
+    total = total_result.scalar() or 0
+
+    severity_result = await db.execute(
+        select(AlertEvent.severity, func.count(AlertEvent.id))
+        .join(Device)
+        .where(Device.owner_id == current_user.id, AlertEvent.created_at >= start_time)
+        .group_by(AlertEvent.severity)
+    )
+    severity_counts = {s.value: c for s, c in severity_result.all()}
+
+    status_result = await db.execute(
+        select(AlertEvent.status, func.count(AlertEvent.id))
+        .join(Device)
+        .where(Device.owner_id == current_user.id, AlertEvent.created_at >= start_time)
+        .group_by(AlertEvent.status)
+    )
+    status_counts = {s.value: c for s, c in status_result.all()}
+
+    daily_result = await db.execute(
+        select(func.date(AlertEvent.created_at), func.count(AlertEvent.id))
+        .join(Device)
+        .where(Device.owner_id == current_user.id, AlertEvent.created_at >= start_time)
+        .group_by(func.date(AlertEvent.created_at))
+        .order_by(func.date(AlertEvent.created_at))
+    )
+    daily_data = [{"date": str(d), "count": c} for d, c in daily_result.all()]
+
+    return {
+        "total": total,
+        "severity": severity_counts,
+        "status": status_counts,
+        "daily": daily_data,
+        "period": f"{days}天",
+    }
+
+
+@router.post("/rules/{rule_id}/test")
+async def test_alert_rule(
+    rule_id: int,
+    test_data: Dict[str, Any],
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """测试告警规则"""
+    result = await db.execute(
+        select(AlertRule).where(
+            AlertRule.id == rule_id,
+            AlertRule.owner_id == current_user.id,
+        )
+    )
+    rule = result.scalar_one_or_none()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Alert rule not found")
+
+    device_id = test_data.get("device_id", rule.device_id)
+    property_identifier = test_data.get("property_identifier", rule.property_identifier)
+    value = test_data.get("value", 0)
+
+    if not device_id:
+        raise HTTPException(status_code=400, detail="device_id is required")
+    if not property_identifier:
+        raise HTTPException(status_code=400, detail="property_identifier is required")
+
+    event = await alert_engine.evaluate_rule(db, rule, device_id, property_identifier, value)
+
+    return {
+        "triggered": event is not None,
+        "rule_id": rule_id,
+        "device_id": device_id,
+        "property_identifier": property_identifier,
+        "test_value": value,
+        "threshold": rule.threshold_value,
+        "operator": rule.operator.value,
+        "event_id": event.id if event else None,
+        "message": event.message if event else "Rule not triggered",
+    }
+
+
+@router.post("/rules/batch/enable")
+async def batch_enable_rules(
+    rule_ids: List[int],
+    enabled: bool = True,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """批量启用/禁用告警规则"""
+    if not rule_ids:
+        return {"message": "No rule IDs provided", "updated": 0}
+
+    update_count = 0
+    for rule_id in rule_ids:
+        result = await db.execute(
+            select(AlertRule).where(
+                AlertRule.id == rule_id,
+                AlertRule.owner_id == current_user.id,
+            )
+        )
+        rule = result.scalar_one_or_none()
+        if rule:
+            rule.enabled = enabled
+            update_count += 1
+
+    await db.commit()
+    return {"message": f"Updated {update_count} rules", "updated": update_count}
