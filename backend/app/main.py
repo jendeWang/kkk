@@ -1,20 +1,24 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from .database import init_db, async_session_maker
+from .core.database import init_db, async_session_maker
+from .core.logging import setup_logging, get_logger
+from .core.config import settings
 from .api import auth, products, devices, telemetry, commands, alerts, apikeys, sse, dashboard, groups, scenes, topology, operation_logs
 from .services.init_service import init_default_user, init_greenhouse_product, init_default_group, init_default_scenes
 from .services.sse_service import sse_service
 from .services.simulator_service import simulator_service
 from .mqtt.service import mqtt_service
-from .config import settings
+
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Starting IOTPlatform...")
+    logger.info("Starting IOTPlatform...")
+    setup_logging()
     await init_db()
-    print("Database initialized")
+    logger.info("Database initialized")
 
     async with async_session_maker() as db:
         await init_default_user(db)
@@ -27,7 +31,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    print("Shutting down IOTPlatform...")
+    logger.info("Shutting down IOTPlatform...")
     await mqtt_service.stop()
     await simulator_service.stop()
 

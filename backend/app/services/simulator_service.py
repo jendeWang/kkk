@@ -7,9 +7,10 @@ from ..models.models import Device, DeviceShadow, Product, Telemetry
 from .sse_service import sse_service
 from .alert_service import alert_engine
 from .scene_engine import scene_engine
-import logging
+from ..core.config import settings
+from ..core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DeviceSimulator:
@@ -17,7 +18,7 @@ class DeviceSimulator:
         self._running = False
         self._task = None
         self._session_maker = None
-        self._interval = 3
+        self._interval = settings.SIMULATOR_INTERVAL
 
     async def start(self, session_maker: async_sessionmaker):
         if self._running:

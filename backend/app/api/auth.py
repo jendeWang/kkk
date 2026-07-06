@@ -3,11 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import timedelta
 from .deps import get_current_active_user
-from ..database import get_db
+from ..core.database import get_db
 from ..models.models import User
 from ..schemas import LoginRequest, Token, UserResponse, UserCreate
 from ..security.auth import verify_password, create_access_token, get_password_hash
-from ..config import settings
+from ..core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 

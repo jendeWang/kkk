@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime
 
 from .deps import get_current_active_user
-from ..database import get_db
+from ..core.database import get_db
 from ..models.models import User, AutomationScene, AutomationExecutionLog, TriggerType, ActionType
 from ..schemas import (
     AutomationSceneCreate, AutomationSceneUpdate, AutomationSceneResponse,

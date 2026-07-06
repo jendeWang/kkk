@@ -4,9 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from datetime import datetime
 from ..security.auth import decode_token
-from ..database import get_db
+from ..core.database import get_db
 from ..models.models import User, APIKey
-from ..config import settings
+from ..core.config import settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
 

@@ -6,7 +6,7 @@ from ..models.models import (
     AutomationScene, TriggerType, ActionType
 )
 from ..security.auth import get_password_hash
-from ..config import settings
+from ..core.config import settings
 
 
 UI_SPECS_CONFIG = {

@@ -20,7 +20,7 @@ class MQTTService:
         # 尝试连接 broker（如果可用）
         try:
             from gmqtt import Client as MQTTClient
-            from ..config import settings
+            from ..core.config import settings
             if settings.MQTT_BROKER_URL:
                 self.client = MQTTClient(f"iot-platform-backend-{datetime.now().strftime('%Y%m%d%H%M%S')}")
                 self.client.on_connect = self._on_connect
