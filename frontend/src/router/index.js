@@ -16,6 +16,7 @@ const routes = [
       { path: 'products', name: 'Products', component: () => import('../views/Products.vue') },
       { path: 'devices', name: 'Devices', component: () => import('../views/Devices.vue') },
       { path: 'telemetry', name: 'Telemetry', component: () => import('../views/Telemetry.vue') },
+      { path: 'sensors', name: 'Sensors', component: () => import('../views/Sensors.vue') },
       { path: 'commands', name: 'Commands', component: () => import('../views/Commands.vue') },
       { path: 'alert-rules', name: 'AlertRules', component: () => import('../views/AlertRules.vue') },
       { path: 'alerts', name: 'Alerts', component: () => import('../views/Alerts.vue') },

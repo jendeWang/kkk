@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func
+from sqlalchemy import select, desc, func, cast, Float
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 import io
 import csv
 
@@ -15,12 +15,10 @@ router = APIRouter(prefix="/telemetry", tags=["遥测数据"])
 
 
 def _convert_value_by_type(value: str, data_type: Optional[str]) -> Any:
-    """根据数据类型转换值的类型"""
     if value is None:
         return None
     
     if data_type is None:
-        # 尝试自动推断
         try:
             if '.' in value:
                 return float(value)
@@ -42,7 +40,6 @@ def _convert_value_by_type(value: str, data_type: Optional[str]) -> Any:
 
 
 async def _get_property_data_types(db: AsyncSession, user_id: int) -> Dict[str, str]:
-    """获取用户所有产品属性的数据类型映射"""
     result = await db.execute(
         select(ProductProperty.identifier, ProductProperty.data_type)
         .join(Device, Device.product_id == ProductProperty.product_id)
@@ -252,3 +249,269 @@ async def submit_telemetry(
     await db.commit()
     await db.refresh(db_telemetry)
     return db_telemetry
+
+
+# ========== 数据聚合与趋势查询 ==========
+
+@router.get("/aggregation", response_model=Dict[str, Any])
+async def get_telemetry_aggregation(
+    device_id: Optional[int] = Query(None),
+    property_identifier: Optional[str] = Query(None),
+    start_time: Optional[datetime] = Query(None),
+    end_time: Optional[datetime] = Query(None),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取遥测数据聚合统计（最小值、最大值、平均值、计数）"""
+    query = select(
+        Telemetry.property_identifier,
+        func.min(cast(Telemetry.value, Float)).label('min_value'),
+        func.max(cast(Telemetry.value, Float)).label('max_value'),
+        func.avg(cast(Telemetry.value, Float)).label('avg_value'),
+        func.count(Telemetry.id).label('count'),
+    ).join(Device).where(Device.owner_id == current_user.id)
+
+    if device_id is not None:
+        query = query.where(Telemetry.device_id == device_id)
+    if property_identifier:
+        query = query.where(Telemetry.property_identifier == property_identifier)
+    if start_time:
+        query = query.where(Telemetry.timestamp >= start_time)
+    if end_time:
+        query = query.where(Telemetry.timestamp <= end_time)
+
+    query = query.group_by(Telemetry.property_identifier)
+    result = await db.execute(query)
+    rows = result.all()
+
+    type_map = await _get_property_data_types(db, current_user.id)
+    aggregations = []
+    for row in rows:
+        prop_id = row[0]
+        data_type = type_map.get(prop_id, "float")
+        aggregations.append({
+            "property_identifier": prop_id,
+            "data_type": data_type,
+            "min_value": _convert_value_by_type(str(row[1]), data_type) if row[1] else None,
+            "max_value": _convert_value_by_type(str(row[2]), data_type) if row[2] else None,
+            "avg_value": _convert_value_by_type(str(row[3]), data_type) if row[3] else None,
+            "count": row[4],
+        })
+
+    return {
+        "aggregations": aggregations,
+        "start_time": start_time.isoformat() if start_time else None,
+        "end_time": end_time.isoformat() if end_time else None,
+    }
+
+
+@router.get("/trend", response_model=Dict[str, Any])
+async def get_telemetry_trend(
+    device_id: Optional[int] = Query(None),
+    property_identifier: Optional[str] = Query(None),
+    start_time: Optional[datetime] = Query(None),
+    end_time: Optional[datetime] = Query(None),
+    interval: str = Query("1h", description="时间间隔: 1m, 5m, 15m, 30m, 1h, 6h, 1d"),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取遥测数据趋势（按时间间隔分组聚合）"""
+    interval_map = {
+        "1m": timedelta(minutes=1),
+        "5m": timedelta(minutes=5),
+        "15m": timedelta(minutes=15),
+        "30m": timedelta(minutes=30),
+        "1h": timedelta(hours=1),
+        "6h": timedelta(hours=6),
+        "1d": timedelta(days=1),
+    }
+    
+    delta = interval_map.get(interval, timedelta(hours=1))
+    
+    if end_time is None:
+        end_time = datetime.utcnow()
+    if start_time is None:
+        start_time = end_time - timedelta(days=1)
+
+    query = select(Telemetry).join(Device).where(Device.owner_id == current_user.id)
+
+    if device_id is not None:
+        query = query.where(Telemetry.device_id == device_id)
+    if property_identifier:
+        query = query.where(Telemetry.property_identifier == property_identifier)
+    query = query.where(Telemetry.timestamp >= start_time).where(Telemetry.timestamp <= end_time)
+
+    result = await db.execute(query.order_by(Telemetry.timestamp))
+    items = result.scalars().all()
+
+    type_map = await _get_property_data_types(db, current_user.id)
+    
+    grouped_data = {}
+    for item in items:
+        ts = item.timestamp
+        bucket_time = ts - timedelta(
+            minutes=ts.minute % delta.total_seconds() // 60,
+            seconds=ts.second,
+            microseconds=ts.microsecond
+        )
+        bucket_key = bucket_time.isoformat()
+        
+        prop_id = item.property_identifier
+        if prop_id not in grouped_data:
+            grouped_data[prop_id] = {}
+        
+        if bucket_key not in grouped_data[prop_id]:
+            grouped_data[prop_id][bucket_key] = []
+        
+        value = float(item.value) if item.value else None
+        if value is not None:
+            grouped_data[prop_id][bucket_key].append(value)
+
+    trends = {}
+    for prop_id, buckets in grouped_data.items():
+        data_type = type_map.get(prop_id, "float")
+        trend_data = []
+        sorted_buckets = sorted(buckets.items())
+        
+        for bucket_key, values in sorted_buckets:
+            if values:
+                trend_data.append({
+                    "timestamp": bucket_key,
+                    "min_value": _convert_value_by_type(str(min(values)), data_type),
+                    "max_value": _convert_value_by_type(str(max(values)), data_type),
+                    "avg_value": _convert_value_by_type(str(sum(values) / len(values)), data_type),
+                    "count": len(values),
+                })
+        
+        trends[prop_id] = trend_data
+
+    return {
+        "trends": trends,
+        "start_time": start_time.isoformat(),
+        "end_time": end_time.isoformat(),
+        "interval": interval,
+    }
+
+
+@router.get("/latest", response_model=Dict[str, Any])
+async def get_latest_telemetry(
+    device_id: Optional[int] = Query(None),
+    property_identifier: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取所有设备/属性的最新遥测值"""
+    subquery = (
+        select(
+            Telemetry.device_id,
+            Telemetry.property_identifier,
+            func.max(Telemetry.timestamp).label('latest_timestamp'),
+        )
+        .join(Device)
+        .where(Device.owner_id == current_user.id)
+    )
+    
+    if device_id is not None:
+        subquery = subquery.where(Telemetry.device_id == device_id)
+    if property_identifier:
+        subquery = subquery.where(Telemetry.property_identifier == property_identifier)
+    
+    subquery = subquery.group_by(Telemetry.device_id, Telemetry.property_identifier).subquery()
+
+    query = (
+        select(Telemetry)
+        .join(subquery, (Telemetry.device_id == subquery.c.device_id) & 
+                        (Telemetry.property_identifier == subquery.c.property_identifier) & 
+                        (Telemetry.timestamp == subquery.c.latest_timestamp))
+    )
+
+    result = await db.execute(query)
+    items = result.scalars().all()
+
+    type_map = await _get_property_data_types(db, current_user.id)
+    latest_values = []
+    for item in items:
+        prop_id = item.property_identifier
+        data_type = type_map.get(prop_id, "float")
+        latest_values.append({
+            "device_id": item.device_id,
+            "property_identifier": prop_id,
+            "value": _convert_value_by_type(str(item.value), data_type),
+            "data_type": data_type,
+            "timestamp": item.timestamp.isoformat(),
+            "quality": item.quality,
+        })
+
+    device_names = {}
+    device_result = await db.execute(
+        select(Device.id, Device.device_name).where(Device.owner_id == current_user.id)
+    )
+    for row in device_result.all():
+        device_names[row[0]] = row[1]
+    
+    for value in latest_values:
+        value["device_name"] = device_names.get(value["device_id"], str(value["device_id"]))
+
+    return {
+        "latest_values": latest_values,
+        "count": len(latest_values),
+    }
+
+
+@router.get("/stats", response_model=Dict[str, Any])
+async def get_telemetry_stats(
+    days: int = Query(7, ge=1, le=30),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取遥测数据统计概览"""
+    end_time = datetime.utcnow()
+    start_time = end_time - timedelta(days=days)
+
+    total_count_result = await db.execute(
+        select(func.count(Telemetry.id))
+        .join(Device)
+        .where(Device.owner_id == current_user.id)
+        .where(Telemetry.timestamp >= start_time)
+    )
+    total_count = total_count_result.scalar() or 0
+
+    property_count_result = await db.execute(
+        select(func.count(func.distinct(Telemetry.property_identifier)))
+        .join(Device)
+        .where(Device.owner_id == current_user.id)
+    )
+    property_count = property_count_result.scalar() or 0
+
+    device_count_result = await db.execute(
+        select(func.count(func.distinct(Telemetry.device_id)))
+        .join(Device)
+        .where(Device.owner_id == current_user.id)
+    )
+    device_count = device_count_result.scalar() or 0
+
+    daily_counts = []
+    for i in range(days):
+        day_start = end_time - timedelta(days=days - i)
+        day_end = day_start + timedelta(days=1)
+        
+        day_result = await db.execute(
+            select(func.count(Telemetry.id))
+            .join(Device)
+            .where(Device.owner_id == current_user.id)
+            .where(Telemetry.timestamp >= day_start)
+            .where(Telemetry.timestamp < day_end)
+        )
+        count = day_result.scalar() or 0
+        daily_counts.append({
+            "date": day_start.strftime('%Y-%m-%d'),
+            "count": count,
+        })
+
+    return {
+        "total_count": total_count,
+        "property_count": property_count,
+        "device_count": device_count,
+        "days": days,
+        "daily_counts": daily_counts,
+    }

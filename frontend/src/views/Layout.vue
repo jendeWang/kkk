@@ -33,9 +33,13 @@
               <span>{{ $t('menu.products') }}</span>
             </el-menu-item>
             <el-menu-item index="/telemetry">
-              <el-icon><DataLine /></el-icon>
-              <span>{{ $t('menu.telemetry') }}</span>
-            </el-menu-item>
+            <el-icon><DataLine /></el-icon>
+            <span>{{ $t('menu.telemetry') }}</span>
+          </el-menu-item>
+          <el-menu-item index="/sensors">
+            <el-icon><DataAnalysis /></el-icon>
+            <span>传感器监控</span>
+          </el-menu-item>
             <el-menu-item index="/commands">
               <el-icon><MessageBox /></el-icon>
               <span>{{ $t('menu.commands') }}</span>
@@ -122,7 +126,7 @@ import { useSettingsStore } from '../stores/settings.js'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { loadPropertyMappings } from '../services/propertyMapper.js'
-import { MagicStick, Setting, SwitchButton } from '@element-plus/icons-vue'
+import { MagicStick, Setting, SwitchButton, DataAnalysis } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -168,6 +172,7 @@ const pageTitle = computed(() => {
     '/products': '产品管理',
     '/devices': '设备管理',
     '/telemetry': '遥测数据',
+    '/sensors': '传感器监控',
     '/commands': '命令下发',
     '/alert-rules': '告警规则',
     '/alerts': '告警事件',
