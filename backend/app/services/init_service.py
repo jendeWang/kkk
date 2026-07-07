@@ -664,6 +664,84 @@ async def init_default_scenes(db: AsyncSession):
             "enabled": True,
             "cooldown_seconds": 300,
         },
+        {
+            "name": "雨天自动关通风扇",
+            "description": "当检测到降雨（雨量>0.5mm）时，自动关闭通风扇防止雨水进入",
+            "trigger_type": TriggerType.THRESHOLD,
+            "trigger_config": {
+                "device_id": device.id,
+                "property_identifier": "rainfall",
+                "operator": "gt",
+                "threshold_value": "0.5",
+            },
+            "action_type": ActionType.COMMAND,
+            "action_config": [
+                {
+                    "device_id": device.id,
+                    "service_identifier": "set_fan",
+                    "input_params": {"status": False},
+                }
+            ],
+            "enabled": True,
+            "cooldown_seconds": 120,
+        },
+        {
+            "name": "大风自动关遮阳帘",
+            "description": "当风速超过10m/s时，自动关闭遮阳帘防止被风吹坏",
+            "trigger_type": TriggerType.THRESHOLD,
+            "trigger_config": {
+                "device_id": device.id,
+                "property_identifier": "wind_speed",
+                "operator": "gt",
+                "threshold_value": "10",
+            },
+            "action_type": ActionType.COMMAND,
+            "action_config": [
+                {
+                    "device_id": device.id,
+                    "service_identifier": "set_curtain",
+                    "input_params": {"status": False},
+                }
+            ],
+            "enabled": True,
+            "cooldown_seconds": 120,
+        },
+        {
+            "name": "土壤pH异常告警",
+            "description": "当土壤pH值低于5.5或高于7.5时，触发告警通知",
+            "trigger_type": TriggerType.THRESHOLD,
+            "trigger_config": {
+                "device_id": device.id,
+                "property_identifier": "soil_ph",
+                "operator": "lt",
+                "threshold_value": "5.5",
+            },
+            "action_type": ActionType.ALERT,
+            "action_config": {
+                "severity": "warning",
+                "message": "土壤pH值偏低，请检查并调整",
+            },
+            "enabled": True,
+            "cooldown_seconds": 300,
+        },
+        {
+            "name": "土壤pH过高告警",
+            "description": "当土壤pH值高于7.5时，触发告警通知",
+            "trigger_type": TriggerType.THRESHOLD,
+            "trigger_config": {
+                "device_id": device.id,
+                "property_identifier": "soil_ph",
+                "operator": "gt",
+                "threshold_value": "7.5",
+            },
+            "action_type": ActionType.ALERT,
+            "action_config": {
+                "severity": "warning",
+                "message": "土壤pH值偏高，请检查并调整",
+            },
+            "enabled": True,
+            "cooldown_seconds": 300,
+        },
     ]
 
     created_count = 0
