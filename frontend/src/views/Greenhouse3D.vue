@@ -15,28 +15,28 @@
             <div class="data-icon temp">🌡️</div>
             <div class="data-info">
               <div class="data-label">温度</div>
-              <div class="data-value">{{ envData.temperature.toFixed(1) }}{{ envData.temperature > 30 ? '🔴' : '🟢' }}</div>
+              <div class="data-value">{{ envData.temperature ? envData.temperature.toFixed(1) + '°C' : '--' }} {{ envData.temperature > 30 ? '🔴' : envData.temperature > 0 ? '🟢' : '' }}</div>
             </div>
           </div>
           <div class="data-row">
             <div class="data-icon hum">💧</div>
             <div class="data-info">
               <div class="data-label">湿度</div>
-              <div class="data-value">{{ envData.humidity.toFixed(1) }}% 🟢</div>
+              <div class="data-value">{{ envData.humidity ? envData.humidity.toFixed(1) + '%' : '--' }} {{ envData.humidity > 0 ? '🟢' : '' }}</div>
             </div>
           </div>
           <div class="data-row">
             <div class="data-icon light">☀️</div>
             <div class="data-info">
               <div class="data-label">光照</div>
-              <div class="data-value">{{ envData.light.toFixed(0) }} lux 🟢</div>
+              <div class="data-value">{{ envData.light ? envData.light.toFixed(0) + ' lux' : '--' }} {{ envData.light > 0 ? '🟢' : '' }}</div>
             </div>
           </div>
           <div class="data-row">
             <div class="data-icon soil">🌱</div>
             <div class="data-info">
               <div class="data-label">土壤湿度</div>
-              <div class="data-value">{{ envData.soil.toFixed(1) }}% 🟢</div>
+              <div class="data-value">{{ envData.soil ? envData.soil.toFixed(1) + '%' : '--' }} {{ envData.soil > 0 ? '🟢' : '' }}</div>
             </div>
           </div>
         </div>
@@ -74,9 +74,9 @@
 
       <div class="hud-bottom">
         <div class="status-bar">
-          <span class="status-item">✅ 系统运行正常</span>
-          <span class="status-item">📡 8个设备在线</span>
-          <span class="status-item">⏱️ 数据实时更新</span>
+          <span class="status-item">{{ connected ? '✅' : '⚠️' }} {{ connected ? '系统运行正常' : '等待连接设备...' }}</span>
+          <span class="status-item">📡 {{ connected ? '1个设备在线' : '无在线设备' }}</span>
+          <span class="status-item">⏱️ {{ envData.temperature ? '数据实时同步' : '加载中...' }}</span>
         </div>
       </div>
     </div>
@@ -84,19 +84,24 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
+import api from '../services/api.js'
 
 const containerRef = ref(null)
 const currentTime = ref('')
+const deviceId = ref(null)
+const connected = ref(false)
 
 const envData = reactive({
-  temperature: 26.5,
-  humidity: 65.2,
-  light: 35000,
-  soil: 58.3,
+  temperature: 0,
+  humidity: 0,
+  light: 0,
+  soil: 0,
+  co2: 0,
 })
 
 const deviceState = reactive({
@@ -108,9 +113,11 @@ const deviceState = reactive({
 
 let scene, camera, renderer, labelRenderer, controls
 let animationId
-let greenhouseGroup, fanGroup, lightBulbs = [], curtainGroup, plants = []
+let greenhouseGroup, fanGroup, lightBulbs = [], curtainGroup, plants = [], pumpGroup
 let autoRotate = false
 let sensorLabels = []
+let eventSource = null
+let lastSensorUpdate = 0
 
 function updateTime() {
   const now = new Date()
@@ -473,16 +480,101 @@ function createSensors() {
 }
 
 function updateSensorData() {
-  envData.temperature = 25 + Math.sin(Date.now() / 5000) * 2
-  envData.humidity = 60 + Math.sin(Date.now() / 7000) * 10
-  envData.light = 30000 + Math.sin(Date.now() / 10000) * 10000
-  envData.soil = 55 + Math.sin(Date.now() / 8000) * 8
+  const now = Date.now()
+  if (now - lastSensorUpdate < 1000) return
+  lastSensorUpdate = now
 
   if (sensorLabels.length >= 4) {
     sensorLabels[0].div.textContent = `🌡️ 温度 ${envData.temperature.toFixed(1)}°C`
     sensorLabels[1].div.textContent = `💧 湿度 ${envData.humidity.toFixed(1)}%`
     sensorLabels[2].div.textContent = `☀️ 光照 ${envData.light.toFixed(0)}lux`
     sensorLabels[3].div.textContent = `🌱 土壤 ${envData.soil.toFixed(1)}%`
+  }
+}
+
+async function loadRealtimeData() {
+  try {
+    const res = await api.get('/devices/', { params: { status: 'online' } })
+    const onlineDevices = res.data
+    if (onlineDevices.length > 0) {
+      deviceId.value = onlineDevices[0].id
+      connected.value = true
+    }
+    if (!deviceId.value) return
+
+    const latestRes = await api.get('/telemetry/latest', { params: { device_id: deviceId.value } })
+    const latestValues = latestRes.data.latest_values || []
+    for (const item of latestValues) {
+      const val = parseFloat(item.value)
+      if (item.property_identifier === 'temperature') envData.temperature = val
+      else if (item.property_identifier === 'humidity') envData.humidity = val
+      else if (item.property_identifier === 'light_intensity') envData.light = val
+      else if (item.property_identifier === 'soil_moisture') envData.soil = val
+      else if (item.property_identifier === 'co2') envData.co2 = val
+    }
+    updateSensorData()
+  } catch (e) {
+    console.warn('Failed to load realtime data:', e)
+  }
+}
+
+function connectSSE() {
+  const token = localStorage.getItem('token')
+  if (!token) return
+
+  try {
+    eventSource = new EventSource(`/api/v1/sse/devices?token=${token}`)
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.device_id !== deviceId.value) return
+
+        const val = parseFloat(data.value)
+        const prop = data.property_identifier
+
+        if (prop === 'temperature') envData.temperature = val
+        else if (prop === 'humidity') envData.humidity = val
+        else if (prop === 'light_intensity') envData.light = val
+        else if (prop === 'soil_moisture') envData.soil = val
+        else if (prop === 'co2') envData.co2 = val
+        else if (prop === 'fan_switch') deviceState.fan = val === 1
+        else if (prop === 'light_switch') deviceState.light = val === 1
+        else if (prop === 'curtain_switch') deviceState.curtain = val === 1
+        else if (prop === 'pump_switch') deviceState.pump = val === 1
+
+        updateSensorData()
+        sync3DState()
+      } catch (e) {}
+    }
+    eventSource.onerror = () => {
+      eventSource.close()
+      setTimeout(connectSSE, 5000)
+    }
+  } catch (e) {
+    console.warn('SSE connection failed:', e)
+  }
+}
+
+function sync3DState() {
+  if (deviceState.light) {
+    lightBulbs.forEach(bg => {
+      const { bulb, pointLight } = bg.userData
+      bulb.material.color.set(0xffdd88)
+      bulb.material.emissive.set(0xffdd88)
+      bulb.material.emissiveIntensity = 1
+      pointLight.intensity = 1.5
+    })
+  } else {
+    lightBulbs.forEach(bg => {
+      const { bulb, pointLight } = bg.userData
+      bulb.material.color.set(0x555555)
+      bulb.material.emissive.set(0x000000)
+      bulb.material.emissiveIntensity = 0
+      pointLight.intensity = 0
+    })
+  }
+  if (curtainGroup) {
+    curtainGroup.position.y = deviceState.curtain ? -2 : 0
   }
 }
 
@@ -537,44 +629,56 @@ function toggleAutoRotate() {
 
 function toggleFan(val) {
   deviceState.fan = val
+  sendDeviceCommand('fan_switch', val ? 1 : 0)
 }
 
 function toggleLight(val) {
   deviceState.light = val
-  lightBulbs.forEach(bg => {
-    const { bulb, pointLight } = bg.userData
-    if (val) {
-      bulb.material.color.set(0xffdd88)
-      bulb.material.emissive.set(0xffdd88)
-      bulb.material.emissiveIntensity = 1
-      pointLight.intensity = 1.5
-    } else {
-      bulb.material.color.set(0x555555)
-      bulb.material.emissive.set(0x000000)
-      bulb.material.emissiveIntensity = 0
-      pointLight.intensity = 0
-    }
-  })
+  sync3DState()
+  sendDeviceCommand('light_switch', val ? 1 : 0)
 }
 
 function toggleCurtain(val) {
   deviceState.curtain = val
-  if (curtainGroup) {
-    curtainGroup.position.y = val ? -2 : 0
-  }
+  sync3DState()
+  sendDeviceCommand('curtain_switch', val ? 1 : 0)
 }
 
 function togglePump(val) {
   deviceState.pump = val
+  sendDeviceCommand('pump_switch', val ? 1 : 0)
 }
 
-onMounted(() => {
+async function sendDeviceCommand(serviceId, value) {
+  if (!deviceId.value) {
+    ElMessage.warning('未检测到在线设备')
+    return
+  }
+  try {
+    await api.post('/commands/', {
+      device_id: deviceId.value,
+      service_identifier: serviceId,
+      input_params: { value: String(value) },
+    })
+    ElMessage.success('命令已下发')
+  } catch (e) {
+    ElMessage.error('命令下发失败')
+  }
+}
+
+onMounted(async () => {
   init()
   window.addEventListener('resize', onResize)
+  await loadRealtimeData()
+  connectSSE()
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
   if (animationId) {
     cancelAnimationFrame(animationId)
   }
