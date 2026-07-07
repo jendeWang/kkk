@@ -177,8 +177,7 @@ const tempStatus = computed(() => envData.temperature > 35 ? 'danger' : envData.
 const soilStatus = computed(() => envData.soil < 30 ? 'warning' : 'normal')
 
 let scene, camera, renderer, labelRenderer, controls
-let animationId
-let greenhouseGroup, fanGroup, fanBladeGroup, lightBulbs = [], curtainMesh, pumpGroup, waterParticles
+let greenhouseGroup, fanGroup, fanBladeGroup, lightBulbs = [], curtainMesh, pumpGroup, waterParticles, rainParticles, statusLights = {}
 let sensorLabels = []
 let eventSource = null
 let lastSensorUpdate = 0
@@ -260,6 +259,7 @@ function init() {
     createPlants()
     createSensors()
     createWaterParticles()
+    createRainParticles()
     animate()
   } catch (e) {
     webglSupported.value = false
@@ -496,6 +496,38 @@ function createGreenhouse() {
   pumpGroup.position.set(4.5, 0, 3)
   greenhouseGroup.add(pumpGroup)
 
+  // 电磁阀状态指示灯
+  const valveLightGroup = new THREE.Group()
+  const valveBase = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0x333333 }))
+  valveBase.position.y = 0.15
+  valveLightGroup.add(valveBase)
+  const valveLight = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), new THREE.MeshStandardMaterial({ color: 0x333333, emissive: 0x000000, emissiveIntensity: 0 }))
+  valveLight.position.y = 0.4
+  valveLightGroup.add(valveLight)
+  const valvePointLight = new THREE.PointLight(0xffaa00, 0, 2)
+  valvePointLight.position.y = 0.4
+  valveLightGroup.add(valvePointLight)
+  valveLightGroup.userData = { light: valveLight, pointLight: valvePointLight }
+  valveLightGroup.position.set(-4, 0.2, 3)
+  statusLights.valve = valveLightGroup
+  greenhouseGroup.add(valveLightGroup)
+
+  // 加热膜状态指示灯
+  const heaterLightGroup = new THREE.Group()
+  const heaterBase = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0x333333 }))
+  heaterBase.position.y = 0.15
+  heaterLightGroup.add(heaterBase)
+  const heaterLight = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), new THREE.MeshStandardMaterial({ color: 0x333333, emissive: 0x000000, emissiveIntensity: 0 }))
+  heaterLight.position.y = 0.4
+  heaterLightGroup.add(heaterLight)
+  const heaterPointLight = new THREE.PointLight(0xff4444, 0, 2)
+  heaterPointLight.position.y = 0.4
+  heaterLightGroup.add(heaterPointLight)
+  heaterLightGroup.userData = { light: heaterLight, pointLight: heaterPointLight }
+  heaterLightGroup.position.set(0, 0.2, 3)
+  statusLights.heater = heaterLightGroup
+  greenhouseGroup.add(heaterLightGroup)
+
   scene.add(greenhouseGroup)
 }
 
@@ -574,6 +606,26 @@ function createWaterParticles() {
   scene.add(waterParticles)
 }
 
+function createRainParticles() {
+  const count = 500
+  const geo = new THREE.BufferGeometry()
+  const positions = new Float32Array(count * 3)
+  const velocities = new Float32Array(count * 3)
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 16
+    positions[i * 3 + 1] = Math.random() * 12 + 3
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 10
+    velocities[i * 3] = (Math.random() - 0.5) * 0.02
+    velocities[i * 3 + 1] = -0.05 - Math.random() * 0.08
+    velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.02
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  const mat = new THREE.PointsMaterial({ color: 0xaaccff, size: 0.03, transparent: true, opacity: 0 })
+  rainParticles = new THREE.Points(geo, mat)
+  rainParticles.userData.velocities = velocities
+  scene.add(rainParticles)
+}
+
 function updateSensorLabels() {
   const now = Date.now()
   if (now - lastSensorUpdate < 800) return
@@ -606,6 +658,27 @@ function updateWaterParticles() {
   pos.needsUpdate = true
 }
 
+function updateRainParticles() {
+  if (!rainParticles) return
+  const mat = rainParticles.material
+  const rainfall = envData.rainfall || 0
+  mat.opacity = rainfall > 0 ? Math.min(0.8, rainfall * 0.15) : 0
+  if (rainfall <= 0) return
+  const pos = rainParticles.geometry.attributes.position
+  const vel = rainParticles.userData.velocities
+  for (let i = 0; i < pos.count; i++) {
+    pos.array[i * 3] += vel[i * 3] + (envData.windSpeed || 0) * 0.001
+    pos.array[i * 3 + 1] += vel[i * 3 + 1]
+    pos.array[i * 3 + 2] += vel[i * 3 + 2]
+    if (pos.array[i * 3 + 1] < 0) {
+      pos.array[i * 3] = (Math.random() - 0.5) * 16
+      pos.array[i * 3 + 1] = Math.random() * 8 + 8
+      pos.array[i * 3 + 2] = (Math.random() - 0.5) * 10
+    }
+  }
+  pos.needsUpdate = true
+}
+
 function sync3DState() {
   // 灯光
   lightBulbs.forEach(bg => {
@@ -627,15 +700,49 @@ function sync3DState() {
     const targetY = deviceState.curtain ? 0 : 2.55
     curtainMesh.position.y += (targetY - curtainMesh.position.y) * 0.1
   }
+  // 电磁阀指示灯
+  const valveLight = statusLights.valve
+  if (valveLight) {
+    const { light, pointLight } = valveLight.userData
+    if (deviceState.valve) {
+      light.material.color.set(0xffaa00)
+      light.material.emissive.set(0xffaa00)
+      light.material.emissiveIntensity = 2
+      pointLight.intensity = 2
+    } else {
+      light.material.color.set(0x333333)
+      light.material.emissive.set(0x000000)
+      light.material.emissiveIntensity = 0
+      pointLight.intensity = 0
+    }
+  }
+  // 加热膜指示灯
+  const heaterLight = statusLights.heater
+  if (heaterLight) {
+    const { light, pointLight } = heaterLight.userData
+    if (deviceState.heater) {
+      light.material.color.set(0xff4444)
+      light.material.emissive.set(0xff4444)
+      light.material.emissiveIntensity = 2
+      pointLight.intensity = 2
+    } else {
+      light.material.color.set(0x333333)
+      light.material.emissive.set(0x000000)
+      light.material.emissiveIntensity = 0
+      pointLight.intensity = 0
+    }
+  }
 }
 
 function animate() {
   animationId = requestAnimationFrame(animate)
   const dt = clock.getDelta()
 
-  // 风扇旋转
+  // 风扇旋转（根据风速动态调整速度）
   if (deviceState.fan && fanBladeGroup) {
-    fanBladeGroup.rotation.z += 0.2
+    const baseSpeed = 0.2
+    const windEffect = (envData.windSpeed || 0) * 0.01
+    fanBladeGroup.rotation.z += baseSpeed + windEffect
   }
 
   // 自动旋转
@@ -651,6 +758,7 @@ function animate() {
   controls.update()
   updateSensorLabels()
   updateWaterParticles()
+  updateRainParticles()
   sync3DState()
   updateTime()
   renderer.render(scene, camera)
