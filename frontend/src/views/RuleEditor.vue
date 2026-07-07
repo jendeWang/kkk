@@ -21,7 +21,7 @@
         <div class="rule-card" v-for="rule in rules" :key="rule.id">
           <div class="rule-header" :class="rule.enabled ? '' : 'disabled'">
             <div class="rule-icon">
-              <el-icon><AlertTriangle v-if="ruleType === 'alert'" /><Timer v-else /></el-icon>
+              <el-icon><Warning v-if="ruleType === 'alert'" /><Timer v-else /></el-icon>
             </div>
             <div class="rule-info">
               <div class="rule-name">{{ rule.name }}</div>
@@ -194,7 +194,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useDeviceStore } from '../stores/device.js'
 import { useProductStore } from '../stores/product.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, AlertTriangle, Timer, FolderOpened } from '@element-plus/icons-vue'
+import { Plus, Warning, Timer, FolderOpened } from '@element-plus/icons-vue'
 
 const deviceStore = useDeviceStore()
 const productStore = useProductStore()
