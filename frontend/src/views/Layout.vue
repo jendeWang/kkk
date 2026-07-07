@@ -5,7 +5,7 @@
         <div class="logo">
           <h2>IOTPlatform</h2>
         </div>
-        <el-menu :default-active="activeMenu" router class="sidebar-menu">
+        <el-menu :default-active="activeMenu" :router="true" class="sidebar-menu">
           <el-menu-item index="/dashboard">
             <el-icon><DataBoard /></el-icon>
             <span>{{ $t('menu.dashboard') }}</span>
