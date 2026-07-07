@@ -36,6 +36,14 @@
               <el-icon><Goods /></el-icon>
               <span>{{ $t('menu.products') }}</span>
             </el-menu-item>
+            <el-menu-item index="/thing-model">
+              <el-icon><Edit /></el-icon>
+              <span>物模型编辑器</span>
+            </el-menu-item>
+            <el-menu-item index="/template-market">
+              <el-icon><Box /></el-icon>
+              <span>模板市场</span>
+            </el-menu-item>
             <el-menu-item index="/telemetry">
             <el-icon><DataLine /></el-icon>
             <span>{{ $t('menu.telemetry') }}</span>
@@ -146,7 +154,7 @@ import { useSettingsStore } from '../stores/settings.js'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { loadPropertyMappings } from '../services/propertyMapper.js'
-import { MagicStick, Setting, SwitchButton, DataAnalysis, Filter } from '@element-plus/icons-vue'
+import { MagicStick, Setting, SwitchButton, DataAnalysis, Filter, Edit, Box } from '@element-plus/icons-vue'
 import { hasPermission } from '../utils/permission.js'
 
 const route = useRoute()
@@ -208,6 +216,8 @@ const pageTitle = computed(() => {
   const titles = {
     '/dashboard': '仪表盘',
     '/products': '产品管理',
+    '/thing-model': '物模型编辑器',
+    '/template-market': '模板市场',
     '/devices': '设备管理',
     '/telemetry': '遥测数据',
     '/sensors': '传感器监控',

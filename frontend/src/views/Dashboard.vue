@@ -8,6 +8,20 @@
       <el-button type="primary" :icon="FullScreen" @click="openBigScreen">进入大屏</el-button>
     </div>
 
+    <div class="greenhouse-tabs">
+      <el-tabs v-model="activeGreenhouse" @tab-change="handleGreenhouseChange" type="card">
+        <el-tab-pane label="🏠 农场总览" name="all">
+        </el-tab-pane>
+        <el-tab-pane
+          v-for="gh in greenhouses"
+          :key="gh.id"
+          :label="`${gh.active_alerts > 0 ? '🔴' : '🟢'} ${gh.name} (${gh.online_count}/${gh.device_count})`"
+          :name="String(gh.id)"
+        >
+        </el-tab-pane>
+      </el-tabs>
+    </div>
+
     <div class="stat-cards">
       <el-card class="stat-card stat-product">
         <div class="stat-inner">
@@ -198,6 +212,9 @@ const lastUpdateTime = ref('--')
 let trendChartInstance = null
 let currentDeviceId = null
 
+const activeGreenhouse = ref('all')
+const greenhouses = ref([])
+
 const modeText = computed(() => {
   const map = { manual: '手动模式', auto: '自动模式', eco: '节能模式' }
   return map[actuatorData.work_mode] || actuatorData.work_mode
@@ -219,16 +236,26 @@ function formatTime(time) {
   return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+function getGroupIdParam() {
+  return activeGreenhouse.value === 'all' ? null : parseInt(activeGreenhouse.value)
+}
+
 async function loadOverview() {
   try {
-    const resp = await api.get('/dashboard/overview')
+    const params = {}
+    const groupId = getGroupIdParam()
+    if (groupId !== null) params.group_id = groupId
+    const resp = await api.get('/dashboard/overview', { params })
     Object.assign(overview, resp.data)
   } catch (e) { console.error('Failed to load overview:', e) }
 }
 
 async function loadDeviceRealtime() {
   try {
-    const resp = await api.get('/dashboard/devices/realtime')
+    const params = {}
+    const groupId = getGroupIdParam()
+    if (groupId !== null) params.group_id = groupId
+    const resp = await api.get('/dashboard/devices/realtime', { params })
     const devices = resp.data.devices
     if (devices && devices.length > 0) {
       const device = devices[0]
@@ -260,16 +287,35 @@ async function loadDeviceRealtime() {
 
 async function loadAlertSummary() {
   try {
-    const resp = await api.get('/dashboard/alerts/summary')
+    const params = {}
+    const groupId = getGroupIdParam()
+    if (groupId !== null) params.group_id = groupId
+    const resp = await api.get('/dashboard/alerts/summary', { params })
     Object.assign(alertSummary, resp.data)
   } catch (e) { console.error('Failed to load alert summary:', e) }
 }
 
 async function loadRecentAlerts() {
   try {
-    const resp = await api.get('/dashboard/alerts/recent', { params: { limit: 5 } })
+    const params = { limit: 5 }
+    const groupId = getGroupIdParam()
+    if (groupId !== null) params.group_id = groupId
+    const resp = await api.get('/dashboard/alerts/recent', { params })
     recentAlerts.value = resp.data.alerts || []
   } catch (e) { console.error('Failed to load recent alerts:', e) }
+}
+
+async function loadGreenhouses() {
+  try {
+    const resp = await api.get('/dashboard/greenhouses')
+    greenhouses.value = resp.data.greenhouses || []
+  } catch (e) { console.error('Failed to load greenhouses:', e) }
+}
+
+function handleGreenhouseChange(val) {
+  activeGreenhouse.value = val
+  currentDeviceId = null
+  refreshAll()
 }
 
 async function loadTrendData() {
@@ -378,6 +424,7 @@ async function refreshAll() {
 }
 
 onMounted(async () => {
+  await loadGreenhouses()
   await refreshAll()
   await nextTick()
   await loadTrendData()
@@ -395,6 +442,43 @@ onUnmounted(() => {
 
 <style scoped>
 .dashboard { padding: 0; }
+
+.greenhouse-tabs {
+  margin-bottom: 20px;
+}
+
+.greenhouse-tabs :deep(.el-tabs__header) {
+  border-bottom: 2px solid #e4e7ed;
+}
+
+.greenhouse-tabs :deep(.el-tabs__nav-wrap::after) {
+  display: none;
+}
+
+.greenhouse-tabs :deep(.el-tabs__item) {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 12px 20px;
+  margin-right: 8px;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.3s;
+  color: #606266;
+}
+
+.greenhouse-tabs :deep(.el-tabs__item:hover) {
+  color: #409eff;
+  background: #ecf5ff;
+}
+
+.greenhouse-tabs :deep(.el-tabs__item.is-active) {
+  color: #fff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom: none;
+}
+
+.greenhouse-tabs :deep(.el-tabs__active-bar) {
+  display: none;
+}
 
 .page-header {
   display: flex;

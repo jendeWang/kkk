@@ -15,6 +15,8 @@ const routes = [
     children: [
       { path: 'dashboard', name: 'Dashboard', component: () => import('../views/Dashboard.vue') },
       { path: 'products', name: 'Products', component: () => import('../views/Products.vue') },
+      { path: 'thing-model', name: 'ThingModel', component: () => import('../views/ThingModelEditor.vue') },
+      { path: 'template-market', name: 'TemplateMarket', component: () => import('../views/TemplateMarket.vue') },
       { path: 'devices', name: 'Devices', component: () => import('../views/Devices.vue') },
       { path: 'telemetry', name: 'Telemetry', component: () => import('../views/Telemetry.vue') },
       { path: 'sensors', name: 'Sensors', component: () => import('../views/Sensors.vue') },
