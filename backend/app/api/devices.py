@@ -343,23 +343,43 @@ async def send_command_to_device(
             input_params = params or {}
             now = datetime.utcnow()
             
-            if service == "set_fan" and "status" in input_params:
-                reported["fan_status"] = input_params["status"]
+            status_val = input_params.get("status", input_params.get("value"))
+            
+            if service in ("set_fan", "fan_switch") and status_val is not None:
+                reported["fan_status"] = bool(status_val) or status_val == 1 or status_val == "1"
                 new_command.status = CommandStatus.EXECUTED
                 new_command.executed_at = now
                 if not mqtt_success:
                     new_command.sent_at = now
-            elif service == "set_light":
-                if "status" in input_params:
-                    reported["light_status"] = input_params["status"]
+            elif service in ("set_light", "light_switch"):
+                if status_val is not None:
+                    reported["light_status"] = bool(status_val) or status_val == 1 or status_val == "1"
                 if "brightness" in input_params:
                     reported["brightness"] = input_params["brightness"]
                 new_command.status = CommandStatus.EXECUTED
                 new_command.executed_at = now
                 if not mqtt_success:
                     new_command.sent_at = now
-            elif service == "set_pump" and "status" in input_params:
-                reported["pump_status"] = input_params["status"]
+            elif service in ("set_pump", "pump_switch") and status_val is not None:
+                reported["pump_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
+            elif service in ("set_curtain", "curtain_switch") and status_val is not None:
+                reported["curtain_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
+            elif service in ("set_valve", "valve_switch") and status_val is not None:
+                reported["valve_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
+            elif service in ("set_heater", "heater_switch") and status_val is not None:
+                reported["heater_status"] = bool(status_val) or status_val == 1 or status_val == "1"
                 new_command.status = CommandStatus.EXECUTED
                 new_command.executed_at = now
                 if not mqtt_success:
@@ -538,19 +558,33 @@ async def batch_send_commands(
                 input_params = params or {}
                 now = datetime.utcnow()
                 
-                if service == "set_fan" and "status" in input_params:
-                    reported["fan_status"] = input_params["status"]
+                status_val = input_params.get("status", input_params.get("value"))
+                
+                if service in ("set_fan", "fan_switch") and status_val is not None:
+                    reported["fan_status"] = bool(status_val) or status_val == 1 or status_val == "1"
                     new_command.status = CommandStatus.EXECUTED
                     new_command.executed_at = now
-                elif service == "set_light":
-                    if "status" in input_params:
-                        reported["light_status"] = input_params["status"]
+                elif service in ("set_light", "light_switch"):
+                    if status_val is not None:
+                        reported["light_status"] = bool(status_val) or status_val == 1 or status_val == "1"
                     if "brightness" in input_params:
                         reported["brightness"] = input_params["brightness"]
                     new_command.status = CommandStatus.EXECUTED
                     new_command.executed_at = now
-                elif service == "set_pump" and "status" in input_params:
-                    reported["pump_status"] = input_params["status"]
+                elif service in ("set_pump", "pump_switch") and status_val is not None:
+                    reported["pump_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                    new_command.status = CommandStatus.EXECUTED
+                    new_command.executed_at = now
+                elif service in ("set_curtain", "curtain_switch") and status_val is not None:
+                    reported["curtain_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                    new_command.status = CommandStatus.EXECUTED
+                    new_command.executed_at = now
+                elif service in ("set_valve", "valve_switch") and status_val is not None:
+                    reported["valve_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                    new_command.status = CommandStatus.EXECUTED
+                    new_command.executed_at = now
+                elif service in ("set_heater", "heater_switch") and status_val is not None:
+                    reported["heater_status"] = bool(status_val) or status_val == 1 or status_val == "1"
                     new_command.status = CommandStatus.EXECUTED
                     new_command.executed_at = now
                 elif service == "set_mode" and "mode" in input_params:

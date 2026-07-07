@@ -84,6 +84,7 @@
                 <el-radio-button label="soil_temperature">地温</el-radio-button>
                 <el-radio-button label="soil_ph">pH</el-radio-button>
                 <el-radio-button label="wind_speed">风速</el-radio-button>
+                <el-radio-button label="rainfall">雨量</el-radio-button>
               </el-radio-group>
             </div>
           </template>
@@ -186,7 +187,7 @@ const deviceStore = useDeviceStore()
 const router = useRouter()
 
 const overview = reactive({ total_products: 0, total_devices: 0, online_devices: 0, offline_devices: 0, active_alerts: 0, today_alerts: 0 })
-const sensorData = reactive({ temperature: 0, humidity: 0, light_intensity: 0, soil_moisture: 0, co2: 0, soil_temperature: 0 })
+const sensorData = reactive({ temperature: 0, humidity: 0, light_intensity: 0, soil_moisture: 0, co2: 0, soil_temperature: 0, soil_ph: 0, wind_speed: 0, rainfall: 0 })
 const actuatorData = reactive({ fan_status: false, light_status: false, pump_status: false, brightness: 0, work_mode: 'manual' })
 const alertSummary = reactive({ critical_count: 0, error_count: 0, warning_count: 0, info_count: 0, today_total: 0, last_7d_total: 0 })
 
@@ -239,7 +240,10 @@ async function loadDeviceRealtime() {
           light_intensity: device.reported.light_intensity ?? 0,
           soil_moisture: device.reported.soil_moisture ?? 0,
           co2: device.reported.co2 ?? 0,
-          soil_temperature: device.reported.soil_temperature ?? 0
+          soil_temperature: device.reported.soil_temperature ?? 0,
+          soil_ph: device.reported.soil_ph ?? 0,
+          wind_speed: device.reported.wind_speed ?? 0,
+          rainfall: device.reported.rainfall ?? 0
         })
         Object.assign(actuatorData, {
           fan_status: device.reported.fan_status ?? false,
@@ -289,7 +293,11 @@ function updateTrendChart(data) {
     temperature: { name: '温度', unit: '°C', color: '#f56c6c' },
     humidity: { name: '湿度', unit: '%', color: '#409eff' },
     soil_moisture: { name: '土壤湿度', unit: '%', color: '#67c23a' },
-    co2: { name: 'CO₂浓度', unit: 'ppm', color: '#e6a23c' }
+    co2: { name: 'CO₂浓度', unit: 'ppm', color: '#e6a23c' },
+    soil_temperature: { name: '土壤温度', unit: '°C', color: '#f78989' },
+    soil_ph: { name: '土壤pH', unit: 'pH', color: '#b37feb' },
+    wind_speed: { name: '风速', unit: 'm/s', color: '#36cfc9' },
+    rainfall: { name: '雨量', unit: 'mm', color: '#597ef7' }
   }
   const prop = propNames[trendProperty.value] || { name: '', unit: '', color: '#409eff' }
 

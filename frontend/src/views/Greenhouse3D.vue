@@ -1,6 +1,14 @@
 <template>
   <div class="greenhouse-3d">
-    <div ref="containerRef" class="canvas-container"></div>
+    <div ref="containerRef" class="canvas-container" v-show="webglSupported"></div>
+    <div v-if="!webglSupported" class="webgl-fallback">
+      <div class="fallback-content">
+        <div class="fallback-icon">🎮</div>
+        <h2>3D渲染不可用</h2>
+        <p>{{ initError || '当前浏览器不支持WebGL，无法显示3D场景' }}</p>
+        <p class="fallback-tip">请使用支持WebGL的现代浏览器查看最佳效果</p>
+      </div>
+    </div>
 
     <div class="hud-overlay">
       <!-- 顶部标题 -->
@@ -71,6 +79,13 @@
               <div class="env-unit">m/s</div>
               <div class="env-label">风速</div>
               <div class="env-status" :class="envData.windSpeed > 10 ? 'danger' : envData.windSpeed > 5 ? 'warning' : 'normal'"></div>
+            </div>
+            <div class="env-card rainfall">
+              <div class="env-icon">🌧️</div>
+              <div class="env-val">{{ envData.rainfall ? envData.rainfall.toFixed(1) : '--' }}</div>
+              <div class="env-unit">mm</div>
+              <div class="env-label">雨量</div>
+              <div class="env-status" :class="envData.rainfall > 20 ? 'danger' : envData.rainfall > 10 ? 'warning' : 'normal'"></div>
             </div>
           </div>
         </div>
@@ -155,6 +170,8 @@ const autoRotate = ref(false)
 
 const envData = reactive({ temperature: 0, humidity: 0, light: 0, soil: 0, co2: 0, soilTemp: 0, soilPh: 0, windSpeed: 0, rainfall: 0 })
 const deviceState = reactive({ fan: true, light: false, curtain: false, pump: false, valve: false, heater: false })
+const webglSupported = ref(true)
+const initError = ref('')
 
 const tempStatus = computed(() => envData.temperature > 35 ? 'danger' : envData.temperature > 30 ? 'warning' : 'normal')
 const soilStatus = computed(() => envData.soil < 30 ? 'warning' : 'normal')
@@ -176,62 +193,79 @@ function updateTime() {
 }
 
 function init() {
-  const container = containerRef.value
-  const width = container.clientWidth
-  const height = container.clientHeight
+  try {
+    const testCanvas = document.createElement('canvas')
+    const gl = testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl')
+    if (!gl) throw new Error('WebGL not supported')
+  } catch (e) {
+    webglSupported.value = false
+    initError.value = e.message || 'WebGL初始化失败'
+    console.warn('WebGL not available:', e)
+    return
+  }
 
-  scene = new THREE.Scene()
-  scene.background = new THREE.Color(0x070e1a)
-  scene.fog = new THREE.FogExp2(0x070e1a, 0.015)
+  try {
+    const container = containerRef.value
+    const width = container.clientWidth
+    const height = container.clientHeight
 
-  camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000)
-  camera.position.set(14, 10, 16)
+    scene = new THREE.Scene()
+    scene.background = new THREE.Color(0x070e1a)
+    scene.fog = new THREE.FogExp2(0x070e1a, 0.015)
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
-  renderer.setSize(width, height)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap
-  renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 1.2
-  container.appendChild(renderer.domElement)
+    camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000)
+    camera.position.set(14, 10, 16)
 
-  labelRenderer = new CSS2DRenderer()
-  labelRenderer.setSize(width, height)
-  labelRenderer.domElement.style.position = 'absolute'
-  labelRenderer.domElement.style.top = '0'
-  labelRenderer.domElement.style.pointerEvents = 'none'
-  container.appendChild(labelRenderer.domElement)
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+    renderer.setSize(width, height)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.shadowMap.enabled = true
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = 1.2
+    container.appendChild(renderer.domElement)
 
-  controls = new OrbitControls(camera, renderer.domElement)
-  controls.enableDamping = true
-  controls.dampingFactor = 0.06
-  controls.minDistance = 5
-  controls.maxDistance = 40
-  controls.maxPolarAngle = Math.PI / 2.1
-  controls.target.set(0, 2, 0)
+    labelRenderer = new CSS2DRenderer()
+    labelRenderer.setSize(width, height)
+    labelRenderer.domElement.style.position = 'absolute'
+    labelRenderer.domElement.style.top = '0'
+    labelRenderer.domElement.style.pointerEvents = 'none'
+    container.appendChild(labelRenderer.domElement)
 
-  // 光照
-  scene.add(new THREE.AmbientLight(0x334466, 0.5))
-  const dirLight = new THREE.DirectionalLight(0xffeedd, 0.7)
-  dirLight.position.set(8, 18, 10)
-  dirLight.castShadow = true
-  dirLight.shadow.mapSize.set(2048, 2048)
-  dirLight.shadow.camera.near = 0.5
-  dirLight.shadow.camera.far = 50
-  dirLight.shadow.camera.left = -20
-  dirLight.shadow.camera.right = 20
-  dirLight.shadow.camera.top = 20
-  dirLight.shadow.camera.bottom = -20
-  scene.add(dirLight)
-  scene.add(new THREE.HemisphereLight(0x6699cc, 0x223322, 0.3))
+    controls = new OrbitControls(camera, renderer.domElement)
+    controls.enableDamping = true
+    controls.dampingFactor = 0.06
+    controls.minDistance = 5
+    controls.maxDistance = 40
+    controls.maxPolarAngle = Math.PI / 2.1
+    controls.target.set(0, 2, 0)
 
-  createGround()
-  createGreenhouse()
-  createPlants()
-  createSensors()
-  createWaterParticles()
-  animate()
+    // 光照
+    scene.add(new THREE.AmbientLight(0x334466, 0.5))
+    const dirLight = new THREE.DirectionalLight(0xffeedd, 0.7)
+    dirLight.position.set(8, 18, 10)
+    dirLight.castShadow = true
+    dirLight.shadow.mapSize.set(2048, 2048)
+    dirLight.shadow.camera.near = 0.5
+    dirLight.shadow.camera.far = 50
+    dirLight.shadow.camera.left = -20
+    dirLight.shadow.camera.right = 20
+    dirLight.shadow.camera.top = 20
+    dirLight.shadow.camera.bottom = -20
+    scene.add(dirLight)
+    scene.add(new THREE.HemisphereLight(0x6699cc, 0x223322, 0.3))
+
+    createGround()
+    createGreenhouse()
+    createPlants()
+    createSensors()
+    createWaterParticles()
+    animate()
+  } catch (e) {
+    webglSupported.value = false
+    initError.value = e.message || '3D场景初始化失败'
+    console.error('3D init error:', e)
+  }
 }
 
 function createGround() {
@@ -687,17 +721,19 @@ function resetCamera() { camera.position.set(14, 10, 16); controls.target.set(0,
 function toggleAutoRotate() { autoRotate.value = !autoRotate.value }
 function goBack() { router.push('/dashboard') }
 
-function toggleFan(v) { deviceState.fan = v; sendCmd('fan_switch', v ? 1 : 0) }
-function toggleLight(v) { deviceState.light = v; sync3DState(); sendCmd('light_switch', v ? 1 : 0) }
-function toggleCurtain(v) { deviceState.curtain = v; sendCmd('curtain_switch', v ? 1 : 0) }
-function togglePump(v) { deviceState.pump = v; sendCmd('set_pump', v ? 1 : 0) }
-function toggleValve(v) { deviceState.valve = v; sendCmd('set_valve', v ? 1 : 0) }
-function toggleHeater(v) { deviceState.heater = v; sendCmd('set_heater', v ? 1 : 0) }
+function toggleFan(v) { deviceState.fan = v; sendCmd('set_fan', v) }
+function toggleLight(v) { deviceState.light = v; sync3DState(); sendCmd('set_light', v) }
+function toggleCurtain(v) { deviceState.curtain = v; sendCmd('set_curtain', v) }
+function togglePump(v) { deviceState.pump = v; sendCmd('set_pump', v) }
+function toggleValve(v) { deviceState.valve = v; sendCmd('set_valve', v) }
+function toggleHeater(v) { deviceState.heater = v; sendCmd('set_heater', v) }
 
 async function sendCmd(sid, val) {
   if (!deviceId.value) { ElMessage.warning('未检测到在线设备'); return }
-  try { await api.post('/commands/', { device_id: deviceId.value, service_identifier: sid, input_params: { value: String(val) } }); ElMessage.success('命令已下发') }
-  catch (e) { ElMessage.error('命令下发失败') }
+  try {
+    await api.post(`/devices/${deviceId.value}/commands`, { service_identifier: sid, input_params: { status: val } })
+    ElMessage.success('命令已下发')
+  } catch (e) { ElMessage.error('命令下发失败') }
 }
 
 function onResize() {
@@ -707,7 +743,12 @@ function onResize() {
   renderer.setSize(w, h); labelRenderer.setSize(w, h)
 }
 
-onMounted(async () => { init(); window.addEventListener('resize', onResize); await loadRealtimeData(); connectSSE() })
+onMounted(async () => {
+  init()
+  window.addEventListener('resize', onResize)
+  await loadRealtimeData()
+  connectSSE()
+})
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
   if (eventSource) { eventSource.close(); eventSource = null }
@@ -719,6 +760,12 @@ onUnmounted(() => {
 <style scoped>
 .greenhouse-3d { width:100%; height:100vh; position:relative; overflow:hidden; background:#070e1a; }
 .canvas-container { width:100%; height:100%; }
+.webgl-fallback { width:100%; height:100vh; display:flex; align-items:center; justify-content:center; background:#070e1a; }
+.fallback-content { text-align:center; color:#7a9abb; max-width:400px; padding:40px; }
+.fallback-icon { font-size:64px; margin-bottom:20px; }
+.fallback-content h2 { color:#00d4ff; font-size:20px; margin:0 0 16px 0; }
+.fallback-content p { font-size:14px; line-height:1.8; margin:8px 0; }
+.fallback-tip { color:#4a6a8a; font-size:12px !important; margin-top:20px !important; }
 .hud-overlay { position:absolute; inset:0; pointer-events:none; z-index:10; }
 
 /* 顶部 */

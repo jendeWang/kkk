@@ -101,21 +101,20 @@ class DeviceSimulator:
         ]
 
         for prop_id, default_val, min_val, max_val, max_change in sensor_configs:
-            if prop_id in reported:
-                base = reported.get(prop_id, default_val)
-                change = random.uniform(-max_change, max_change)
-                new_val = round(max(min_val, min(max_val, base + change)), 1 if max_change < 1 else 0)
-                reported[prop_id] = new_val
-                updated_props.append((prop_id, new_val))
-                
-                telemetry = Telemetry(
-                    device_id=device.id,
-                    property_identifier=prop_id,
-                    value=str(new_val),
-                    timestamp=now,
-                    quality="good"
-                )
-                db.add(telemetry)
+            base = reported.get(prop_id, default_val)
+            change = random.uniform(-max_change, max_change)
+            new_val = round(max(min_val, min(max_val, base + change)), 1 if max_change < 1 else 0)
+            reported[prop_id] = new_val
+            updated_props.append((prop_id, new_val))
+            
+            telemetry = Telemetry(
+                device_id=device.id,
+                property_identifier=prop_id,
+                value=str(new_val),
+                timestamp=now,
+                quality="good"
+            )
+            db.add(telemetry)
 
         shadow.reported = reported
         shadow.version += 1

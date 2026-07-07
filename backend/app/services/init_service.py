@@ -203,6 +203,67 @@ async def refresh_product_ui_specs(db: AsyncSession, product_id: int) -> int:
     return updated_count
 
 
+async def sync_product_services(db: AsyncSession, product_id: int) -> int:
+    """为产品同步缺失的服务定义，返回新增的服务数量"""
+    from sqlalchemy.orm import selectinload
+    from ..models.models import ProductService
+
+    result = await db.execute(
+        select(Product)
+        .options(selectinload(Product.services))
+        .where(Product.id == product_id)
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        return 0
+
+    existing_ids = {s.identifier for s in product.services}
+
+    expected_services = [
+        {"identifier": "set_fan", "name": "设置通风扇", "description": "开启或关闭通风扇",
+         "input_params": [{"identifier": "status", "name": "状态", "dataType": "bool", "specs": {}}],
+         "output_params": [{"identifier": "result", "name": "执行结果", "dataType": "string", "specs": {}}]},
+        {"identifier": "set_light", "name": "设置补光灯", "description": "控制补光灯开关和亮度",
+         "input_params": [
+             {"identifier": "status", "name": "开关状态", "dataType": "bool", "specs": {}},
+             {"identifier": "brightness", "name": "亮度", "dataType": "int", "specs": {"min": 0, "max": 100, "unit": "%"}},
+         ],
+         "output_params": [{"identifier": "result", "name": "执行结果", "dataType": "string", "specs": {}}]},
+        {"identifier": "set_pump", "name": "设置灌溉泵", "description": "控制灌溉水泵，可设置运行时长",
+         "input_params": [
+             {"identifier": "status", "name": "状态", "dataType": "bool", "specs": {}},
+             {"identifier": "duration", "name": "持续时间", "dataType": "int", "specs": {"min": 0, "unit": "秒"}},
+         ],
+         "output_params": [{"identifier": "result", "name": "执行结果", "dataType": "string", "specs": {}}]},
+        {"identifier": "set_curtain", "name": "设置遮阳帘", "description": "控制遮阳帘开合",
+         "input_params": [{"identifier": "status", "name": "状态", "dataType": "bool", "specs": {}}],
+         "output_params": [{"identifier": "result", "name": "执行结果", "dataType": "string", "specs": {}}]},
+        {"identifier": "set_valve", "name": "设置电磁阀", "description": "控制滴灌电磁阀开关",
+         "input_params": [{"identifier": "status", "name": "状态", "dataType": "bool", "specs": {}}],
+         "output_params": [{"identifier": "result", "name": "执行结果", "dataType": "string", "specs": {}}]},
+        {"identifier": "set_heater", "name": "设置加热膜", "description": "控制加热膜开关",
+         "input_params": [{"identifier": "status", "name": "状态", "dataType": "bool", "specs": {}}],
+         "output_params": [{"identifier": "result", "name": "执行结果", "dataType": "string", "specs": {}}]},
+        {"identifier": "set_mode", "name": "设置工作模式", "description": "切换手动/自动模式",
+         "input_params": [{"identifier": "mode", "name": "模式", "dataType": "enum", "specs": {"enum": ["manual", "auto"]}}],
+         "output_params": [{"identifier": "result", "name": "执行结果", "dataType": "string", "specs": {}}]},
+        {"identifier": "raw_command", "name": "自定义命令", "description": "发送自定义JSON命令",
+         "input_params": [{"identifier": "data", "name": "命令数据", "dataType": "string", "specs": {}}],
+         "output_params": [{"identifier": "result", "name": "响应数据", "dataType": "string", "specs": {}}]},
+    ]
+
+    added_count = 0
+    for svc in expected_services:
+        if svc["identifier"] not in existing_ids:
+            db.add(ProductService(product_id=product.id, **svc))
+            added_count += 1
+
+    if added_count > 0:
+        await db.commit()
+
+    return added_count
+
+
 async def init_default_user(db: AsyncSession):
     """创建默认管理员用户"""
     result = await db.execute(select(User).where(User.username == "admin"))
@@ -241,10 +302,11 @@ async def init_greenhouse_product(db: AsyncSession):
     existing = product_result.scalar_one_or_none()
     if existing:
         updated = await refresh_product_ui_specs(db, existing.id)
-        if updated > 0:
-            print(f"[Init] Smart Greenhouse product UI specs updated: {updated} properties")
+        added = await sync_product_services(db, existing.id)
+        if updated > 0 or added > 0:
+            print(f"[Init] Smart Greenhouse product updated: {updated} UI specs, {added} services")
         else:
-            print("[Init] Smart Greenhouse product already exists, UI specs up to date")
+            print("[Init] Smart Greenhouse product already exists, up to date")
         return
 
     product = Product(
