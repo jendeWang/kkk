@@ -51,6 +51,27 @@
               <div class="env-label">CO2</div>
               <div class="env-status normal"></div>
             </div>
+            <div class="env-card soil-temp">
+              <div class="env-icon">🪴</div>
+              <div class="env-val">{{ envData.soilTemp ? envData.soilTemp.toFixed(1) : '--' }}</div>
+              <div class="env-unit">°C</div>
+              <div class="env-label">地温</div>
+              <div class="env-status normal"></div>
+            </div>
+            <div class="env-card soil-ph">
+              <div class="env-icon">⚗️</div>
+              <div class="env-val">{{ envData.soilPh ? envData.soilPh.toFixed(1) : '--' }}</div>
+              <div class="env-unit">pH</div>
+              <div class="env-label">酸碱度</div>
+              <div class="env-status" :class="envData.soilPh < 5.5 || envData.soilPh > 7.5 ? 'warning' : 'normal'"></div>
+            </div>
+            <div class="env-card wind">
+              <div class="env-icon">🌬️</div>
+              <div class="env-val">{{ envData.windSpeed ? envData.windSpeed.toFixed(1) : '--' }}</div>
+              <div class="env-unit">m/s</div>
+              <div class="env-label">风速</div>
+              <div class="env-status" :class="envData.windSpeed > 10 ? 'danger' : envData.windSpeed > 5 ? 'warning' : 'normal'"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -78,6 +99,16 @@
             <span class="device-icon">💧</span>
             <span class="device-name">灌溉泵</span>
             <el-switch v-model="deviceState.pump" @change="togglePump" active-color="#67c23a" />
+          </div>
+          <div class="device-item">
+            <span class="device-icon">🔧</span>
+            <span class="device-name">电磁阀</span>
+            <el-switch v-model="deviceState.valve" @change="toggleValve" active-color="#e6a23c" />
+          </div>
+          <div class="device-item">
+            <span class="device-icon">🔥</span>
+            <span class="device-name">加热膜</span>
+            <el-switch v-model="deviceState.heater" @change="toggleHeater" active-color="#f56c6c" />
           </div>
         </div>
 
@@ -122,8 +153,8 @@ const deviceId = ref(null)
 const connected = ref(false)
 const autoRotate = ref(false)
 
-const envData = reactive({ temperature: 0, humidity: 0, light: 0, soil: 0, co2: 0 })
-const deviceState = reactive({ fan: true, light: false, curtain: false, pump: false })
+const envData = reactive({ temperature: 0, humidity: 0, light: 0, soil: 0, co2: 0, soilTemp: 0, soilPh: 0, windSpeed: 0, rainfall: 0 })
+const deviceState = reactive({ fan: true, light: false, curtain: false, pump: false, valve: false, heater: false })
 
 const tempStatus = computed(() => envData.temperature > 35 ? 'danger' : envData.temperature > 30 ? 'warning' : 'normal')
 const soilStatus = computed(() => envData.soil < 30 ? 'warning' : 'normal')
@@ -611,6 +642,10 @@ async function loadRealtimeData() {
       else if (item.property_identifier === 'light_intensity') envData.light = v
       else if (item.property_identifier === 'soil_moisture') envData.soil = v
       else if (item.property_identifier === 'co2') envData.co2 = v
+      else if (item.property_identifier === 'soil_temperature') envData.soilTemp = v
+      else if (item.property_identifier === 'soil_ph') envData.soilPh = v
+      else if (item.property_identifier === 'wind_speed') envData.windSpeed = v
+      else if (item.property_identifier === 'rainfall') envData.rainfall = v
     }
     updateSensorLabels()
   } catch (e) { console.warn('Load data failed:', e) }
@@ -630,11 +665,17 @@ function connectSSE() {
         else if (p === 'humidity') envData.humidity = v
         else if (p === 'light_intensity') envData.light = v
         else if (p === 'soil_moisture') envData.soil = v
-        else if (p === 'co2') envData.coil = v
-        else if (p === 'fan_switch') deviceState.fan = v === 1
-        else if (p === 'light_switch') deviceState.light = v === 1
-        else if (p === 'curtain_switch') deviceState.curtain = v === 1
-        else if (p === 'pump_switch') deviceState.pump = v === 1
+        else if (p === 'co2') envData.co2 = v
+        else if (p === 'soil_temperature') envData.soilTemp = v
+        else if (p === 'soil_ph') envData.soilPh = v
+        else if (p === 'wind_speed') envData.windSpeed = v
+        else if (p === 'rainfall') envData.rainfall = v
+        else if (p === 'fan_status' || p === 'fan_switch') deviceState.fan = v === 1 || v === true
+        else if (p === 'light_status' || p === 'light_switch') deviceState.light = v === 1 || v === true
+        else if (p === 'curtain_status' || p === 'curtain_switch') deviceState.curtain = v === 1 || v === true
+        else if (p === 'pump_status' || p === 'pump_switch') deviceState.pump = v === 1 || v === true
+        else if (p === 'valve_status' || p === 'valve_switch') deviceState.valve = v === 1 || v === true
+        else if (p === 'heater_status' || p === 'heater_switch') deviceState.heater = v === 1 || v === true
         updateSensorLabels()
       } catch (e) {}
     }
@@ -649,7 +690,9 @@ function goBack() { router.push('/dashboard') }
 function toggleFan(v) { deviceState.fan = v; sendCmd('fan_switch', v ? 1 : 0) }
 function toggleLight(v) { deviceState.light = v; sync3DState(); sendCmd('light_switch', v ? 1 : 0) }
 function toggleCurtain(v) { deviceState.curtain = v; sendCmd('curtain_switch', v ? 1 : 0) }
-function togglePump(v) { deviceState.pump = v; sendCmd('pump_switch', v ? 1 : 0) }
+function togglePump(v) { deviceState.pump = v; sendCmd('set_pump', v ? 1 : 0) }
+function toggleValve(v) { deviceState.valve = v; sendCmd('set_valve', v ? 1 : 0) }
+function toggleHeater(v) { deviceState.heater = v; sendCmd('set_heater', v ? 1 : 0) }
 
 async function sendCmd(sid, val) {
   if (!deviceId.value) { ElMessage.warning('未检测到在线设备'); return }
@@ -693,6 +736,9 @@ onUnmounted(() => {
 .env-card.light::before { background:linear-gradient(90deg,#ffd93d,#ffd93d00); }
 .env-card.soil::before { background:linear-gradient(90deg,#6bc46d,#6bc46d00); }
 .env-card.co2::before { background:linear-gradient(90deg,#a78bfa,#a78bfa00); }
+.env-card.soil-temp::before { background:linear-gradient(90deg,#8e44ad,#8e44ad00); }
+.env-card.soil-ph::before { background:linear-gradient(90deg,#9b59b6,#9b59b600); }
+.env-card.wind::before { background:linear-gradient(90deg,#3498db,#3498db00); }
 .env-icon { font-size:16px; }
 .env-val { color:#e6f1ff; font-size:18px; font-weight:700; font-family:monospace; line-height:1.2; }
 .env-unit { color:#5a7a99; font-size:11px; }

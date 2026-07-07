@@ -95,6 +95,9 @@ class DeviceSimulator:
             ("soil_moisture", 45.0, 20.0, 90.0, 0.8),
             ("co2", 800.0, 300.0, 2000.0, 50),
             ("soil_temperature", 22.0, 10.0, 35.0, 0.3),
+            ("soil_ph", 6.5, 4.0, 9.0, 0.05),
+            ("wind_speed", 2.0, 0.0, 15.0, 0.3),
+            ("rainfall", 0.0, 0.0, 20.0, 0.2),
         ]
 
         for prop_id, default_val, min_val, max_val, max_change in sensor_configs:
