@@ -1,0 +1,1 @@
+../views/BigScreen.vue

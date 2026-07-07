@@ -4,7 +4,11 @@ from contextlib import asynccontextmanager
 from .core.database import init_db, async_session_maker
 from .core.logging import setup_logging, get_logger
 from .core.config import settings
-from .api import auth, products, devices, telemetry, commands, alerts, apikeys, sse, dashboard, groups, scenes, topology, operation_logs, users
+from .modules.core.api import router as core_router
+from .modules.devices.api import router as devices_router
+from .modules.ai.api import router as ai_router
+from .modules.agents.api import router as agents_router
+from .modules.knowledge.api import router as knowledge_router
 from .services.init_service import init_default_user, init_greenhouse_product, init_default_group, init_default_scenes
 from .services.sse_service import sse_service
 from .services.simulator_service import simulator_service
@@ -51,20 +55,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
-app.include_router(products.router, prefix=settings.API_V1_PREFIX)
-app.include_router(devices.router, prefix=settings.API_V1_PREFIX)
-app.include_router(telemetry.router, prefix=settings.API_V1_PREFIX)
-app.include_router(commands.router, prefix=settings.API_V1_PREFIX)
-app.include_router(alerts.router, prefix=settings.API_V1_PREFIX)
-app.include_router(apikeys.router, prefix=settings.API_V1_PREFIX)
-app.include_router(sse.router, prefix=settings.API_V1_PREFIX)
-app.include_router(dashboard.router, prefix=settings.API_V1_PREFIX)
-app.include_router(groups.router, prefix=settings.API_V1_PREFIX)
-app.include_router(scenes.router, prefix=settings.API_V1_PREFIX)
-app.include_router(topology.router, prefix=settings.API_V1_PREFIX)
-app.include_router(operation_logs.router, prefix=settings.API_V1_PREFIX)
-app.include_router(users.router, prefix=settings.API_V1_PREFIX)
+app.include_router(core_router, prefix=settings.API_V1_PREFIX)
+app.include_router(devices_router, prefix=settings.API_V1_PREFIX)
+app.include_router(ai_router, prefix=settings.API_V1_PREFIX)
+app.include_router(agents_router, prefix=settings.API_V1_PREFIX)
+app.include_router(knowledge_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")
@@ -75,3 +70,16 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+@app.get("/services")
+async def list_services():
+    return {
+        "services": [
+            {"name": "core", "path": f"{settings.API_V1_PREFIX}/", "description": "核心服务（认证、用户、系统）"},
+            {"name": "devices", "path": f"{settings.API_V1_PREFIX}/", "description": "设备服务（设备管理、遥测、命令）"},
+            {"name": "ai", "path": f"{settings.API_V1_PREFIX}/ai", "description": "AI推理服务"},
+            {"name": "agents", "path": f"{settings.API_V1_PREFIX}/agents", "description": "多智能体服务"},
+            {"name": "knowledge", "path": f"{settings.API_V1_PREFIX}/knowledge", "description": "知识图谱服务"},
+        ]
+    }

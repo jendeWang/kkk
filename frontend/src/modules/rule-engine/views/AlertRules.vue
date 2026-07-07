@@ -1,0 +1,1 @@
+../views/AlertRules.vue

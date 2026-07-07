@@ -11,6 +11,9 @@
     </div>
 
     <div class="hud-overlay">
+      <!-- 告警闪烁层 -->
+      <div v-if="alertActive" class="alert-flash-overlay"></div>
+
       <!-- 顶部标题 -->
       <div class="hud-header">
         <div class="header-deco left"></div>
@@ -137,6 +140,33 @@
         </div>
       </div>
 
+      <!-- 设备信息弹窗 -->
+      <div v-if="selectedDevice" class="device-info-popup" @click.self="closeDeviceInfo">
+        <div class="popup-header">
+          <span class="popup-icon">{{ selectedDevice.icon }}</span>
+          <span class="popup-title">{{ selectedDevice.name }}</span>
+          <button class="popup-close" @click="closeDeviceInfo">✕</button>
+        </div>
+        <div class="popup-content">
+          <div class="info-row">
+            <span class="info-label">状态</span>
+            <span class="info-value" :class="selectedDevice.state ? 'active' : 'inactive'">{{ selectedDevice.state ? '运行中' : '停止' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">位置</span>
+            <span class="info-value">{{ selectedDevice.location }}</span>
+          </div>
+          <div v-if="selectedDevice.detail" class="info-row">
+            <span class="info-label">详情</span>
+            <span class="info-value">{{ selectedDevice.detail }}</span>
+          </div>
+          <div class="popup-actions">
+            <el-button size="small" @click="toggleSelectedDevice">{{ selectedDevice.state ? '关闭' : '开启' }}</el-button>
+            <el-button size="small" @click="closeDeviceInfo">关闭</el-button>
+          </div>
+        </div>
+      </div>
+
       <!-- 底部状态栏 -->
       <div class="hud-bottom">
         <div class="status-bar">
@@ -146,6 +176,8 @@
           <span class="status-item">📡 {{ connected ? '1 设备在线' : '无在线设备' }}</span>
           <span class="status-divider">|</span>
           <span class="status-item">{{ envData.temperature ? '实时同步' : '加载中...' }}</span>
+          <span class="status-divider">|</span>
+          <span class="status-item">🖱️ 点击设备查看详情</span>
         </div>
       </div>
     </div>
@@ -167,11 +199,15 @@ const currentTime = ref('')
 const deviceId = ref(null)
 const connected = ref(false)
 const autoRotate = ref(false)
+const alertActive = ref(false)
 
 const envData = reactive({ temperature: 0, humidity: 0, light: 0, soil: 0, co2: 0, soilTemp: 0, soilPh: 0, windSpeed: 0, rainfall: 0 })
 const deviceState = reactive({ fan: true, light: false, curtain: false, pump: false, valve: false, heater: false })
 const webglSupported = ref(true)
 const initError = ref('')
+
+const selectedDevice = ref(null)
+const rippleParticles = ref([])
 
 const tempStatus = computed(() => envData.temperature > 35 ? 'danger' : envData.temperature > 30 ? 'warning' : 'normal')
 const soilStatus = computed(() => envData.soil < 30 ? 'warning' : 'normal')
@@ -182,6 +218,17 @@ let sensorLabels = []
 let eventSource = null
 let lastSensorUpdate = 0
 let clock = new THREE.Clock()
+let raycaster, mouse
+let deviceMeshes = {}
+
+const deviceInfoMap = {
+  fan: { name: '通风风扇', icon: '🌀', location: '左侧墙壁', state: () => deviceState.fan, detail: '转速: 1200rpm', toggle: () => toggleFan(!deviceState.fan) },
+  light: { name: '补光灯', icon: '💡', location: '顶棚下方', state: () => deviceState.light, detail: '亮度: 100%', toggle: () => toggleLight(!deviceState.light) },
+  curtain: { name: '遮阳帘', icon: '🪟', location: '顶棚内侧', state: () => deviceState.curtain, detail: '开度: 50%', toggle: () => toggleCurtain(!deviceState.curtain) },
+  pump: { name: '灌溉泵', icon: '💧', location: '右侧角落', state: () => deviceState.pump, detail: '流量: 10L/min', toggle: () => togglePump(!deviceState.pump) },
+  valve: { name: '电磁阀', icon: '🔧', location: '左侧角落', state: () => deviceState.valve, detail: '开度: 100%', toggle: () => toggleValve(!deviceState.valve) },
+  heater: { name: '加热膜', icon: '🔥', location: '地面下方', state: () => deviceState.heater, detail: '温度: 35°C', toggle: () => toggleHeater(!deviceState.heater) },
+}
 
 function updateTime() {
   const now = new Date()
@@ -238,6 +285,10 @@ function init() {
     controls.maxDistance = 40
     controls.maxPolarAngle = Math.PI / 2.1
     controls.target.set(0, 2, 0)
+
+    raycaster = new THREE.Raycaster()
+    mouse = new THREE.Vector2()
+    renderer.domElement.addEventListener('click', onCanvasClick)
 
     // 光照
     scene.add(new THREE.AmbientLight(0x334466, 0.5))
@@ -429,6 +480,12 @@ function createGreenhouse() {
   hub.rotation.z = Math.PI / 2
   fanBladeGroup.add(hub)
   fanGroup.add(fanBladeGroup)
+  // 点击识别框
+  const fanHitBox = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.2, 16), new THREE.MeshBasicMaterial({ visible: false }))
+  fanHitBox.rotation.z = Math.PI / 2
+  fanHitBox.userData = { deviceType: 'fan', originalColor: 0x3a4a5a }
+  fanGroup.add(fanHitBox)
+  deviceMeshes.fan = fanHitBox
   fanGroup.position.set(-W / 2 - 0.08, 2.0, -1.5)
   fanGroup.rotation.y = Math.PI / 2
   greenhouseGroup.add(fanGroup)
@@ -456,7 +513,11 @@ function createGreenhouse() {
     // 点光源
     const pl = new THREE.PointLight(0xffdd88, 0, 8, 2)
     bg.add(pl)
-    bg.userData = { bulb, pointLight: pl }
+    // 点击识别框
+    const hitBox = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), new THREE.MeshBasicMaterial({ visible: false }))
+    hitBox.userData = { deviceType: 'light', originalColor: 0x555555 }
+    bg.add(hitBox)
+    bg.userData = { bulb, pointLight: pl, hitBox }
     bg.position.set(...pos)
     lightBulbs.push(bg)
     greenhouseGroup.add(bg)
@@ -474,6 +535,11 @@ function createGreenhouse() {
   const cRight = new THREE.Mesh(cGeo, curtainMat)
   cRight.position.set(W / 4 + 0.25, (H - 0.5) / 2, 0)
   curtainMesh.add(cRight)
+  // 点击识别框
+  const curtainHitBox = new THREE.Mesh(new THREE.BoxGeometry(W, H - 0.5, 0.1), new THREE.MeshBasicMaterial({ visible: false }))
+  curtainHitBox.userData = { deviceType: 'curtain', originalColor: 0x2a3a4a }
+  curtainMesh.add(curtainHitBox)
+  deviceMeshes.curtain = curtainHitBox
   curtainMesh.position.y = H - 0.25
   greenhouseGroup.add(curtainMesh)
 
@@ -493,6 +559,12 @@ function createGreenhouse() {
   const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.15, 8), pipeMat)
   nozzle.position.set(0, 1.3, 0)
   pumpGroup.add(nozzle)
+  // 点击识别框
+  const pumpHitBox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.6, 0.8), new THREE.MeshBasicMaterial({ visible: false }))
+  pumpHitBox.position.y = 0.8
+  pumpHitBox.userData = { deviceType: 'pump', originalColor: 0x2a6e3f }
+  pumpGroup.add(pumpHitBox)
+  deviceMeshes.pump = pumpHitBox
   pumpGroup.position.set(4.5, 0, 3)
   greenhouseGroup.add(pumpGroup)
 
@@ -507,7 +579,13 @@ function createGreenhouse() {
   const valvePointLight = new THREE.PointLight(0xffaa00, 0, 2)
   valvePointLight.position.y = 0.4
   valveLightGroup.add(valvePointLight)
-  valveLightGroup.userData = { light: valveLight, pointLight: valvePointLight }
+  // 点击识别框
+  const valveHitBox = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), new THREE.MeshBasicMaterial({ visible: false }))
+  valveHitBox.position.y = 0.3
+  valveHitBox.userData = { deviceType: 'valve', originalColor: 0xffaa00 }
+  valveLightGroup.add(valveHitBox)
+  deviceMeshes.valve = valveHitBox
+  valveLightGroup.userData = { light: valveLight, pointLight: valvePointLight, hitBox: valveHitBox }
   valveLightGroup.position.set(-4, 0.2, 3)
   statusLights.valve = valveLightGroup
   greenhouseGroup.add(valveLightGroup)
@@ -523,7 +601,13 @@ function createGreenhouse() {
   const heaterPointLight = new THREE.PointLight(0xff4444, 0, 2)
   heaterPointLight.position.y = 0.4
   heaterLightGroup.add(heaterPointLight)
-  heaterLightGroup.userData = { light: heaterLight, pointLight: heaterPointLight }
+  // 点击识别框
+  const heaterHitBox = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), new THREE.MeshBasicMaterial({ visible: false }))
+  heaterHitBox.position.y = 0.3
+  heaterHitBox.userData = { deviceType: 'heater', originalColor: 0xff4444 }
+  heaterLightGroup.add(heaterHitBox)
+  deviceMeshes.heater = heaterHitBox
+  heaterLightGroup.userData = { light: heaterLight, pointLight: heaterPointLight, hitBox: heaterHitBox }
   heaterLightGroup.position.set(0, 0.2, 3)
   statusLights.heater = heaterLightGroup
   greenhouseGroup.add(heaterLightGroup)
@@ -679,6 +763,107 @@ function updateRainParticles() {
   pos.needsUpdate = true
 }
 
+function onCanvasClick(event) {
+  if (!containerRef.value) return
+  const rect = containerRef.value.getBoundingClientRect()
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+  raycaster.setFromCamera(mouse, camera)
+  const intersects = raycaster.intersectObjects(greenhouseGroup.children, true)
+  for (const intersect of intersects) {
+    let obj = intersect.object
+    while (obj) {
+      if (obj.userData && obj.userData.deviceType) {
+        showDeviceInfo(obj.userData.deviceType, intersect.point)
+        return
+      }
+      obj = obj.parent
+    }
+  }
+  closeDeviceInfo()
+}
+
+function showDeviceInfo(deviceType, point) {
+  const info = deviceInfoMap[deviceType]
+  if (!info) return
+  selectedDevice.value = { ...info, state: info.state() }
+  createRipple(point)
+  highlightDevice(deviceType)
+}
+
+function closeDeviceInfo() {
+  selectedDevice.value = null
+  unhighlightAllDevices()
+}
+
+function toggleSelectedDevice() {
+  if (!selectedDevice.value) return
+  const info = deviceInfoMap[selectedDevice.value.name.replace(/[\u4e00-\u9fa5]/g, '')]
+  if (info && info.toggle) {
+    info.toggle()
+    ElMessage.success(`已${selectedDevice.value.state ? '关闭' : '开启'}${selectedDevice.value.name}`)
+  }
+  closeDeviceInfo()
+}
+
+function createRipple(point) {
+  const rippleGeo = new THREE.RingGeometry(0.05, 0.1, 32)
+  const rippleMat = new THREE.MeshBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+  const ripple = new THREE.Mesh(rippleGeo, rippleMat)
+  ripple.position.set(point.x, point.y + 0.01, point.z)
+  ripple.rotation.x = -Math.PI / 2
+  scene.add(ripple)
+  rippleParticles.value.push({ mesh: ripple, scale: 1, opacity: 0.8 })
+}
+
+function updateRipples() {
+  rippleParticles.value = rippleParticles.value.filter(rp => {
+    rp.scale += 0.03
+    rp.opacity -= 0.02
+    rp.mesh.scale.set(rp.scale, rp.scale, 1)
+    rp.mesh.material.opacity = rp.opacity
+    if (rp.opacity <= 0) {
+      scene.remove(rp.mesh)
+      rp.mesh.geometry.dispose()
+      rp.mesh.material.dispose()
+      return false
+    }
+    return true
+  })
+}
+
+function highlightDevice(deviceType) {
+  unhighlightAllDevices()
+  const hitBox = deviceMeshes[deviceType]
+  if (hitBox) {
+    const boxGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1)
+    const boxMat = new THREE.MeshBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.6 })
+    const highlight = new THREE.Mesh(boxGeo, boxMat)
+    highlight.position.copy(hitBox.position)
+    highlight.scale.set(2, 2, 2)
+    hitBox.parent.add(highlight)
+    hitBox.userData.highlight = highlight
+  }
+}
+
+function unhighlightAllDevices() {
+  Object.values(deviceMeshes).forEach(hitBox => {
+    if (hitBox.userData.highlight) {
+      hitBox.parent.remove(hitBox.userData.highlight)
+      hitBox.userData.highlight.geometry.dispose()
+      hitBox.userData.highlight.material.dispose()
+      hitBox.userData.highlight = null
+    }
+  })
+}
+
+function triggerAlert() {
+  alertActive.value = true
+  setTimeout(() => { alertActive.value = false }, 500)
+  setTimeout(() => { alertActive.value = true }, 1000)
+  setTimeout(() => { alertActive.value = false }, 1500)
+}
+
 function sync3DState() {
   // 灯光
   lightBulbs.forEach(bg => {
@@ -759,6 +944,7 @@ function animate() {
   updateSensorLabels()
   updateWaterParticles()
   updateRainParticles()
+  updateRipples()
   sync3DState()
   updateTime()
   renderer.render(scene, camera)
@@ -859,6 +1045,7 @@ onMounted(async () => {
 })
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
+  if (renderer && renderer.domElement) renderer.domElement.removeEventListener('click', onCanvasClick)
   if (eventSource) { eventSource.close(); eventSource = null }
   if (animationId) cancelAnimationFrame(animationId)
   if (renderer) renderer.dispose()
@@ -875,6 +1062,9 @@ onUnmounted(() => {
 .fallback-content p { font-size:14px; line-height:1.8; margin:8px 0; }
 .fallback-tip { color:#4a6a8a; font-size:12px !important; margin-top:20px !important; }
 .hud-overlay { position:absolute; inset:0; pointer-events:none; z-index:10; }
+
+.alert-flash-overlay { position:absolute; inset:0; background:rgba(255,107,107,0.15); animation:alertFlash 0.5s ease-in-out; pointer-events:none; }
+@keyframes alertFlash { 0%,100% { opacity:0; } 50% { opacity:1; } }
 
 /* 顶部 */
 .hud-header { position:absolute; top:16px; left:50%; transform:translateX(-50%); text-align:center; }
@@ -926,4 +1116,21 @@ onUnmounted(() => {
 .status-divider { color:#1a3a5a; }
 
 .mt-3 { margin-top:10px; }
+
+.device-info-popup { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,20,40,0.95); border:1px solid rgba(0,212,255,0.4); border-radius:12px; padding:0; min-width:320px; backdrop-filter:blur(15px); box-shadow:0 0 40px rgba(0,212,255,0.2); pointer-events:auto; z-index:100; animation:popupIn 0.3s ease-out; }
+@keyframes popupIn { from { opacity:0; transform:translate(-50%,-50%) scale(0.9); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
+.popup-header { display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid rgba(0,212,255,0.15); background:rgba(0,212,255,0.05); border-radius:12px 12px 0 0; }
+.popup-icon { font-size:24px; }
+.popup-title { flex:1; color:#00d4ff; font-size:16px; font-weight:600; }
+.popup-close { background:none; border:none; color:#7a9abb; font-size:16px; cursor:pointer; padding:4px; }
+.popup-close:hover { color:#f56c6c; }
+.popup-content { padding:20px; }
+.info-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06); }
+.info-row:last-of-type { border-bottom:none; }
+.info-label { color:#7a9abb; font-size:13px; }
+.info-value { color:#e6f1ff; font-size:13px; font-weight:500; }
+.info-value.active { color:#67c23a; }
+.info-value.inactive { color:#909399; }
+.popup-actions { display:flex; gap:10px; margin-top:20px; }
+.popup-actions :deep(.el-button) { flex:1; }
 </style>
