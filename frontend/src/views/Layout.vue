@@ -14,6 +14,10 @@
             <el-icon><DataLine /></el-icon>
             <span>数据大屏</span>
           </el-menu-item>
+          <el-menu-item index="/greenhouse-3d" @click="openGreenhouse3D">
+            <el-icon><Grid /></el-icon>
+            <span>数字孪生</span>
+          </el-menu-item>
           <el-menu-item index="/devices">
             <el-icon><Monitor /></el-icon>
             <span>{{ $t('menu.devices') }}</span>
@@ -215,6 +219,10 @@ function handleCommand(command) {
 
 function openBigScreen() {
   router.push('/big-screen')
+}
+
+function openGreenhouse3D() {
+  router.push('/greenhouse-3d')
 }
 </script>
 

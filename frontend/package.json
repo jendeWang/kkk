@@ -9,10 +9,12 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
+    "@types/three": "^0.185.0",
     "axios": "^1.6.5",
     "echarts": "^5.4.3",
     "element-plus": "^2.5.2",
     "pinia": "^2.1.7",
+    "three": "^0.185.1",
     "vue": "^3.4.15",
     "vue-i18n": "^9.9.0",
     "vue-router": "^4.2.5"
