@@ -761,7 +761,7 @@ async def init_default_scenes(db: AsyncSession):
                 AutomationScene.owner_id == admin.id,
             )
         )
-        existing = existing_result.scalar_one_or_none()
+        existing = existing_result.scalars().first()
         if existing:
             continue
 
