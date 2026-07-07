@@ -328,12 +328,21 @@ async def init_default_user(db: AsyncSession):
             hashed_password=get_password_hash("admin123"),
             is_active=True,
             is_superuser=True,
+            role="admin",
         )
         db.add(admin)
         await db.commit()
         print("[Init] Default admin user created: admin / admin123")
     else:
-        print("[Init] Admin user already exists")
+        if not existing.role or existing.role == "viewer":
+            if existing.is_superuser:
+                existing.role = "admin"
+            else:
+                existing.role = existing.role or "viewer"
+            await db.commit()
+            print(f"[Init] Admin user role set to {existing.role}")
+        else:
+            print("[Init] Admin user already exists")
 
 
 async def init_greenhouse_product(db: AsyncSession):

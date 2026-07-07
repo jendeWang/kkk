@@ -29,7 +29,17 @@ async def _migrate_alert_rules(conn):
         await conn.execute(text("ALTER TABLE alert_rules ADD COLUMN auto_execute_scene INTEGER DEFAULT 0"))
 
 
+async def _migrate_users(conn):
+    columns = await conn.run_sync(lambda sync_conn: [
+        col['name'] for col in inspect(sync_conn).get_columns('users')
+    ])
+    
+    if 'role' not in columns:
+        await conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'viewer'"))
+
+
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await _migrate_alert_rules(conn)
+        await _migrate_users(conn)

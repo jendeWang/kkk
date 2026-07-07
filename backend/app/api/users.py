@@ -5,10 +5,39 @@ from typing import List
 from .deps import get_current_active_user, get_current_superuser
 from ..core.database import get_db
 from ..models.models import User
-from ..schemas import UserResponse, UserCreate
+from ..schemas import UserResponse, UserCreate, UserUpdate
 from ..security.auth import get_password_hash, verify_password
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
+
+
+@router.get("/roles")
+async def list_roles(
+    current_user: User = Depends(get_current_active_user),
+):
+    """获取角色列表及权限说明"""
+    from .deps import ROLE_PERMISSIONS
+    roles_info = [
+        {
+            "key": "admin",
+            "name": "管理员",
+            "description": "拥有全部权限，可管理用户、设备、数据、规则等",
+            "permissions": ROLE_PERMISSIONS.get("admin", []),
+        },
+        {
+            "key": "operator",
+            "name": "操作员",
+            "description": "可操作设备、查看数据、配置告警和规则，不可管理用户",
+            "permissions": ROLE_PERMISSIONS.get("operator", []),
+        },
+        {
+            "key": "viewer",
+            "name": "查看员",
+            "description": "只能查看设备和数据，不可操作",
+            "permissions": ROLE_PERMISSIONS.get("viewer", []),
+        },
+    ]
+    return roles_info
 
 
 @router.get("/", response_model=List[UserResponse])
@@ -73,6 +102,7 @@ async def create_user(
         hashed_password=hashed_password,
         is_active=True,
         is_superuser=False,
+        role=user_data.role or "viewer",
     )
     db.add(new_user)
     await db.commit()
@@ -83,10 +113,7 @@ async def create_user(
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: int,
-    email: str = None,
-    full_name: str = None,
-    is_active: bool = None,
-    is_superuser: bool = None,
+    user_data: UserUpdate,
     current_user: User = Depends(get_current_superuser),
     db: AsyncSession = Depends(get_db),
 ):
@@ -95,14 +122,16 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if email is not None:
-        user.email = email
-    if full_name is not None:
-        user.full_name = full_name
-    if is_active is not None:
-        user.is_active = is_active
-    if is_superuser is not None:
-        user.is_superuser = is_superuser
+    if user_data.email is not None:
+        user.email = user_data.email
+    if user_data.full_name is not None:
+        user.full_name = user_data.full_name
+    if user_data.is_active is not None:
+        user.is_active = user_data.is_active
+    if user_data.is_superuser is not None:
+        user.is_superuser = user_data.is_superuser
+    if user_data.role is not None:
+        user.role = user_data.role
 
     await db.commit()
     await db.refresh(user)

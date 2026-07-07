@@ -33,10 +33,17 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="角色" width="120">
+          <template #default="{ row }">
+            <el-tag :type="roleTagType(row.role)" size="small">
+              {{ roleName(row.role) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="权限" width="100">
           <template #default="{ row }">
             <el-tag :type="row.is_superuser ? 'warning' : 'info'" size="small">
-              {{ row.is_superuser ? '管理员' : '普通用户' }}
+              {{ row.is_superuser ? '超级用户' : '普通' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -69,7 +76,15 @@
         <el-form-item label="邮箱">
           <el-input v-model="form.email" />
         </el-form-item>
-        <el-form-item label="管理员权限">
+        <el-form-item label="角色">
+          <el-select v-model="form.role" style="width: 100%">
+            <el-option v-for="r in roleList" :key="r.key" :label="r.name + ' - ' + r.description" :value="r.key">
+              <span style="font-weight: 600">{{ r.name }}</span>
+              <span style="color: #999; margin-left: 8px; font-size: 12px">{{ r.description }}</span>
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="超级用户">
           <el-switch v-model="form.is_superuser" />
         </el-form-item>
       </el-form>
@@ -93,6 +108,7 @@ const searchKeyword = ref('')
 const showAddDialog = ref(false)
 const editingUser = ref(null)
 const currentUserId = ref(null)
+const roleList = ref([])
 
 const form = ref({
   username: '',
@@ -100,7 +116,24 @@ const form = ref({
   full_name: '',
   email: '',
   is_superuser: false,
+  role: 'viewer',
 })
+
+const ROLE_NAMES = {
+  admin: '管理员',
+  operator: '操作员',
+  viewer: '查看员',
+}
+
+function roleName(role) {
+  return ROLE_NAMES[role] || role || '查看员'
+}
+
+function roleTagType(role) {
+  if (role === 'admin') return 'danger'
+  if (role === 'operator') return 'warning'
+  return 'info'
+}
 
 const filteredUsers = computed(() => {
   let result = users.value
@@ -146,6 +179,7 @@ function editUser(user) {
     full_name: user.full_name || '',
     email: user.email || '',
     is_superuser: user.is_superuser || false,
+    role: user.role || 'viewer',
   }
   showAddDialog.value = true
 }
@@ -197,6 +231,7 @@ async function saveUser() {
         email: form.value.email,
         full_name: form.value.full_name,
         is_superuser: form.value.is_superuser,
+        role: form.value.role,
       })
       ElMessage.success('更新成功')
     } else {
@@ -205,21 +240,36 @@ async function saveUser() {
         password: form.value.password,
         full_name: form.value.full_name,
         email: form.value.email,
+        role: form.value.role,
       })
       ElMessage.success('创建成功')
     }
     showAddDialog.value = false
     editingUser.value = null
-    form.value = { username: '', password: '', full_name: '', email: '', is_superuser: false }
+    form.value = { username: '', password: '', full_name: '', email: '', is_superuser: false, role: 'viewer' }
     await loadUsers()
   } catch (error) {
     ElMessage.error(error.userMessage || '操作失败')
   }
 }
 
+async function loadRoles() {
+  try {
+    const response = await api.get('/users/roles')
+    roleList.value = response.data
+  } catch (e) {
+    roleList.value = [
+      { key: 'admin', name: '管理员', description: '拥有全部权限' },
+      { key: 'operator', name: '操作员', description: '可操作设备、配置规则' },
+      { key: 'viewer', name: '查看员', description: '只能查看数据' },
+    ]
+  }
+}
+
 onMounted(() => {
   loadUsers()
   loadCurrentUser()
+  loadRoles()
 })
 </script>
 

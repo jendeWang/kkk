@@ -14,6 +14,7 @@ class UserCreate(BaseModel):
     password: str
     email: Optional[str] = None
     full_name: Optional[str] = None
+    role: Optional[str] = "viewer"
 
 
 class Token(BaseModel):
@@ -28,9 +29,18 @@ class UserResponse(BaseModel):
     full_name: Optional[str] = None
     is_active: bool
     is_superuser: bool
+    role: Optional[str] = "viewer"
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserUpdate(BaseModel):
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_superuser: Optional[bool] = None
+    role: Optional[str] = None
 
 
 class ProductBase(BaseModel):

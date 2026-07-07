@@ -118,3 +118,53 @@ async def get_current_superuser(
             detail="Not enough permissions",
         )
     return current_user
+
+
+# 角色权限定义
+ROLE_PERMISSIONS = {
+    "admin": [
+        "user:read", "user:write", "user:delete",
+        "device:read", "device:write", "device:control", "device:delete",
+        "data:read", "data:write", "data:delete",
+        "alert:read", "alert:write", "alert:delete",
+        "rule:read", "rule:write", "rule:delete",
+        "system:read", "system:write",
+    ],
+    "operator": [
+        "device:read", "device:write", "device:control",
+        "data:read", "data:write",
+        "alert:read", "alert:write",
+        "rule:read", "rule:write",
+        "user:read",
+    ],
+    "viewer": [
+        "device:read",
+        "data:read",
+        "alert:read",
+        "rule:read",
+        "user:read",
+    ],
+}
+
+
+def has_permission(user: User, permission: str) -> bool:
+    """检查用户是否有指定权限"""
+    if user.is_superuser:
+        return True
+    role = user.role or "viewer"
+    permissions = ROLE_PERMISSIONS.get(role, [])
+    return permission in permissions
+
+
+def require_permission(permission: str):
+    """生成权限校验依赖"""
+    async def checker(
+        current_user: User = Depends(get_current_active_user)
+    ) -> User:
+        if not has_permission(current_user, permission):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Permission denied",
+            )
+        return current_user
+    return checker

@@ -80,7 +80,7 @@
               <el-icon><Document /></el-icon>
               <span>操作日志</span>
             </el-menu-item>
-            <el-menu-item index="/users">
+            <el-menu-item index="/users" v-if="can('user:write')">
               <el-icon><User /></el-icon>
               <span>用户管理</span>
             </el-menu-item>
@@ -116,7 +116,10 @@
             <el-dropdown @command="handleCommand">
               <span class="user-info">
                 <el-icon><User /></el-icon>
-                {{ authStore.user?.username || 'Admin' }}
+                <span class="user-name">{{ authStore.user?.username || 'Admin' }}</span>
+                <el-tag v-if="authStore.user?.role" :type="roleTagType(authStore.user.role)" size="small" class="role-tag">
+                  {{ roleName(authStore.user.role) }}
+                </el-tag>
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -144,6 +147,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { loadPropertyMappings } from '../services/propertyMapper.js'
 import { MagicStick, Setting, SwitchButton, DataAnalysis, Filter } from '@element-plus/icons-vue'
+import { hasPermission } from '../utils/permission.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -170,6 +174,23 @@ const isAdvanced = computed({
   get: () => settingsStore.uiMode === 'advanced',
   set: (val) => settingsStore.setUiMode(val ? 'advanced' : 'simple')
 })
+
+const currentUser = computed(() => authStore.user)
+
+function can(permission) {
+  return hasPermission(currentUser.value, permission)
+}
+
+function roleName(role) {
+  const names = { admin: '管理员', operator: '操作员', viewer: '查看员' }
+  return names[role] || role || '查看员'
+}
+
+function roleTagType(role) {
+  if (role === 'admin') return 'danger'
+  if (role === 'operator') return 'warning'
+  return 'info'
+}
 
 function handleModeChange() {
   ElMessage.success(`已切换到${settingsStore.uiMode === 'simple' ? '简化' : '高级'}模式`)
@@ -305,6 +326,14 @@ function openGreenhouse3D() {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+}
+
+.user-name {
+  font-size: 14px;
+}
+
+.role-tag {
+  margin-left: 4px;
 }
 
 .main-content {
