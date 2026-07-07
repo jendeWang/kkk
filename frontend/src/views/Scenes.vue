@@ -301,6 +301,9 @@
               <el-option label="☀️ 光照强度" value="light_intensity" />
               <el-option label="💨 CO₂浓度" value="co2" />
               <el-option label="🪴 土壤温度" value="soil_temperature" />
+              <el-option label="⚗️ 土壤pH值" value="soil_ph" />
+              <el-option label="🌬️ 风速" value="wind_speed" />
+              <el-option label="🌧️ 雨量" value="rainfall" />
             </el-select>
           </el-form-item>
 
@@ -676,9 +679,9 @@ function getPropertyUnit(prop) {
     soil_temperature: '°C',
     light_intensity: ' lux',
     co2: ' ppm',
-    soil_ph: '',
+    soil_ph: ' pH',
     wind_speed: ' m/s',
-    rain_fall: ' mm'
+    rainfall: ' mm'
   }
   return units[prop] || ''
 }

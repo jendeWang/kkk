@@ -94,6 +94,9 @@
             <el-option label="光照强度" value="light_intensity" />
             <el-option label="CO₂浓度" value="co2" />
             <el-option label="土壤温度" value="soil_temperature" />
+            <el-option label="土壤pH值" value="soil_ph" />
+            <el-option label="风速" value="wind_speed" />
+            <el-option label="雨量" value="rainfall" />
             <el-option label="氨气浓度" value="ammonia" />
           </el-select>
         </el-form-item>

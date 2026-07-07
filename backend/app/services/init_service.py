@@ -264,6 +264,58 @@ async def sync_product_services(db: AsyncSession, product_id: int) -> int:
     return added_count
 
 
+async def sync_product_properties(db: AsyncSession, product_id: int) -> int:
+    """为产品同步缺失的属性定义，返回新增的属性数量"""
+    from sqlalchemy.orm import selectinload
+    from ..models.models import ProductProperty, PropertyDataType, PropertyAccessType
+
+    result = await db.execute(
+        select(Product)
+        .options(selectinload(Product.properties))
+        .where(Product.id == product_id)
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        return 0
+
+    existing_ids = {p.identifier for p in product.properties}
+
+    expected_properties = [
+        {"identifier": "soil_ph", "name": "土壤pH", "data_type": PropertyDataType.FLOAT,
+         "access_type": PropertyAccessType.READ_ONLY, "unit": "pH",
+         "min_value": "0", "max_value": "14", "step": "0.1", "required": False,
+         "specs": {"min": 0, "max": 14, "step": 0.1, "unit": "pH", **UI_SPECS_CONFIG["soil_ph"]}},
+        {"identifier": "wind_speed", "name": "风速", "data_type": PropertyDataType.FLOAT,
+         "access_type": PropertyAccessType.READ_ONLY, "unit": "m/s",
+         "min_value": "0", "max_value": "30", "step": "0.1", "required": False,
+         "specs": {"min": 0, "max": 30, "step": 0.1, "unit": "m/s", **UI_SPECS_CONFIG["wind_speed"]}},
+        {"identifier": "rainfall", "name": "雨量", "data_type": PropertyDataType.FLOAT,
+         "access_type": PropertyAccessType.READ_ONLY, "unit": "mm",
+         "min_value": "0", "max_value": "100", "step": "0.1", "required": False,
+         "specs": {"min": 0, "max": 100, "step": 0.1, "unit": "mm", **UI_SPECS_CONFIG["rainfall"]}},
+        {"identifier": "curtain_status", "name": "遮阳帘状态", "data_type": PropertyDataType.BOOL,
+         "access_type": PropertyAccessType.READ_WRITE, "unit": "",
+         "required": False, "specs": {**UI_SPECS_CONFIG["curtain_status"]}},
+        {"identifier": "valve_status", "name": "电磁阀状态", "data_type": PropertyDataType.BOOL,
+         "access_type": PropertyAccessType.READ_WRITE, "unit": "",
+         "required": False, "specs": {**UI_SPECS_CONFIG["valve_status"]}},
+        {"identifier": "heater_status", "name": "加热膜状态", "data_type": PropertyDataType.BOOL,
+         "access_type": PropertyAccessType.READ_WRITE, "unit": "",
+         "required": False, "specs": {**UI_SPECS_CONFIG["heater_status"]}},
+    ]
+
+    added_count = 0
+    for prop in expected_properties:
+        if prop["identifier"] not in existing_ids:
+            db.add(ProductProperty(product_id=product.id, **prop))
+            added_count += 1
+
+    if added_count > 0:
+        await db.commit()
+
+    return added_count
+
+
 async def init_default_user(db: AsyncSession):
     """创建默认管理员用户"""
     result = await db.execute(select(User).where(User.username == "admin"))
@@ -302,9 +354,10 @@ async def init_greenhouse_product(db: AsyncSession):
     existing = product_result.scalar_one_or_none()
     if existing:
         updated = await refresh_product_ui_specs(db, existing.id)
-        added = await sync_product_services(db, existing.id)
-        if updated > 0 or added > 0:
-            print(f"[Init] Smart Greenhouse product updated: {updated} UI specs, {added} services")
+        added_props = await sync_product_properties(db, existing.id)
+        added_services = await sync_product_services(db, existing.id)
+        if updated > 0 or added_props > 0 or added_services > 0:
+            print(f"[Init] Smart Greenhouse product updated: {updated} UI specs, {added_props} properties, {added_services} services")
         else:
             print("[Init] Smart Greenhouse product already exists, up to date")
         return

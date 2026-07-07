@@ -278,7 +278,10 @@ const sensorData = reactive({
   light_intensity: 0,
   soil_moisture: 0,
   co2: 0,
-  soil_temperature: 0
+  soil_temperature: 0,
+  soil_ph: 0,
+  wind_speed: 0,
+  rainfall: 0
 })
 
 const actuatorData = reactive({
@@ -372,6 +375,36 @@ const sensors = computed(() => [
     displayValue: formatValue(sensorData.soil_temperature, 1),
     percent: Math.min(100, Math.max(0, ((sensorData.soil_temperature - 0) / 40) * 100)),
     gradient: 'linear-gradient(90deg, #00d4ff, #67c23a, #ff6b6b)'
+  },
+  {
+    key: 'soil_ph',
+    name: '土壤pH',
+    icon: '⚗️',
+    unit: 'pH',
+    value: sensorData.soil_ph,
+    displayValue: formatValue(sensorData.soil_ph, 1),
+    percent: Math.min(100, Math.max(0, ((sensorData.soil_ph - 4) / 6) * 100)),
+    gradient: 'linear-gradient(90deg, #b37feb, #9254de, #722ed1)'
+  },
+  {
+    key: 'wind_speed',
+    name: '风速',
+    icon: '🌬️',
+    unit: 'm/s',
+    value: sensorData.wind_speed,
+    displayValue: formatValue(sensorData.wind_speed, 1),
+    percent: Math.min(100, (sensorData.wind_speed / 15) * 100),
+    gradient: 'linear-gradient(90deg, #36cfc9, #13c2c2, #08979c)'
+  },
+  {
+    key: 'rainfall',
+    name: '雨量',
+    icon: '🌧️',
+    unit: 'mm',
+    value: sensorData.rainfall,
+    displayValue: formatValue(sensorData.rainfall, 1),
+    percent: Math.min(100, (sensorData.rainfall / 20) * 100),
+    gradient: 'linear-gradient(90deg, #597ef7, #2f54eb, #1d39c4)'
   }
 ])
 
@@ -463,7 +496,10 @@ async function loadDeviceRealtime() {
           light_intensity: device.reported.light_intensity ?? 35000,
           soil_moisture: device.reported.soil_moisture ?? 55,
           co2: device.reported.co2 ?? 800,
-          soil_temperature: device.reported.soil_temperature ?? 22
+          soil_temperature: device.reported.soil_temperature ?? 22,
+          soil_ph: device.reported.soil_ph ?? 6.5,
+          wind_speed: device.reported.wind_speed ?? 2.5,
+          rainfall: device.reported.rainfall ?? 0
         })
         Object.assign(actuatorData, {
           fan_status: device.reported.fan_status ?? false,
@@ -508,6 +544,9 @@ function generateMockSensorData() {
   sensorData.soil_moisture = 50 + Math.random() * 20
   sensorData.co2 = 600 + Math.random() * 400
   sensorData.soil_temperature = 20 + Math.random() * 5
+  sensorData.soil_ph = 6 + Math.random() * 1.5
+  sensorData.wind_speed = Math.random() * 5
+  sensorData.rainfall = Math.random() * 5
 }
 
 async function loadTrendData() {
