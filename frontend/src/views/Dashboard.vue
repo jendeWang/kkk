@@ -66,6 +66,9 @@
             <SensorCard icon="🌱" name="土壤湿度" :value="sensorData.soil_moisture" unit="%" :normal-range="{min:50,max:80}" />
             <SensorCard icon="💨" name="CO₂浓度" :value="sensorData.co2" unit="ppm" :normal-range="{min:400,max:1500}" :decimals="0" />
             <SensorCard icon="🪴" name="土壤温度" :value="sensorData.soil_temperature" unit="°C" :normal-range="{min:15,max:28}" />
+            <SensorCard icon="⚗️" name="土壤pH" :value="sensorData.soil_ph" unit="pH" :normal-range="{min:5.5,max:7.5}" />
+            <SensorCard icon="🌬️" name="风速" :value="sensorData.wind_speed" unit="m/s" :normal-range="{min:0,max:10}" />
+            <SensorCard icon="🌧️" name="雨量" :value="sensorData.rainfall" unit="mm" :normal-range="{min:0,max:10}" />
           </div>
         </el-card>
 
@@ -78,6 +81,9 @@
                 <el-radio-button label="humidity">湿度</el-radio-button>
                 <el-radio-button label="soil_moisture">土壤湿度</el-radio-button>
                 <el-radio-button label="co2">CO₂</el-radio-button>
+                <el-radio-button label="soil_temperature">地温</el-radio-button>
+                <el-radio-button label="soil_ph">pH</el-radio-button>
+                <el-radio-button label="wind_speed">风速</el-radio-button>
               </el-radio-group>
             </div>
           </template>
