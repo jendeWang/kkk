@@ -76,6 +76,10 @@
               <el-icon><Document /></el-icon>
               <span>操作日志</span>
             </el-menu-item>
+            <el-menu-item index="/users">
+              <el-icon><User /></el-icon>
+              <span>用户管理</span>
+            </el-menu-item>
           </template>
         </el-menu>
         
@@ -112,6 +116,7 @@
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
+                  <el-dropdown-item command="profile">个人中心</el-dropdown-item>
                   <el-dropdown-item command="logout">{{ $t('menu.logout') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -191,7 +196,9 @@ const pageTitle = computed(() => {
     '/api-keys': 'API密钥',
     '/api-playground': 'API测试台',
     '/topology': '沙盘拓扑',
-    '/operation-logs': '操作日志'
+    '/operation-logs': '操作日志',
+    '/users': '用户管理',
+    '/profile': '个人中心'
   }
   return titles[route.path] || ''
 })
@@ -201,6 +208,8 @@ function handleCommand(command) {
     authStore.logout()
     ElMessage.success('Logged out')
     router.push('/login')
+  } else if (command === 'profile') {
+    router.push('/profile')
   }
 }
 

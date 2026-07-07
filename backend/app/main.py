@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from .core.database import init_db, async_session_maker
 from .core.logging import setup_logging, get_logger
 from .core.config import settings
-from .api import auth, products, devices, telemetry, commands, alerts, apikeys, sse, dashboard, groups, scenes, topology, operation_logs
+from .api import auth, products, devices, telemetry, commands, alerts, apikeys, sse, dashboard, groups, scenes, topology, operation_logs, users
 from .services.init_service import init_default_user, init_greenhouse_product, init_default_group, init_default_scenes
 from .services.sse_service import sse_service
 from .services.simulator_service import simulator_service
@@ -64,6 +64,7 @@ app.include_router(groups.router, prefix=settings.API_V1_PREFIX)
 app.include_router(scenes.router, prefix=settings.API_V1_PREFIX)
 app.include_router(topology.router, prefix=settings.API_V1_PREFIX)
 app.include_router(operation_logs.router, prefix=settings.API_V1_PREFIX)
+app.include_router(users.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")

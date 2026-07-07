@@ -28,6 +28,8 @@ const routes = [
       { path: 'api-playground', name: 'APIPlayground', component: () => import('../views/APIPlayground.vue'), meta: { requiresAuth: true } },
       { path: 'topology', name: 'Topology', component: () => import('../views/Topology.vue') },
       { path: 'operation-logs', name: 'OperationLogs', component: () => import('../views/OperationLogs.vue') },
+      { path: 'users', name: 'Users', component: () => import('../views/Users.vue') },
+      { path: 'profile', name: 'Profile', component: () => import('../views/Profile.vue') },
     ]
   },
 ]
