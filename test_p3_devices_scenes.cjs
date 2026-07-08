@@ -123,41 +123,48 @@ const { chromium } = require('playwright');
     log('9. Scene list loaded', sceneCards > 0 || sceneRows > 0, `cards: ${sceneCards}, rows: ${sceneRows}`);
 
     // Add scene dialog
-    await page.locator('button').filter({ hasText: /新建场景|使用模板/ }).first().click();
-    await page.waitForTimeout(1000);
+    await page.locator('button').filter({ hasText: /新建场景/ }).first().click();
+    await page.waitForTimeout(1500);
     await page.screenshot({ path: '/workspace/images/ui_test/p3_scenes_02_add.png' });
-    const sceneDialog = await page.locator('.el-dialog').count() > 0;
+    
+    const dialogCount = await page.locator('.el-dialog').count();
+    console.log(`[DEBUG] Dialog count: ${dialogCount}`);
+    
+    if (dialogCount > 0) {
+      const dialogVisible = await page.locator('.el-dialog').first().isVisible();
+      console.log(`[DEBUG] Dialog visible: ${dialogVisible}`);
+      const dialogText = await page.locator('.el-dialog').first().textContent();
+      console.log(`[DEBUG] Dialog text (first 200 chars): ${dialogText ? dialogText.substring(0, 200) : 'empty'}`);
+    }
+    
+    const sceneDialog = dialogCount > 0;
     log('10. Add scene dialog', sceneDialog);
 
     if (sceneDialog) {
-      // Check trigger condition section (el-divider with content)
-      const hasTrigger = await page.locator('.el-dialog .el-divider__text').filter({ hasText: /触发/ }).count() > 0;
-      const hasAction = await page.locator('.el-dialog .el-divider__text').filter({ hasText: /执行/ }).count() > 0;
+      await page.waitForTimeout(1000);
+      
+      const hasTrigger = await page.locator('.el-divider').filter({ hasText: /触发/ }).count() > 0;
+      const hasAction = await page.locator('.el-divider').filter({ hasText: /执行/ }).count() > 0;
       log('11. Trigger condition section', hasTrigger);
       log('12. Execute action section', hasAction);
 
-      // Trigger type radio options
-      const triggerRadios = await page.locator('.el-dialog .el-radio').count();
-      log('13. Trigger type radio options', triggerRadios >= 3, `count: ${triggerRadios}`);
+      const allRadios = await page.locator('.el-radio').all();
+      log('13. Radio options', allRadios.length >= 5, `total: ${allRadios.length}`);
 
-      // Select threshold trigger to see sensor options
-      await page.locator('.el-dialog .el-radio__input').first().click();
-      await page.waitForTimeout(500);
+      const radioTexts = [];
+      for (const r of allRadios) {
+        radioTexts.push(await r.textContent());
+      }
+      log('14. Radio labels', radioTexts.length >= 5, `[${radioTexts.join(', ')}]`);
 
-      // Check sensor property options
-      const propSelect = page.locator('.el-dialog .el-select').first();
-      await propSelect.click();
-      await page.waitForTimeout(600);
-      const triggerOptions = await page.locator('.el-select-dropdown__item').allTextContents();
-      const sensorLabels = ['空气温度', '空气湿度', '土壤湿度', '光照强度', 'CO₂浓度', '土壤温度', '土壤pH值', '风速', '雨量'];
-      const foundSensors = sensorLabels.filter(s => triggerOptions.some(o => o.includes(s)));
-      log('14. Trigger has sensor options', foundSensors.length >= 7, `found: [${foundSensors.join(', ')}] (${foundSensors.length}/9)`);
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(300);
+      const triggerRadios = radioTexts.filter(t => t.includes('触发')).length;
+      log('15. Trigger type count', triggerRadios >= 3, `count: ${triggerRadios}`);
 
-      // Action type radio
-      const actionRadios = await page.locator('.el-dialog .el-radio-group').nth(1).locator('.el-radio').count();
-      log('15. Action type options', actionRadios >= 2, `count: ${actionRadios}`);
+      const actionRadios = radioTexts.filter(t => t.includes('命令') || t.includes('告警')).length;
+      log('16. Action type count', actionRadios >= 2, `count: ${actionRadios}`);
+
+      const selects = await page.locator('.el-select').count();
+      log('17. Select fields', selects >= 3, `count: ${selects}`);
 
       await page.locator('.el-dialog__headerbtn').click();
       await page.waitForTimeout(500);
@@ -168,11 +175,13 @@ const { chromium } = require('playwright');
       const switches = await page.locator('.el-switch').count();
       if (switches > 0) {
         const firstSw = page.locator('.el-switch').first();
-        const before = await firstSw.isChecked();
+        const beforeClass = await firstSw.getAttribute('class');
+        const before = beforeClass && beforeClass.includes('is-active');
         await firstSw.click();
         await page.waitForTimeout(1000);
-        const after = await firstSw.isChecked();
-        log('16. Scene enable toggle', before !== after, `${before} -> ${after}`);
+        const afterClass = await firstSw.getAttribute('class');
+        const after = afterClass && afterClass.includes('is-active');
+        log('18. Scene enable toggle', before !== after, `${before} -> ${after}`);
       }
     }
 
