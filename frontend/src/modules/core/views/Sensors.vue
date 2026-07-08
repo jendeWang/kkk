@@ -1,0 +1,1 @@
+../../views/Sensors.vue

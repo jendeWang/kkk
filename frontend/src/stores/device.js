@@ -100,11 +100,54 @@ export const useDeviceStore = defineStore('device', () => {
     return response.data
   }
 
+  async function batchDeleteDevices(deviceIds) {
+    const response = await api.post('/devices/batch/delete', deviceIds)
+    devices.value = devices.value.filter(d => !deviceIds.includes(d.id))
+    return response.data
+  }
+
+  async function batchUpdateDevices(deviceIds, data) {
+    const response = await api.put('/devices/batch/update', { device_ids: deviceIds, ...data })
+    return response.data
+  }
+
+  async function batchSendCommands(deviceIds, commandData) {
+    const response = await api.post('/devices/batch/commands', { device_ids: deviceIds, ...commandData })
+    return response.data
+  }
+
+  async function getDeviceStatusSummary() {
+    const response = await api.get('/devices/status-summary')
+    return response.data
+  }
+
+  async function getTelemetryAggregation(params = {}) {
+    const response = await api.get('/telemetry/aggregation', { params })
+    return response.data
+  }
+
+  async function getTelemetryTrend(params = {}) {
+    const response = await api.get('/telemetry/trend', { params })
+    return response.data
+  }
+
+  async function getLatestTelemetry(params = {}) {
+    const response = await api.get('/telemetry/latest', { params })
+    return response.data
+  }
+
+  async function getTelemetryStats(params = {}) {
+    const response = await api.get('/telemetry/stats', { params })
+    return response.data
+  }
+
   return {
     devices, currentDevice, commands, alertRules, alertEvents,
     fetchDevices, fetchDevice, createDevice, updateDevice, deleteDevice, regenerateSecret,
     fetchTelemetry, fetchCommands, createCommand,
     fetchAlertRules, createAlertRule, updateAlertRule, deleteAlertRule,
-    fetchAlertEvents, updateAlertEventStatus
+    fetchAlertEvents, updateAlertEventStatus,
+    batchDeleteDevices, batchUpdateDevices, batchSendCommands, getDeviceStatusSummary,
+    getTelemetryAggregation, getTelemetryTrend, getLatestTelemetry, getTelemetryStats
   }
 })

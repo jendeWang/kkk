@@ -1,0 +1,101 @@
+{
+  "testTime": "2026-07-08T00:28:27.396Z",
+  "summary": {
+    "totalChecks": 13,
+    "totalBugs": 2
+  },
+  "results": [
+    {
+      "page": "登录",
+      "item": "登录",
+      "status": "通过",
+      "detail": "登录成功，跳转到 http://localhost:3000/dashboard"
+    },
+    {
+      "page": "设备管理",
+      "item": "新增设备弹窗",
+      "status": "通过",
+      "detail": "标题=新增设备, 表单项3个"
+    },
+    {
+      "page": "设备管理",
+      "item": "搜索功能",
+      "status": "通过",
+      "detail": "搜索已执行"
+    },
+    {
+      "page": "设备管理",
+      "item": "状态筛选下拉框",
+      "status": "通过",
+      "detail": "选项: 在线,离线,异常,智慧养殖(基础版),智慧大棚(基础版),智慧大棚1,智慧大棚,智慧养殖(基础版),智慧大棚(基础版),智慧大棚1,智慧大棚,1号大棚,2号大棚,3号大棚,默认分组"
+    },
+    {
+      "page": "告警事件",
+      "item": "筛选下拉框",
+      "status": "通过",
+      "detail": "选项: 全部,待处理,已确认,已解决,全部,严重,错误,警告,信息"
+    },
+    {
+      "page": "告警事件",
+      "item": "确认告警",
+      "status": "通过",
+      "detail": "点击后无弹窗(可能直接处理或无告警数据)"
+    },
+    {
+      "page": "场景联动",
+      "item": "创建场景弹窗",
+      "status": "通过",
+      "detail": "标题=新建场景, 表单项12个"
+    },
+    {
+      "page": "场景联动",
+      "item": "触发类型下拉框",
+      "status": "通过",
+      "detail": "选项: 🌡️ 空气温度,💧 空气湿度,🌱 土壤湿度,☀️ 光照强度,💨 CO₂浓度,🪴 土壤温度,⚗️ 土壤pH值,🌬️ 风速,🌧️ 雨量,大于,小于,等于,6,5,4,3,2,1,🌀 通风扇,💡 补光灯,🚿 灌溉水泵"
+    },
+    {
+      "page": "场景联动",
+      "item": "设备选择下拉框",
+      "status": "通过",
+      "detail": "选项: 🌡️ 空气温度,💧 空气湿度,🌱 土壤湿度,☀️ 光照强度,💨 CO₂浓度,🪴 土壤温度,⚗️ 土壤pH值,🌬️ 风速,🌧️ 雨量,大于,小于,等于,6,5,4,3,2,1,🌀 通风扇,💡 补光灯,🚿 灌溉水泵"
+    },
+    {
+      "page": "场景联动",
+      "item": "动作类型下拉框",
+      "status": "通过",
+      "detail": "选项: 🌡️ 空气温度,💧 空气湿度,🌱 土壤湿度,☀️ 光照强度,💨 CO₂浓度,🪴 土壤温度,⚗️ 土壤pH值,🌬️ 风速,🌧️ 雨量,大于,小于,等于,6,5,4,3,2,1,🌀 通风扇,💡 补光灯,🚿 灌溉水泵"
+    },
+    {
+      "page": "用户管理",
+      "item": "新增用户弹窗",
+      "status": "通过",
+      "detail": "标题=新增用户, 表单项6个"
+    },
+    {
+      "page": "用户管理",
+      "item": "角色下拉框",
+      "status": "通过",
+      "detail": "选项: 管理员拥有全部权限，可管理用户、设备、数据、规则等,操作员可操作设备、查看数据、配置告警和规则，不可管理用户,查看员只能查看设备和数据，不可操作"
+    },
+    {
+      "page": "用户管理",
+      "item": "编辑用户弹窗",
+      "status": "通过",
+      "detail": "标题=编辑用户, 表单项5个"
+    }
+  ],
+  "bugs": [
+    {
+      "page": "设备管理",
+      "severity": "中等",
+      "description": "产品下拉框展开失败",
+      "detail": "locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('.el-dialog .el-select, .el-drawer .el-select, .el-select').first()\n    - locator resolved to <div class=\"el-select\" data-v-686307b5=\"\">…</div>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <footer class=\"el-dialog__footer\">…</footer> from <div class=\"el-overlay el-modal-dialog\">…</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <footer class=\"el-dialog__footer\">…</footer> from <div class=\"el-overlay el-modal-dialog\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    58 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <footer class=\"el-dialog__footer\">…</footer> from <div class=\"el-overlay el-modal-dialog\">…</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n"
+    },
+    {
+      "page": "场景联动",
+      "severity": "中等",
+      "description": "场景列表为空且无空状态提示",
+      "detail": ""
+    }
+  ]
+}

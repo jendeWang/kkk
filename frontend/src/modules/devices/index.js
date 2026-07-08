@@ -1,0 +1,7 @@
+export { default as Devices } from '../devices/views/Devices.vue'
+export { default as Products } from '../devices/views/Products.vue'
+export { default as Telemetry } from '../devices/views/Telemetry.vue'
+export { default as Sensors } from '../devices/views/Sensors.vue'
+export { default as Actuators } from '../devices/views/Actuators.vue'
+export { default as Commands } from '../devices/views/Commands.vue'
+export { default as Groups } from '../devices/views/Groups.vue'

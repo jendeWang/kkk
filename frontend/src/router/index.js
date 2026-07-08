@@ -5,6 +5,8 @@ import Layout from '../views/Layout.vue'
 const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { requiresAuth: false } },
   { path: '/register', name: 'Register', component: () => import('../views/Register.vue'), meta: { requiresAuth: false } },
+  { path: '/big-screen', name: 'BigScreen', component: () => import('../views/BigScreen.vue'), meta: { requiresAuth: true } },
+  { path: '/greenhouse-3d', name: 'Greenhouse3D', component: () => import('../views/Greenhouse3D.vue'), meta: { requiresAuth: true } },
   { path: '/', redirect: '/dashboard' },
   {
     path: '/',
@@ -13,12 +15,24 @@ const routes = [
     children: [
       { path: 'dashboard', name: 'Dashboard', component: () => import('../views/Dashboard.vue') },
       { path: 'products', name: 'Products', component: () => import('../views/Products.vue') },
+      { path: 'thing-model', name: 'ThingModel', component: () => import('../views/ThingModelEditor.vue') },
+      { path: 'template-market', name: 'TemplateMarket', component: () => import('../views/TemplateMarket.vue') },
       { path: 'devices', name: 'Devices', component: () => import('../views/Devices.vue') },
       { path: 'telemetry', name: 'Telemetry', component: () => import('../views/Telemetry.vue') },
+      { path: 'sensors', name: 'Sensors', component: () => import('../views/Sensors.vue') },
+      { path: 'actuators', name: 'Actuators', component: () => import('../views/Actuators.vue') },
+      { path: 'rule-editor', name: 'RuleEditor', component: () => import('../views/RuleEditor.vue') },
       { path: 'commands', name: 'Commands', component: () => import('../views/Commands.vue') },
       { path: 'alert-rules', name: 'AlertRules', component: () => import('../views/AlertRules.vue') },
       { path: 'alerts', name: 'Alerts', component: () => import('../views/Alerts.vue') },
+      { path: 'scenes', name: 'Scenes', component: () => import('../views/Scenes.vue') },
+      { path: 'groups', name: 'Groups', component: () => import('../views/Groups.vue') },
       { path: 'api-keys', name: 'APIKeys', component: () => import('../views/APIKeys.vue') },
+      { path: 'api-playground', name: 'APIPlayground', component: () => import('../views/APIPlayground.vue'), meta: { requiresAuth: true } },
+      { path: 'topology', name: 'Topology', component: () => import('../views/Topology.vue') },
+      { path: 'operation-logs', name: 'OperationLogs', component: () => import('../views/OperationLogs.vue') },
+      { path: 'users', name: 'Users', component: () => import('../views/Users.vue') },
+      { path: 'profile', name: 'Profile', component: () => import('../views/Profile.vue') },
     ]
   },
 ]
