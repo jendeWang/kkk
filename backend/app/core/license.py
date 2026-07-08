@@ -1,12 +1,14 @@
 """
 授权与运行状态管理模块
-采用非对称签名 + 本地加密状态记录的组合方案
+采用非对称签名 + 本地加密状态记录 + 硬件绑定的组合方案
 """
 
 import os
 import json
 import base64
 import hashlib
+import subprocess
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
@@ -30,6 +32,86 @@ _STATE_FILE = _BASE / ".state"            # 加密运行状态记录
 
 # 用于本地状态加密的派生盐（非密钥本身，每次运行时动态派生）
 _SALT_SEED = b"\x4a\x91\xb3\x7e\x2f\xd8\x6c\x15"
+
+# 硬件迁移窗口（签发后多少天内允许迁移到新服务器）
+_MIGRATION_WINDOW_DAYS = 30
+
+
+# ---------------------------------------------------------------------------
+# 硬件特征采集
+# ---------------------------------------------------------------------------
+def _get_hardware_id() -> str:
+    """
+    采集服务器硬件特征，生成唯一标识
+    使用多种来源的组合，增加唯一性和稳定性
+    """
+    components = []
+
+    # 1. 机器 ID（Linux 系统）
+    try:
+        machine_id = Path("/etc/machine-id").read_text().strip()
+        if machine_id:
+            components.append(machine_id[:32])
+    except Exception:
+        pass
+
+    # 2. 主机名
+    try:
+        hostname = os.uname().nodename
+        components.append(hostname)
+    except Exception:
+        pass
+
+    # 3. CPU 信息
+    try:
+        cpu_info = subprocess.check_output(
+            ["cat", "/proc/cpuinfo"],
+            stderr=subprocess.DEVNULL,
+            timeout=2
+        ).decode("utf-8", errors="ignore")
+        # 提取 model name 或 vendor_id
+        for line in cpu_info.split("\n"):
+            if "model name" in line or "vendor_id" in line:
+                components.append(line.split(":")[-1].strip())
+                break
+    except Exception:
+        pass
+
+    # 4. MAC 地址（取第一个非虚拟网卡）
+    try:
+        mac = uuid.getnode()
+        components.append(str(mac))
+    except Exception:
+        pass
+
+    # 5. 系统磁盘 UUID（根分区）
+    try:
+        disk_uuid = subprocess.check_output(
+            ["blkid", "-s", "UUID", "-o", "value", "/dev/sda1"],
+            stderr=subprocess.DEVNULL,
+            timeout=2
+        ).decode("utf-8").strip()
+        if disk_uuid:
+            components.append(disk_uuid)
+    except Exception:
+        # 尝试其他常见分区
+        for part in ["sda2", "sdb1", "nvme0n1p1", "nvme0n1p2"]:
+            try:
+                disk_uuid = subprocess.check_output(
+                    ["blkid", "-s", "UUID", "-o", "value", f"/dev/{part}"],
+                    stderr=subprocess.DEVNULL,
+                    timeout=2
+                ).decode("utf-8").strip()
+                if disk_uuid:
+                    components.append(disk_uuid)
+                    break
+            except Exception:
+                continue
+
+    # 组合哈希
+    combined = "|".join(components)
+    hw_id = hashlib.sha256(combined.encode()).hexdigest()[:32]
+    return hw_id
 
 
 # ---------------------------------------------------------------------------
@@ -117,22 +199,35 @@ def _decode_content(content_b64: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _check_clock_rollback(issued_at: int) -> Tuple[bool, int]:
+def _check_clock_and_hardware(issued_at: int) -> Tuple[bool, int, str]:
     """
-    检查系统时间是否被回拨
-    返回: (是否通过检查, 当前时间戳)
+    检查系统时间是否被回拨，以及硬件绑定是否匹配
+    返回: (是否通过检查, 当前时间戳, 错误信息)
     """
     now = int(datetime.utcnow().timestamp())
-    if not _STATE_FILE.exists():
-        # 首次运行判断：授权签发 7 天内允许创建状态文件；
-        # 超过 7 天仍无状态文件，视为被恶意删除
-        if now - issued_at <= 7 * 86400:
-            _persist_state(now)
-            return True, now
-        else:
-            logger.warning("State file missing after grace period — possible tampering")
-            return False, now
+    current_hw = _get_hardware_id()
+    issued_days = (now - issued_at) // 86400
 
+    # -----------------------------------------------------------------------
+    # 首次运行：无状态文件
+    # -----------------------------------------------------------------------
+    if not _STATE_FILE.exists():
+        if issued_days <= _MIGRATION_WINDOW_DAYS:
+            # 签发 30 天内，允许首次运行或迁移到新服务器
+            _persist_state_with_hw(now, current_hw)
+            logger.info(f"First run on this server, hw_id={current_hw[:8]}...")
+            return True, now, ""
+        else:
+            # 签发超过 30 天，无状态文件 = 可能是拷贝后在新机器首次运行
+            logger.warning(
+                f"State file missing after {issued_days} days — "
+                "possible copy to new server, license transfer required"
+            )
+            return False, now, f"授权文件已签发 {issued_days} 天，请重新申请授权"
+
+    # -----------------------------------------------------------------------
+    # 后续运行：有状态文件
+    # -----------------------------------------------------------------------
     try:
         token = _STATE_FILE.read_bytes()
         # 尝试用当前时间附近的时间戳派生密钥解密（允许 ±365 天正常停机）
@@ -141,30 +236,62 @@ def _check_clock_rollback(issued_at: int) -> Tuple[bool, int]:
             try:
                 plain = _deobfuscate(token, key)
                 record = json.loads(plain.decode("utf-8"))
-                last = record.get("t", 0)
-                if now < last - 300:  # 允许 5 分钟时钟漂移
+                last_ts = record.get("t", 0)
+                stored_hw = record.get("hw", "")
+
+                # 时间回拨检测
+                if now < last_ts - 300:  # 允许 5 分钟时钟漂移
                     logger.warning("System clock rollback detected")
-                    return False, now
+                    return False, now, "系统时间回拨检测"
+
+                # 硬件绑定检测
+                if stored_hw and stored_hw != current_hw:
+                    if issued_days <= _MIGRATION_WINDOW_DAYS:
+                        # 签发 30 天内，允许迁移，更新硬件绑定
+                        logger.info(
+                            f"Hardware changed (migration allowed), "
+                            f"old={stored_hw[:8]}... new={current_hw[:8]}..."
+                        )
+                        _persist_state_with_hw(now, current_hw)
+                        return True, now, ""
+                    else:
+                        # 签发超过 30 天，硬件变化 = 可能是拷贝到另一台服务器
+                        logger.warning(
+                            f"Hardware mismatch after {issued_days} days — "
+                            f"stored={stored_hw[:8]}... current={current_hw[:8]}... "
+                            "possible copy to another server"
+                        )
+                        return False, now, f"硬件特征不匹配，授权已绑定其他服务器"
+
+                # 正常运行：时间和硬件都匹配
                 break
             except Exception:
                 continue
         else:
             # 状态文件存在但无法解密 = 被篡改
             logger.warning("State file corrupted — possible tampering")
-            return False, now
-    except Exception:
-        return False, now
+            return False, now, "状态文件损坏或被篡改"
 
-    # 更新时间记录
-    _persist_state(now)
-    return True, now
+    except Exception as e:
+        logger.warning(f"State file read error: {e}")
+        return False, now, "状态文件读取失败"
+
+    # 更新时间记录（保持硬件绑定不变）
+    _persist_state_with_hw(now, stored_hw or current_hw)
+    return True, now, ""
+
+
+def _persist_state_with_hw(ts: int, hw_id: str):
+    """持久化加密运行状态（包含硬件绑定）"""
+    key = _derive_key(ts)
+    record = json.dumps({"t": ts, "hw": hw_id}).encode("utf-8")
+    _STATE_FILE.write_bytes(_obfuscate(record, key))
 
 
 def _persist_state(ts: int):
-    """持久化加密运行状态"""
-    key = _derive_key(ts)
-    record = json.dumps({"t": ts}).encode("utf-8")
-    _STATE_FILE.write_bytes(_obfuscate(record, key))
+    """持久化加密运行状态（旧接口，兼容）"""
+    hw_id = _get_hardware_id()
+    _persist_state_with_hw(ts, hw_id)
 
 
 def _evaluate(content: Dict[str, Any], now_ts: int) -> Tuple[str, Dict[str, Any]]:
@@ -193,9 +320,10 @@ def _evaluate(content: Dict[str, Any], now_ts: int) -> Tuple[str, Dict[str, Any]
 # ---------------------------------------------------------------------------
 class AuthResult:
     """授权检查结果"""
-    def __init__(self, status: str, info: Dict[str, Any]):
+    def __init__(self, status: str, info: Dict[str, Any], error_msg: str = ""):
         self.status = status      # active / readonly / expired / corrupted / missing
         self.info = info
+        self.error_msg = error_msg
         self.school = info.get("n", "")
         self.max_devices = info.get("d", 0)
         self.expire_at = info.get("u", 0)
@@ -224,7 +352,7 @@ def verify_system() -> AuthResult:
     主入口：完整校验流程
     1. 加载公钥与策略
     2. 验签
-    3. 防时间回拨
+    3. 防时间回拨 + 硬件绑定
     4. 评估有效期
     """
     pubkey = _load_verify_key()
@@ -247,9 +375,9 @@ def verify_system() -> AuthResult:
 
     now_ts = int(datetime.utcnow().timestamp())
     issued_at = content.get("i", now_ts)
-    ok, now_ts = _check_clock_rollback(issued_at)
+    ok, now_ts, error_msg = _check_clock_and_hardware(issued_at)
     if not ok:
-        return AuthResult("expired", content)
+        return AuthResult("expired", content, error_msg)
 
     status, info = _evaluate(content, now_ts)
     return AuthResult(status, info)
