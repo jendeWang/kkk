@@ -78,10 +78,7 @@
         </el-form-item>
         <el-form-item label="角色">
           <el-select v-model="form.role" style="width: 100%">
-            <el-option v-for="r in roleList" :key="r.key" :label="r.name + ' - ' + r.description" :value="r.key">
-              <span style="font-weight: 600">{{ r.name }}</span>
-              <span style="color: #999; margin-left: 8px; font-size: 12px">{{ r.description }}</span>
-            </el-option>
+            <el-option v-for="r in roleList" :key="r.key" :label="r.name" :value="r.key" />
           </el-select>
         </el-form-item>
         <el-form-item label="超级用户">
