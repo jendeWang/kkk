@@ -17,16 +17,19 @@ const { chromium } = require('playwright');
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await context.newPage();
     await page.goto('http://localhost:3000/login', { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(800);
-    const inputs = await page.locator('input[type="text"]').all();
+    await page.waitForTimeout(1500);
+    const inputs = await page.locator('input[type="text"]:not(.el-select__input)').all();
     for (const inp of inputs) {
       const ph = await inp.getAttribute('placeholder');
       if (ph && ph.includes('用户')) { await inp.fill(username); break; }
     }
     await page.locator('input[type="password"]').first().fill(password);
     await page.locator('button[type="submit"]').click();
-    await page.waitForTimeout(2500);
-    return { page, context, loggedIn: !page.url().includes('login') };
+    await page.waitForTimeout(3000);
+    const url = page.url();
+    const loggedIn = !url.includes('login');
+    console.log(`[DEBUG] Login URL after click: ${url}, loggedIn: ${loggedIn}`);
+    return { page, context, loggedIn };
   }
 
   let page = null;
