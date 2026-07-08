@@ -13,6 +13,7 @@ from .services.init_service import init_default_user, init_greenhouse_product, i
 from .services.sse_service import sse_service
 from .services.simulator_service import simulator_service
 from .mqtt.service import mqtt_service
+from .core.license import verify_system
 
 logger = get_logger(__name__)
 
@@ -21,6 +22,16 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting IOTPlatform...")
     setup_logging()
+
+    # 授权校验（必须在数据库初始化之前，防止无授权运行）
+    auth_result = verify_system()
+    logger.info(f"License status: {auth_result.readable_status()}")
+    if not auth_result.is_valid:
+        logger.error(f"System authorization failed: {auth_result.readable_status()}")
+        raise RuntimeError(f"授权校验失败: {auth_result.readable_status()}")
+    if auth_result.status == "readonly":
+        logger.warning("License expired — system running in READ-ONLY mode")
+
     await init_db()
     logger.info("Database initialized")
 
@@ -54,6 +65,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# License 写操作拦截中间件
+# ---------------------------------------------------------------------------
+@app.middleware("http")
+async def license_write_guard(request, call_next):
+    """
+    全局中间件：授权过期后拦截所有写操作（POST/PUT/DELETE/PATCH），
+    但保留读操作（GET/HEAD/OPTIONS）可用，确保学校能看到数据并续费。
+    """
+    from .core.license import verify_system
+    method = request.method.upper()
+    if method in ("POST", "PUT", "DELETE", "PATCH"):
+        result = verify_system()
+        if result.status == "readonly":
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": "授权已过期，当前仅支持只读访问，请联系管理员续期",
+                    "status": "readonly",
+                    "school": result.school,
+                },
+            )
+    return await call_next(request)
 
 app.include_router(core_router, prefix=settings.API_V1_PREFIX)
 app.include_router(devices_router, prefix=settings.API_V1_PREFIX)
