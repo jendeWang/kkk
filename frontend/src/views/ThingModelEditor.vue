@@ -390,7 +390,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api.js'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Box, Plus } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -544,11 +544,17 @@ function editProperty(prop) {
 }
 
 function removeProperty(prop) {
-  const idx = localProperties.value.findIndex(p => p.id === prop.id || p.identifier === prop.identifier)
-  if (idx > -1) {
-    localProperties.value.splice(idx, 1)
-    ElMessage.success('属性已删除')
-  }
+  ElMessageBox.confirm(
+    `确认删除属性「${prop.name || prop.identifier}」吗？删除后需点击"保存更改"才会生效。`,
+    '删除确认',
+    { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' }
+  ).then(() => {
+    const idx = localProperties.value.findIndex(p => p.id === prop.id || p.identifier === prop.identifier)
+    if (idx > -1) {
+      localProperties.value.splice(idx, 1)
+      ElMessage.success('属性已删除，记得点击"保存更改"生效')
+    }
+  }).catch(() => {})
 }
 
 function saveProperty() {
@@ -593,11 +599,17 @@ function editService(svc) {
 }
 
 function removeService(svc) {
-  const idx = localServices.value.findIndex(s => s.id === svc.id || s.identifier === svc.identifier)
-  if (idx > -1) {
-    localServices.value.splice(idx, 1)
-    ElMessage.success('服务已删除')
-  }
+  ElMessageBox.confirm(
+    `确认删除服务「${svc.name || svc.identifier}」吗？删除后需点击"保存更改"才会生效。`,
+    '删除确认',
+    { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' }
+  ).then(() => {
+    const idx = localServices.value.findIndex(s => s.id === svc.id || s.identifier === svc.identifier)
+    if (idx > -1) {
+      localServices.value.splice(idx, 1)
+      ElMessage.success('服务已删除，记得点击"保存更改"生效')
+    }
+  }).catch(() => {})
 }
 
 function addServiceParam(type) {
@@ -646,11 +658,17 @@ function editEvent(evt) {
 }
 
 function removeEvent(evt) {
-  const idx = localEvents.value.findIndex(e => e.id === evt.id || e.identifier === evt.identifier)
-  if (idx > -1) {
-    localEvents.value.splice(idx, 1)
-    ElMessage.success('事件已删除')
-  }
+  ElMessageBox.confirm(
+    `确认删除事件「${evt.name || evt.identifier}」吗？删除后需点击"保存更改"才会生效。`,
+    '删除确认',
+    { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' }
+  ).then(() => {
+    const idx = localEvents.value.findIndex(e => e.id === evt.id || e.identifier === evt.identifier)
+    if (idx > -1) {
+      localEvents.value.splice(idx, 1)
+      ElMessage.success('事件已删除，记得点击"保存更改"生效')
+    }
+  }).catch(() => {})
 }
 
 function addEventParam() {

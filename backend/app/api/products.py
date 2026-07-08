@@ -31,6 +31,28 @@ def _generate_product_key(length: int = 16) -> str:
     return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
 
+_ACCESS_TYPE_ALIASES = {
+    "rw": "read_write",
+    "wr": "read_write",
+    "read_write": "read_write",
+    "readwrite": "read_write",
+    "w": "read_write",
+    "write": "read_write",
+    "r": "read_only",
+    "ro": "read_only",
+    "read_only": "read_only",
+    "readonly": "read_only",
+    "read": "read_only",
+}
+
+
+def _normalize_access_type(value: Optional[str]) -> Optional[str]:
+    """将常见的 access_type 别名归一化为枚举值 (read_only / read_write)"""
+    if value is None:
+        return None
+    return _ACCESS_TYPE_ALIASES.get(str(value).strip().lower(), value)
+
+
 @router.get("/", response_model=List[ProductResponse])
 async def list_products(
     page: int = Query(1, ge=1),
@@ -220,7 +242,7 @@ async def create_product_property(
         identifier=prop_data.identifier,
         name=prop_data.name,
         data_type=PropertyDataType(prop_data.data_type),
-        access_type=PropertyAccessType(prop_data.access_type),
+        access_type=PropertyAccessType(_normalize_access_type(prop_data.access_type)),
         unit=prop_data.unit,
         min_value=prop_data.min_value,
         max_value=prop_data.max_value,

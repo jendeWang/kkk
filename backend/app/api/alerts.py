@@ -21,6 +21,31 @@ def _try_enum(enum_cls, value):
         return value
 
 
+@router.get("/", response_model=List[AlertEventResponse])
+async def list_alert_history(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None),
+    device_id: Optional[int] = Query(None),
+    severity: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取告警历史列表（支持分页和筛选）"""
+    query = select(AlertEvent).join(Device).where(Device.owner_id == current_user.id)
+    if status:
+        status_enum = _try_enum(AlertStatus, status)
+        query = query.where(AlertEvent.status == status_enum)
+    if device_id is not None:
+        query = query.where(AlertEvent.device_id == device_id)
+    if severity:
+        severity_enum = _try_enum(AlertSeverity, severity)
+        query = query.where(AlertEvent.severity == severity_enum)
+    query = query.order_by(desc(AlertEvent.created_at)).offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
 @router.post("/rules", response_model=AlertRuleResponse)
 async def create_alert_rule(
     rule: AlertRuleCreate,

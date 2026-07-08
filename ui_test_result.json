@@ -1,0 +1,177 @@
+{
+  "summary": {
+    "pass": 19,
+    "warn": 5,
+    "critical": 3,
+    "total": 27
+  },
+  "findings": [
+    {
+      "category": "登录",
+      "severity": "PASS",
+      "msg": "登录成功",
+      "detail": "URL: http://localhost:3000/dashboard"
+    },
+    {
+      "category": "模式切换",
+      "severity": "PASS",
+      "msg": "点击\"简化\"切换模式完成",
+      "detail": "高级可见: true"
+    },
+    {
+      "category": "物模型-加载",
+      "severity": "PASS",
+      "msg": "页面已加载内容",
+      "detail": "内容长度: 199"
+    },
+    {
+      "category": "物模型-产品下拉",
+      "severity": "PASS",
+      "msg": "产品下拉有4个选项",
+      "detail": "[\"智慧养殖(基础版)\",\"智慧大棚(基础版)\",\"智慧大棚1\",\"智慧大棚\"]"
+    },
+    {
+      "category": "物模型-标签页",
+      "severity": "PASS",
+      "msg": "标签页检查",
+      "detail": "属性:true 服务:true 事件:true"
+    },
+    {
+      "category": "物模型-属性列表",
+      "severity": "WARN",
+      "msg": "未检测到属性数据行",
+      "detail": ""
+    },
+    {
+      "category": "物模型-新增属性弹窗",
+      "severity": "PASS",
+      "msg": "新增属性弹窗已显示",
+      "detail": ""
+    },
+    {
+      "category": "物模型-数据类型下拉",
+      "severity": "PASS",
+      "msg": "数据类型选项: 4/4匹配",
+      "detail": "[\"智慧养殖(基础版)\",\"智慧大棚(基础版)\",\"智慧大棚1\",\"智慧大棚\",\"字符串 (String)\",\"整数 (Integer)\",\"浮点数 (Float)\",\"布尔值 (Boolean)\",\"日期 (Date)\",\"枚举 (Enum)\",\"JSON\",\"只读\",\"读写\"]"
+    },
+    {
+      "category": "物模型-访问类型下拉",
+      "severity": "PASS",
+      "msg": "访问类型选项检查",
+      "detail": "[\"智慧养殖(基础版)\",\"智慧大棚(基础版)\",\"智慧大棚1\",\"智慧大棚\",\"字符串 (String)\",\"整数 (Integer)\",\"浮点数 (Float)\",\"布尔值 (Boolean)\",\"日期 (Date)\",\"枚举 (Enum)\",\"JSON\",\"只读\",\"读写\"]"
+    },
+    {
+      "category": "物模型-关闭弹窗",
+      "severity": "PASS",
+      "msg": "关闭弹窗",
+      "detail": "已关闭"
+    },
+    {
+      "category": "物模型-服务列表",
+      "severity": "PASS",
+      "msg": "服务标签页加载，0条数据",
+      "detail": ""
+    },
+    {
+      "category": "物模型-新增服务弹窗",
+      "severity": "CRITICAL",
+      "msg": "未弹出服务弹窗",
+      "detail": ""
+    },
+    {
+      "category": "物模型-事件列表",
+      "severity": "PASS",
+      "msg": "事件标签页加载，0条数据",
+      "detail": ""
+    },
+    {
+      "category": "物模型-新增事件弹窗",
+      "severity": "CRITICAL",
+      "msg": "未弹出事件弹窗",
+      "detail": ""
+    },
+    {
+      "category": "物模型-快捷添加温度",
+      "severity": "WARN",
+      "msg": "未找到温度快捷添加按钮",
+      "detail": ""
+    },
+    {
+      "category": "物模型-删除功能",
+      "severity": "WARN",
+      "msg": "未找到删除按钮（可能无数据行）",
+      "detail": ""
+    },
+    {
+      "category": "物模型-控制台",
+      "severity": "WARN",
+      "msg": "发现2条控制台错误",
+      "detail": "[SSE] Error on alerts: Event | [SSE] Error on devices: Event"
+    },
+    {
+      "category": "模板市场-加载",
+      "severity": "PASS",
+      "msg": "页面已加载内容",
+      "detail": "内容长度: 500"
+    },
+    {
+      "category": "模板市场-卡片",
+      "severity": "CRITICAL",
+      "msg": "未找到任何模板卡片",
+      "detail": ""
+    },
+    {
+      "category": "模板市场-卡片内容",
+      "severity": "WARN",
+      "msg": "模板类型检查",
+      "detail": "大棚:false 养殖:false"
+    },
+    {
+      "category": "模板市场-分类筛选",
+      "severity": "PASS",
+      "msg": "分类选项检查",
+      "detail": "[\"全部\",\"农业\",\"畜牧\",\"全部\",\"入门\",\"推荐\",\"专业\"]"
+    },
+    {
+      "category": "模板市场-农业筛选",
+      "severity": "PASS",
+      "msg": "筛选后显示0个卡片",
+      "detail": ""
+    },
+    {
+      "category": "模板市场-级别筛选",
+      "severity": "PASS",
+      "msg": "级别选项检查",
+      "detail": "[\"全部\",\"农业\",\"畜牧\",\"全部\",\"入门\",\"推荐\",\"专业\"]"
+    },
+    {
+      "category": "模板市场-推荐筛选",
+      "severity": "PASS",
+      "msg": "级别筛选后显示0个卡片",
+      "detail": ""
+    },
+    {
+      "category": "模板市场-预览",
+      "severity": "PASS",
+      "msg": "预览弹窗已显示",
+      "detail": "属性:false 服务:true 事件:false"
+    },
+    {
+      "category": "模板市场-使用模板",
+      "severity": "PASS",
+      "msg": "使用模板后页面跳转",
+      "detail": "http://localhost:3000/products"
+    },
+    {
+      "category": "模板市场-控制台",
+      "severity": "PASS",
+      "msg": "无控制台错误",
+      "detail": ""
+    }
+  ],
+  "consoleErrors": [
+    "[SSE] Error on alerts: Event",
+    "[SSE] Error on devices: Event"
+  ],
+  "pageErrors": []
+}

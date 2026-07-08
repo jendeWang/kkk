@@ -351,14 +351,14 @@
               <el-option
                 v-for="device in devices"
                 :key="device.id"
-                :label="device.name"
+                :label="device.device_name"
                 :value="device.id"
               />
             </el-select>
           </el-form-item>
 
           <el-form-item label="控制设备" prop="action_config.service_identifier">
-            <el-select v-model="form.action_config.service_identifier" placeholder="选择要控制的设备">
+            <el-select v-model="form.action_config.service_identifier" placeholder="选择控制指令">
               <el-option label="🌀 通风扇" value="set_fan" />
               <el-option label="💡 补光灯" value="set_light" />
               <el-option label="🚿 灌溉水泵" value="set_pump" />

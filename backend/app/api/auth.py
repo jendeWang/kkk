@@ -98,5 +98,6 @@ async def get_current_user_info(
         full_name=current_user.full_name,
         is_active=current_user.is_active if current_user.is_active is not None else False,
         is_superuser=current_user.is_superuser if current_user.is_superuser is not None else False,
+        role=current_user.role if current_user.role else "viewer",
         created_at=current_user.created_at,
     )

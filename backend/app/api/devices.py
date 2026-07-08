@@ -16,7 +16,7 @@ from ..schemas import (
     DeviceCreate, DeviceUpdate, DeviceResponse, DeviceDetailResponse,
     PropertyWithValueResponse, CommandResponse, DeviceEventRecordResponse,
     CommandSendRequest, CommandCreate, DeviceShadowResponse, DeviceShadowUpdateRequest,
-    DeviceTopologyUpdate
+    DeviceTopologyUpdate, TelemetryResponse,
 )
 from ..mqtt.service import mqtt_service
 
@@ -63,6 +63,30 @@ async def list_devices(
     query = query.order_by(desc(Device.created_at)).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
     return result.scalars().all()
+
+
+@router.get("/status-summary")
+async def get_device_status_summary(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取设备状态统计"""
+    result = await db.execute(
+        select(Device.status, func.count(Device.id))
+        .where(Device.owner_id == current_user.id)
+        .group_by(Device.status)
+    )
+    rows = result.all()
+
+    summary = {status.value: count for status, count in rows}
+    total = sum(summary.values())
+
+    return {
+        "total": total,
+        "online": summary.get("online", 0),
+        "offline": summary.get("offline", 0),
+        "error": summary.get("error", 0),
+    }
 
 
 @router.get("/{device_id}", response_model=DeviceDetailResponse)
@@ -271,6 +295,47 @@ async def get_device_properties(
             last_updated=telemetry.timestamp if telemetry else None,
         ))
     return props_with_value
+
+
+@router.get("/{device_id}/telemetry/latest", response_model=List[TelemetryResponse])
+async def get_device_telemetry_latest(
+    device_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取设备最新遥测数据（每个属性的最新一条记录）"""
+    device_result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    if not device_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # 子查询：每个 property_identifier 的最大时间戳
+    subq = (
+        select(
+            Telemetry.property_identifier,
+            func.max(Telemetry.timestamp).label("max_ts"),
+        )
+        .where(Telemetry.device_id == device_id)
+        .group_by(Telemetry.property_identifier)
+    ).subquery()
+
+    result = await db.execute(
+        select(Telemetry)
+        .join(
+            subq,
+            and_(
+                Telemetry.property_identifier == subq.c.property_identifier,
+                Telemetry.timestamp == subq.c.max_ts,
+            ),
+        )
+        .where(Telemetry.device_id == device_id)
+        .order_by(desc(Telemetry.timestamp))
+    )
+    return result.scalars().all()
 
 
 @router.post("/{device_id}/commands", response_model=CommandResponse)
@@ -609,30 +674,6 @@ async def batch_send_commands(
         "sent": success_count,
         "failed": failed_count,
         "results": results,
-    }
-
-
-@router.get("/status-summary")
-async def get_device_status_summary(
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """获取设备状态统计"""
-    result = await db.execute(
-        select(Device.status, func.count(Device.id))
-        .where(Device.owner_id == current_user.id)
-        .group_by(Device.status)
-    )
-    rows = result.all()
-    
-    summary = {status.value: count for status, count in rows}
-    total = sum(summary.values())
-    
-    return {
-        "total": total,
-        "online": summary.get("online", 0),
-        "offline": summary.get("offline", 0),
-        "error": summary.get("error", 0),
     }
 
 
