@@ -1,0 +1,63 @@
+{
+  "passed": [
+    "登录成功",
+    "3D-Canvas渲染正常(1个)",
+    "Canvas尺寸正常(1280x720)",
+    "3D-环境监测面板显示",
+    "3D-设备控制面板显示",
+    "3D-设备开关完整(12个)",
+    "3D-设备开关点击响应",
+    "3D-重置视角按钮存在",
+    "3D-重置视角点击成功",
+    "3D-自动旋转按钮存在",
+    "3D-自动旋转切换成功",
+    "设备-统计卡片显示",
+    "设备-列表显示(7条)",
+    "设备-搜索框存在",
+    "设备-搜索功能响应",
+    "设备-筛选下拉存在",
+    "设备-新增按钮存在",
+    "设备-新增弹窗显示",
+    "设备-新增弹窗表单完整(3项)",
+    "设备-新增弹窗关闭成功",
+    "控制台-无JS错误"
+  ],
+  "failed": [
+    "设备-统计数值仍为0(bug未修复)"
+  ],
+  "warnings": [
+    "3D-页面标题: 3D渲染不可用",
+    "3D-环境数据项: 0(预期≥9)",
+    "3D-设备点击测试: canvasSize is not defined"
+  ],
+  "screenshots": [
+    "3d_loaded.png",
+    "3d_switch_clicked.png",
+    "3d_final.png",
+    "devices_stats.png",
+    "devices_add_dialog.png",
+    "devices_final.png"
+  ],
+  "details": {
+    "3d_url": "http://localhost:3000/greenhouse-3d",
+    "canvas_size": {
+      "width": 1280,
+      "height": 720
+    },
+    "env_items_count": 0,
+    "switch_count": 12,
+    "fan_visible": true,
+    "light_visible": true,
+    "pump_visible": true,
+    "reset_btn": true,
+    "auto_rotate_btn": true,
+    "devices_url": "http://localhost:3000/devices",
+    "stat_cards_count": 20,
+    "stat_texts_count": 14,
+    "stat_values": [],
+    "device_rows_count": 7,
+    "add_dialog_inputs": 3,
+    "add_dialog_selects": 2,
+    "console_errors": []
+  }
+}
