@@ -1,0 +1,834 @@
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, desc, and_
+from sqlalchemy.orm import selectinload
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+import uuid
+import random
+import string
+import json
+import logging
+
+from .deps import get_current_active_user, get_db
+from ..models.models import User, Device, Product, ProductProperty, Command, Telemetry, DeviceEventRecord, DeviceStatus, CommandStatus, DeviceShadow
+from ..schemas import (
+    DeviceCreate, DeviceUpdate, DeviceResponse, DeviceDetailResponse,
+    PropertyWithValueResponse, CommandResponse, DeviceEventRecordResponse,
+    CommandSendRequest, CommandCreate, DeviceShadowResponse, DeviceShadowUpdateRequest,
+    DeviceTopologyUpdate, TelemetryResponse,
+)
+from ..mqtt.service import mqtt_service
+
+router = APIRouter(prefix="/devices", tags=["设备管理"])
+
+logger = logging.getLogger(__name__)
+
+
+def _generate_device_key(length: int = 16) -> str:
+    chars = string.ascii_lowercase + string.digits
+    return ''.join(random.choices(chars, k=length))
+
+
+def _generate_device_secret(length: int = 32) -> str:
+    chars = string.ascii_letters + string.digits
+    return ''.join(random.choices(chars, k=length))
+
+
+def _try_enum(enum_cls, value):
+    if value is None:
+        return None
+    try:
+        return enum_cls(value)
+    except (ValueError, TypeError):
+        return value
+
+
+@router.get("/", response_model=List[DeviceResponse])
+async def list_devices(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    product_id: Optional[int] = Query(None),
+    status: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取设备列表（支持分页、产品过滤、状态过滤）"""
+    query = select(Device).where(Device.owner_id == current_user.id)
+    if product_id is not None:
+        query = query.where(Device.product_id == product_id)
+    if status:
+        status_enum = _try_enum(DeviceStatus, status)
+        query = query.where(Device.status == status_enum)
+    query = query.order_by(desc(Device.created_at)).offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@router.get("/status-summary")
+async def get_device_status_summary(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取设备状态统计"""
+    result = await db.execute(
+        select(Device.status, func.count(Device.id))
+        .where(Device.owner_id == current_user.id)
+        .group_by(Device.status)
+    )
+    rows = result.all()
+
+    summary = {status.value: count for status, count in rows}
+    total = sum(summary.values())
+
+    return {
+        "total": total,
+        "online": summary.get("online", 0),
+        "offline": summary.get("offline", 0),
+        "error": summary.get("error", 0),
+    }
+
+
+@router.get("/{device_id}", response_model=DeviceDetailResponse)
+async def get_device(
+    device_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取设备详情（包含属性当前值、最近命令、最近事件）"""
+    result = await db.execute(
+        select(Device).options(
+            selectinload(Device.product).selectinload(Product.properties)
+        ).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    device = result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    props_with_value: List[PropertyWithValueResponse] = []
+    for prop in device.product.properties:
+        telemetry_result = await db.execute(
+            select(Telemetry)
+            .where(
+                Telemetry.device_id == device.id,
+                Telemetry.property_identifier == prop.identifier,
+            )
+            .order_by(desc(Telemetry.timestamp))
+            .limit(1)
+        )
+        telemetry = telemetry_result.scalar_one_or_none()
+        props_with_value.append(PropertyWithValueResponse(
+            identifier=prop.identifier,
+            name=prop.name,
+            data_type=prop.data_type,
+            unit=prop.unit,
+            current_value=telemetry.value if telemetry else None,
+            last_updated=telemetry.timestamp if telemetry else None,
+        ))
+
+    commands_result = await db.execute(
+        select(Command).where(Command.device_id == device.id).order_by(desc(Command.created_at)).limit(10)
+    )
+    recent_commands = commands_result.scalars().all()
+
+    events_result = await db.execute(
+        select(DeviceEventRecord).where(DeviceEventRecord.device_id == device.id).order_by(desc(DeviceEventRecord.timestamp)).limit(10)
+    )
+    recent_events = events_result.scalars().all()
+
+    return DeviceDetailResponse(
+        id=device.id,
+        device_key=device.device_key,
+        device_name=device.device_name,
+        product_id=device.product_id,
+        product_name=device.product.name,
+        status=device.status,
+        last_seen=device.last_seen,
+        owner_id=device.owner_id,
+        extra=device.extra,
+        created_at=device.created_at,
+        properties=props_with_value,
+        recent_commands=recent_commands,
+        recent_events=recent_events,
+    )
+
+
+@router.post("/", response_model=DeviceResponse)
+async def create_device(
+    device_data: DeviceCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """创建新设备（自动生成 device_key 和 device_secret）"""
+    product_result = await db.execute(
+        select(Product).where(
+            Product.id == device_data.product_id,
+            Product.owner_id == current_user.id,
+        )
+    )
+    product = product_result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    new_device = Device(
+        device_key=_generate_device_key(),
+        device_secret=_generate_device_secret(),
+        device_name=device_data.device_name,
+        product_id=device_data.product_id,
+        owner_id=current_user.id,
+        extra=device_data.extra,
+    )
+    db.add(new_device)
+    await db.commit()
+    await db.refresh(new_device)
+    return new_device
+
+
+@router.put("/{device_id}", response_model=DeviceResponse)
+async def update_device(
+    device_id: int,
+    device_data: DeviceUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """更新设备名称或扩展信息"""
+    result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    device = result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    for field, value in device_data.model_dump(exclude_unset=True).items():
+        setattr(device, field, value)
+    await db.commit()
+    await db.refresh(device)
+    return device
+
+
+@router.delete("/{device_id}")
+async def delete_device(
+    device_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """删除设备"""
+    result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    device = result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    await db.delete(device)
+    await db.commit()
+    return {"message": "Device deleted successfully"}
+
+
+@router.post("/{device_id}/regenerate-key", response_model=DeviceResponse)
+async def regenerate_device_secret(
+    device_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """重新生成设备密钥"""
+    result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    device = result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    device.device_secret = _generate_device_secret()
+    await db.commit()
+    await db.refresh(device)
+    return device
+
+
+@router.get("/{device_id}/properties", response_model=List[PropertyWithValueResponse])
+async def get_device_properties(
+    device_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取设备属性列表及其当前值"""
+    result = await db.execute(
+        select(Device).options(
+            selectinload(Device.product).selectinload(Product.properties)
+        ).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    device = result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    props_with_value = []
+    for prop in device.product.properties:
+        telemetry_result = await db.execute(
+            select(Telemetry)
+            .where(
+                Telemetry.device_id == device.id,
+                Telemetry.property_identifier == prop.identifier,
+            )
+            .order_by(desc(Telemetry.timestamp))
+            .limit(1)
+        )
+        telemetry = telemetry_result.scalar_one_or_none()
+        props_with_value.append(PropertyWithValueResponse(
+            identifier=prop.identifier,
+            name=prop.name,
+            data_type=prop.data_type,
+            unit=prop.unit,
+            current_value=telemetry.value if telemetry else None,
+            last_updated=telemetry.timestamp if telemetry else None,
+        ))
+    return props_with_value
+
+
+@router.get("/{device_id}/telemetry/latest", response_model=List[TelemetryResponse])
+async def get_device_telemetry_latest(
+    device_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取设备最新遥测数据（每个属性的最新一条记录）"""
+    device_result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    if not device_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # 子查询：每个 property_identifier 的最大时间戳
+    subq = (
+        select(
+            Telemetry.property_identifier,
+            func.max(Telemetry.timestamp).label("max_ts"),
+        )
+        .where(Telemetry.device_id == device_id)
+        .group_by(Telemetry.property_identifier)
+    ).subquery()
+
+    result = await db.execute(
+        select(Telemetry)
+        .join(
+            subq,
+            and_(
+                Telemetry.property_identifier == subq.c.property_identifier,
+                Telemetry.timestamp == subq.c.max_ts,
+            ),
+        )
+        .where(Telemetry.device_id == device_id)
+        .order_by(desc(Telemetry.timestamp))
+    )
+    return result.scalars().all()
+
+
+@router.post("/{device_id}/commands", response_model=CommandResponse)
+async def send_command_to_device(
+    device_id: int,
+    command_data: CommandSendRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """向设备发送命令（通过 MQTT 下发）"""
+    result = await db.execute(
+        select(Device).options(selectinload(Device.product).selectinload(Product.services)).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    device = result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    valid_services = {s.identifier for s in device.product.services}
+    if command_data.service_identifier not in valid_services:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid service identifier. Available services: {', '.join(valid_services) if valid_services else 'none'}"
+        )
+
+    command_id = f"cmd-{uuid.uuid4()}"
+    params = command_data.parameters if command_data.parameters is not None else command_data.input_params
+    new_command = Command(
+        command_id=command_id,
+        device_id=device_id,
+        service_identifier=command_data.service_identifier,
+        input_params=params,
+        status=CommandStatus.PENDING,
+        owner_id=current_user.id,
+        created_at=datetime.utcnow(),
+    )
+    db.add(new_command)
+    await db.flush()
+
+    mqtt_success = False
+    try:
+        if mqtt_service is not None and hasattr(mqtt_service, '_connected') and mqtt_service._connected:
+            topic = f"devices/{device.device_key}/commands"
+            payload = {
+                "command_id": command_id,
+                "service_identifier": command_data.service_identifier,
+                "input_params": params,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+            mqtt_service.client.publish(topic, json.dumps(payload))
+            new_command.status = CommandStatus.SENT
+            new_command.sent_at = datetime.utcnow()
+            mqtt_success = True
+        else:
+            logger.info(f"MQTT not connected, saving command as PENDING for device_id={device_id}")
+    except Exception as e:
+        logger.exception(f"Failed to publish MQTT command: {e}")
+
+    try:
+        shadow_result = await db.execute(
+            select(DeviceShadow).where(DeviceShadow.device_id == device_id)
+        )
+        shadow = shadow_result.scalar_one_or_none()
+        
+        if shadow:
+            reported = dict(shadow.reported or {})
+            service = command_data.service_identifier
+            input_params = params or {}
+            now = datetime.utcnow()
+            
+            status_val = input_params.get("status", input_params.get("value"))
+            
+            if service in ("set_fan", "fan_switch") and status_val is not None:
+                reported["fan_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
+            elif service in ("set_light", "light_switch"):
+                if status_val is not None:
+                    reported["light_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                if "brightness" in input_params:
+                    reported["brightness"] = input_params["brightness"]
+                new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
+            elif service in ("set_pump", "pump_switch") and status_val is not None:
+                reported["pump_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
+            elif service in ("set_curtain", "curtain_switch") and status_val is not None:
+                reported["curtain_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
+            elif service in ("set_valve", "valve_switch") and status_val is not None:
+                reported["valve_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
+            elif service in ("set_heater", "heater_switch") and status_val is not None:
+                reported["heater_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
+            elif service == "set_mode" and "mode" in input_params:
+                reported["work_mode"] = input_params["mode"]
+                new_command.status = CommandStatus.EXECUTED
+                new_command.executed_at = now
+                if not mqtt_success:
+                    new_command.sent_at = now
+            
+            shadow.reported = reported
+            shadow.version += 1
+            shadow.last_updated = now
+    except Exception as e:
+        logger.exception(f"Failed to update shadow after command: {e}")
+
+    await db.commit()
+    await db.refresh(new_command)
+    return new_command
+
+
+@router.get("/{device_id}/commands", response_model=List[CommandResponse])
+async def list_device_commands(
+    device_id: int,
+    limit: int = Query(50, ge=1, le=500),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取设备命令列表"""
+    device_result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    if not device_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    result = await db.execute(
+        select(Command)
+        .where(Command.device_id == device_id)
+        .order_by(desc(Command.created_at))
+        .limit(limit)
+    )
+    return result.scalars().all()
+
+
+# ========== 批量操作 ==========
+
+@router.post("/batch/delete")
+async def batch_delete_devices(
+    device_ids: List[int],
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """批量删除设备"""
+    if not device_ids:
+        return {"message": "No device IDs provided", "deleted": 0}
+
+    result = await db.execute(
+        select(Device).where(
+            Device.id.in_(device_ids),
+            Device.owner_id == current_user.id,
+        )
+    )
+    devices = result.scalars().all()
+    deleted_count = len(devices)
+    
+    for device in devices:
+        await db.delete(device)
+    
+    await db.commit()
+    return {"message": "Devices deleted successfully", "deleted": deleted_count}
+
+
+@router.put("/batch/update")
+async def batch_update_devices(
+    device_ids: List[int],
+    device_data: DeviceUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """批量更新设备信息"""
+    if not device_ids:
+        return {"message": "No device IDs provided", "updated": 0}
+
+    result = await db.execute(
+        select(Device).where(
+            Device.id.in_(device_ids),
+            Device.owner_id == current_user.id,
+        )
+    )
+    devices = result.scalars().all()
+    updated_count = len(devices)
+    
+    for device in devices:
+        for field, value in device_data.model_dump(exclude_unset=True).items():
+            setattr(device, field, value)
+    
+    await db.commit()
+    return {"message": "Devices updated successfully", "updated": updated_count}
+
+
+@router.post("/batch/commands")
+async def batch_send_commands(
+    device_ids: List[int],
+    command_data: CommandSendRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """批量向多个设备发送命令"""
+    if not device_ids:
+        return {"message": "No device IDs provided", "sent": 0, "failed": 0}
+
+    success_count = 0
+    failed_count = 0
+    results = []
+    
+    for device_id in device_ids:
+        try:
+            device_result = await db.execute(
+                select(Device).options(selectinload(Device.product).selectinload(Product.services)).where(
+                    Device.id == device_id,
+                    Device.owner_id == current_user.id,
+                )
+            )
+            device = device_result.scalar_one_or_none()
+            if not device:
+                failed_count += 1
+                results.append({"device_id": device_id, "success": False, "error": "Device not found"})
+                continue
+
+            valid_services = {s.identifier for s in device.product.services}
+            if command_data.service_identifier not in valid_services:
+                failed_count += 1
+                results.append({"device_id": device_id, "success": False, "error": "Invalid service identifier"})
+                continue
+
+            cmd_id = f"cmd-{uuid.uuid4()}"
+            params = command_data.parameters if command_data.parameters is not None else command_data.input_params
+            new_command = Command(
+                command_id=cmd_id,
+                device_id=device_id,
+                service_identifier=command_data.service_identifier,
+                input_params=params,
+                status=CommandStatus.PENDING,
+                owner_id=current_user.id,
+                created_at=datetime.utcnow(),
+            )
+            db.add(new_command)
+            await db.flush()
+
+            try:
+                if mqtt_service is not None and hasattr(mqtt_service, '_connected') and mqtt_service._connected:
+                    topic = f"devices/{device.device_key}/commands"
+                    payload = {
+                        "command_id": cmd_id,
+                        "service_identifier": command_data.service_identifier,
+                        "input_params": params,
+                        "timestamp": datetime.utcnow().isoformat(),
+                    }
+                    mqtt_service.client.publish(topic, json.dumps(payload))
+                    new_command.status = CommandStatus.SENT
+                    new_command.sent_at = datetime.utcnow()
+            except Exception as e:
+                logger.exception(f"Failed to publish MQTT command for device {device_id}: {e}")
+
+            shadow_result = await db.execute(
+                select(DeviceShadow).where(DeviceShadow.device_id == device_id)
+            )
+            shadow = shadow_result.scalar_one_or_none()
+            if shadow:
+                reported = dict(shadow.reported or {})
+                service = command_data.service_identifier
+                input_params = params or {}
+                now = datetime.utcnow()
+                
+                status_val = input_params.get("status", input_params.get("value"))
+                
+                if service in ("set_fan", "fan_switch") and status_val is not None:
+                    reported["fan_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                    new_command.status = CommandStatus.EXECUTED
+                    new_command.executed_at = now
+                elif service in ("set_light", "light_switch"):
+                    if status_val is not None:
+                        reported["light_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                    if "brightness" in input_params:
+                        reported["brightness"] = input_params["brightness"]
+                    new_command.status = CommandStatus.EXECUTED
+                    new_command.executed_at = now
+                elif service in ("set_pump", "pump_switch") and status_val is not None:
+                    reported["pump_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                    new_command.status = CommandStatus.EXECUTED
+                    new_command.executed_at = now
+                elif service in ("set_curtain", "curtain_switch") and status_val is not None:
+                    reported["curtain_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                    new_command.status = CommandStatus.EXECUTED
+                    new_command.executed_at = now
+                elif service in ("set_valve", "valve_switch") and status_val is not None:
+                    reported["valve_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                    new_command.status = CommandStatus.EXECUTED
+                    new_command.executed_at = now
+                elif service in ("set_heater", "heater_switch") and status_val is not None:
+                    reported["heater_status"] = bool(status_val) or status_val == 1 or status_val == "1"
+                    new_command.status = CommandStatus.EXECUTED
+                    new_command.executed_at = now
+                elif service == "set_mode" and "mode" in input_params:
+                    reported["work_mode"] = input_params["mode"]
+                    new_command.status = CommandStatus.EXECUTED
+                    new_command.executed_at = now
+                
+                shadow.reported = reported
+                shadow.version += 1
+                shadow.last_updated = now
+
+            success_count += 1
+            results.append({"device_id": device_id, "success": True, "command_id": cmd_id})
+        
+        except Exception as e:
+            failed_count += 1
+            results.append({"device_id": device_id, "success": False, "error": str(e)})
+
+    await db.commit()
+    return {
+        "message": "Batch commands processed",
+        "sent": success_count,
+        "failed": failed_count,
+        "results": results,
+    }
+
+
+# ========== 设备影子 (Device Shadow) ==========
+
+@router.get("/{device_id}/shadow", response_model=DeviceShadowResponse)
+async def get_device_shadow(
+    device_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取设备影子"""
+    device_result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    device = device_result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    shadow_result = await db.execute(
+        select(DeviceShadow).where(DeviceShadow.device_id == device_id)
+    )
+    shadow = shadow_result.scalar_one_or_none()
+
+    if not shadow:
+        shadow = DeviceShadow(
+            device_id=device_id,
+            reported={},
+            desired={},
+            version=1,
+        )
+        db.add(shadow)
+        await db.commit()
+        await db.refresh(shadow)
+
+    return shadow
+
+
+@router.patch("/{device_id}/shadow", response_model=DeviceShadowResponse)
+async def update_device_shadow(
+    device_id: int,
+    shadow_data: DeviceShadowUpdateRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """更新设备影子的desired状态（平台下发期望状态）"""
+    device_result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    device = device_result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    shadow_result = await db.execute(
+        select(DeviceShadow).where(DeviceShadow.device_id == device_id)
+    )
+    shadow = shadow_result.scalar_one_or_none()
+
+    if not shadow:
+        shadow = DeviceShadow(
+            device_id=device_id,
+            reported={},
+            desired={},
+            version=1,
+        )
+        db.add(shadow)
+        await db.flush()
+
+    if shadow_data.desired is not None:
+        if shadow.desired:
+            merged = {**shadow.desired, **shadow_data.desired}
+            shadow.desired = merged
+        else:
+            shadow.desired = shadow_data.desired
+        shadow.version += 1
+
+    await db.commit()
+    await db.refresh(shadow)
+
+    try:
+        if mqtt_service and mqtt_service._connected:
+            topic = f"devices/{device.device_key}/shadow/update/desired"
+            payload = {
+                "state": {"desired": shadow.desired},
+                "version": shadow.version,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+            mqtt_service.client.publish(topic, json.dumps(payload))
+    except Exception as e:
+        logger.exception(f"Failed to publish shadow desired update: {e}")
+
+    return shadow
+
+
+@router.delete("/{device_id}/shadow")
+async def delete_device_shadow(
+    device_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """重置设备影子"""
+    device_result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    if not device_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    shadow_result = await db.execute(
+        select(DeviceShadow).where(DeviceShadow.device_id == device_id)
+    )
+    shadow = shadow_result.scalar_one_or_none()
+    if shadow:
+        await db.delete(shadow)
+        await db.commit()
+
+    return {"message": "Device shadow reset successfully"}
+
+
+@router.put("/{device_id}/topology", response_model=DeviceResponse)
+async def update_device_topology(
+    device_id: int,
+    topology_data: DeviceTopologyUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """更新设备拓扑位置"""
+    from sqlalchemy.orm.attributes import flag_modified
+    
+    result = await db.execute(
+        select(Device).where(
+            Device.id == device_id,
+            Device.owner_id == current_user.id,
+        )
+    )
+    device = result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    extra = dict(device.extra or {})
+    if "topology" not in extra or not isinstance(extra["topology"], dict):
+        extra["topology"] = {}
+    extra["topology"]["x"] = topology_data.x
+    extra["topology"]["y"] = topology_data.y
+    device.extra = extra
+    flag_modified(device, "extra")
+
+    await db.commit()
+    await db.refresh(device)
+    return device

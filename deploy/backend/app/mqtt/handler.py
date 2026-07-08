@@ -1,0 +1,254 @@
+import json
+from datetime import datetime
+from typing import Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from ..models.models import Device, Telemetry, Command, DeviceEventRecord, DeviceStatus, CommandStatus, AlertEvent, AlertType, AlertStatus, AlertSeverity, DeviceShadow
+from ..services.sse_service import sse_service
+from ..services.alert_service import alert_engine
+from ..services.scene_engine import scene_engine
+
+
+class MQTTHandler:
+    def __init__(self, db_session_factory):
+        self.db_session_factory = db_session_factory
+
+    async def verify_device(self, device_key: str, device_secret: str) -> Optional[Device]:
+        async with self.db_session_factory() as db:
+            result = await db.execute(
+                select(Device).where(
+                    Device.device_key == device_key,
+                    Device.device_secret == device_secret,
+                )
+            )
+            return result.scalar_one_or_none()
+
+    async def handle_telemetry(self, device_key: str, payload: dict):
+        """处理遥测数据上报"""
+        device_secret = payload.pop("device_secret", None)
+        device = await self.verify_device(device_key, device_secret) if device_secret else None
+
+        # 如果验证失败或未传入 device_secret，尝试仅通过 device_key 查询
+        if not device:
+            async with self.db_session_factory() as db:
+                result = await db.execute(select(Device).where(Device.device_key == device_key))
+                device = result.scalar_one_or_none()
+
+        if not device:
+            print(f"[MQTT] Device verification failed for key: {device_key}")
+            return
+
+        async with self.db_session_factory() as db:
+            # 在当前 session 中重新获取设备
+            result = await db.execute(select(Device).where(Device.id == device.id))
+            db_device = result.scalar_one_or_none()
+            
+            if not db_device:
+                print(f"[MQTT] Device not found in database: {device_key}")
+                return
+
+            telemetry = Telemetry(
+                device_id=db_device.id,
+                property_identifier=payload.get("property_identifier"),
+                value=str(payload.get("value")),
+                timestamp=datetime.fromisoformat(payload.get("timestamp")) if payload.get("timestamp") else datetime.utcnow(),
+                quality=payload.get("quality", "good"),
+            )
+            db.add(telemetry)
+            try:
+                db_device.status = DeviceStatus.ONLINE
+            except (ValueError, TypeError):
+                db_device.status = DeviceStatus.ONLINE
+            db_device.last_seen = datetime.utcnow()
+            await db.commit()
+            await alert_engine.check_telemetry_alert(
+                db, db_device.id, payload.get("property_identifier"), payload.get("value")
+            )
+            await scene_engine.check_and_trigger(
+                db, db_device.id, payload.get("property_identifier"), payload.get("value")
+            )
+            await sse_service.publish_device_status({
+                "device_key": device_key,
+                "device_name": db_device.device_name,
+                "status": "online",
+                "property_identifier": payload.get("property_identifier"),
+                "value": str(payload.get("value")),
+            })
+
+    async def handle_status(self, device_key: str, payload: dict):
+        device_secret = payload.pop("device_secret", None)
+        device = await self.verify_device(device_key, device_secret) if device_secret else None
+        if not device:
+            print(f"[MQTT] Device verification failed for key: {device_key}")
+            return
+
+        async with self.db_session_factory() as db:
+            new_status = payload.get("status", "offline")
+            try:
+                device.status = DeviceStatus(new_status)
+            except ValueError:
+                device.status = DeviceStatus.OFFLINE
+            device.last_seen = datetime.utcnow()
+            device.status_changed_at = datetime.utcnow()
+            await db.commit()
+            await sse_service.publish_device_status({
+                "device_key": device_key,
+                "device_name": device.device_name,
+                "status": new_status,
+            })
+
+    async def handle_event(self, device_key: str, payload: dict):
+        device_secret = payload.pop("device_secret", None)
+        device = await self.verify_device(device_key, device_secret) if device_secret else None
+        if not device:
+            print(f"[MQTT] Device verification failed for key: {device_key}")
+            return
+
+        async with self.db_session_factory() as db:
+            ts = payload.get("timestamp")
+            if isinstance(ts, str):
+                try:
+                    ts = datetime.fromisoformat(ts)
+                except (ValueError, TypeError):
+                    ts = datetime.utcnow()
+            else:
+                ts = datetime.utcnow()
+            event_record = DeviceEventRecord(
+                device_id=device.id,
+                event_identifier=payload.get("event_identifier"),
+                event_data=payload.get("event_data"),
+                timestamp=ts,
+            )
+            db.add(event_record)
+            await db.commit()
+
+    async def handle_command_response(self, device_key: str, payload: dict):
+        print(f"[MQTT] Received command response for device {device_key}: {payload}")
+        
+        device_secret = payload.pop("device_secret", None)
+        device = await self.verify_device(device_key, device_secret) if device_secret else None
+
+        # 如果验证失败或未传入 device_secret，尝试仅通过 device_key 查询
+        if not device:
+            async with self.db_session_factory() as db:
+                result = await db.execute(select(Device).where(Device.device_key == device_key))
+                device = result.scalar_one_or_none()
+
+        if not device:
+            print(f"[MQTT] Device verification failed for key: {device_key}")
+            return
+
+        command_id = payload.get("command_id")
+        if not command_id:
+            print(f"[MQTT] Command response missing command_id")
+            return
+
+        async with self.db_session_factory() as db:
+            result = await db.execute(select(Command).where(Command.command_id == command_id))
+            command = result.scalar_one_or_none()
+            if command:
+                status = payload.get("status")
+                if status == "executed":
+                    command.status = CommandStatus.EXECUTED
+                elif status == "failed":
+                    command.status = CommandStatus.FAILED
+                command.executed_at = datetime.utcnow()
+                command.output_data = payload.get("output_data")
+                command.error_message = payload.get("error_message")
+                await db.commit()
+                print(f"[MQTT] Command {command_id} updated to {status}")
+                await sse_service.publish_command_response({
+                    "command_id": command_id,
+                    "device_key": device_key,
+                    "device_name": device.device_name,
+                    "status": status,
+                    "output_data": payload.get("output_data"),
+                    "error_message": payload.get("error_message"),
+                })
+            else:
+                print(f"[MQTT] Command {command_id} not found")
+
+    async def handle_shadow_update(self, device_key: str, payload: dict):
+        """处理设备上报影子状态（reported）"""
+        device_secret = payload.pop("device_secret", None)
+        device = await self.verify_device(device_key, device_secret) if device_secret else None
+
+        if not device:
+            async with self.db_session_factory() as db:
+                result = await db.execute(select(Device).where(Device.device_key == device_key))
+                device = result.scalar_one_or_none()
+
+        if not device:
+            print(f"[MQTT] Device verification failed for shadow update: {device_key}")
+            return
+
+        state = payload.get("state", {})
+        reported = state.get("reported", {}) if isinstance(state, dict) else {}
+
+        async with self.db_session_factory() as db:
+            shadow_result = await db.execute(
+                select(DeviceShadow).where(DeviceShadow.device_id == device.id)
+            )
+            shadow = shadow_result.scalar_one_or_none()
+
+            if not shadow:
+                shadow = DeviceShadow(
+                    device_id=device.id,
+                    reported=reported,
+                    desired={},
+                    version=1,
+                )
+                db.add(shadow)
+            else:
+                if shadow.reported and isinstance(shadow.reported, dict):
+                    merged = {**shadow.reported, **reported}
+                    shadow.reported = merged
+                else:
+                    shadow.reported = reported
+                shadow.version = (shadow.version or 0) + 1
+
+            device.status = DeviceStatus.ONLINE
+            device.last_seen = datetime.utcnow()
+            await db.commit()
+
+    async def handle_shadow_get(self, device_key: str, payload: dict, publish_callback):
+        """处理设备获取影子请求"""
+        device_secret = payload.get("device_secret")
+        token = payload.get("token", "")
+        device = await self.verify_device(device_key, device_secret) if device_secret else None
+
+        if not device:
+            async with self.db_session_factory() as db:
+                result = await db.execute(select(Device).where(Device.device_key == device_key))
+                device = result.scalar_one_or_none()
+
+        if not device:
+            print(f"[MQTT] Device verification failed for shadow get: {device_key}")
+            return
+
+        async with self.db_session_factory() as db:
+            shadow_result = await db.execute(
+                select(DeviceShadow).where(DeviceShadow.device_id == device.id)
+            )
+            shadow = shadow_result.scalar_one_or_none()
+
+            reported = shadow.reported if shadow and shadow.reported else {}
+            desired = shadow.desired if shadow and shadow.desired else {}
+            version = shadow.version if shadow else 0
+
+            response = {
+                "token": token,
+                "state": {
+                    "reported": reported,
+                    "desired": desired,
+                },
+                "version": version,
+                "metadata": {
+                    "reported": {"timestamp": datetime.utcnow().isoformat()},
+                    "desired": {"timestamp": datetime.utcnow().isoformat()},
+                },
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+            topic = f"devices/{device_key}/shadow/get/response"
+            publish_callback(topic, json.dumps(response))
