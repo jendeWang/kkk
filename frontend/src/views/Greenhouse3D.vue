@@ -216,6 +216,7 @@ let scene, camera, renderer, labelRenderer, controls
 let greenhouseGroup, fanGroup, fanBladeGroup, lightBulbs = [], curtainMesh, pumpGroup, waterParticles, rainParticles, statusLights = {}
 let sensorLabels = []
 let eventSource = null
+let animationId = null
 let lastSensorUpdate = 0
 let clock = new THREE.Clock()
 let raycaster, mouse
