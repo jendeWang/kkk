@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from logging.handlers import RotatingFileHandler
 
@@ -17,6 +18,7 @@ def setup_logging():
     console_handler.setLevel(LOG_LEVEL)
     console_handler.setFormatter(formatter)
 
+    os.makedirs("logs", exist_ok=True)
     file_handler = RotatingFileHandler(
         "logs/iot_platform.log",
         maxBytes=10 * 1024 * 1024,
