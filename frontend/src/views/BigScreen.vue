@@ -797,36 +797,54 @@ async function resetAll() {
 }
 
 async function toggleFan() {
-  actuatorData.fan_status = !actuatorData.fan_status
+  const newStatus = !actuatorData.fan_status
+  actuatorData.fan_status = newStatus
   if (currentDeviceId) {
     try {
       await api.post(`/devices/${currentDeviceId}/commands`, {
         command: 'fan_switch',
-        params: { value: actuatorData.fan_status }
+        params: { value: newStatus }
       })
-    } catch (e) { console.error('Toggle fan failed:', e) }
+      await new Promise(resolve => setTimeout(resolve, 300))
+      await loadDeviceRealtime()
+    } catch (e) { 
+      console.error('Toggle fan failed:', e)
+      actuatorData.fan_status = !newStatus
+    }
   }
 }
 async function toggleLight() {
-  actuatorData.light_status = !actuatorData.light_status
+  const newStatus = !actuatorData.light_status
+  actuatorData.light_status = newStatus
   if (currentDeviceId) {
     try {
       await api.post(`/devices/${currentDeviceId}/commands`, {
         command: 'light_switch',
-        params: { value: actuatorData.light_status }
+        params: { value: newStatus }
       })
-    } catch (e) { console.error('Toggle light failed:', e) }
+      await new Promise(resolve => setTimeout(resolve, 300))
+      await loadDeviceRealtime()
+    } catch (e) { 
+      console.error('Toggle light failed:', e)
+      actuatorData.light_status = !newStatus
+    }
   }
 }
 async function togglePump() {
-  actuatorData.pump_status = !actuatorData.pump_status
+  const newStatus = !actuatorData.pump_status
+  actuatorData.pump_status = newStatus
   if (currentDeviceId) {
     try {
       await api.post(`/devices/${currentDeviceId}/commands`, {
         command: 'pump_switch',
-        params: { value: actuatorData.pump_status }
+        params: { value: newStatus }
       })
-    } catch (e) { console.error('Toggle pump failed:', e) }
+      await new Promise(resolve => setTimeout(resolve, 300))
+      await loadDeviceRealtime()
+    } catch (e) { 
+      console.error('Toggle pump failed:', e)
+      actuatorData.pump_status = !newStatus
+    }
   }
 }
 

@@ -265,18 +265,36 @@ function getParamHint(param) {
 
 function getPlaceholder(param) {
   const parts = []
+  
+  const typeLabels = {
+    string: '文本',
+    int: '整数',
+    float: '小数',
+    bool: '开关',
+    enum: '选择',
+    object: '对象',
+    array: '数组'
+  }
+  
+  if (param.type && typeLabels[param.type]) {
+    parts.push(`类型: ${typeLabels[param.type]}`)
+  } else if (param.type) {
+    parts.push(`类型: ${param.type}`)
+  }
+  
   if (param.description) {
     parts.push(param.description)
   }
   if (param.example !== undefined && param.example !== '' && param.example !== null) {
-    parts.push(`e.g. ${param.example}`)
+    parts.push(`示例: ${param.example}`)
   } else if (param.default !== undefined && param.default !== '' && param.default !== null) {
-    parts.push(`default: ${param.default}`)
+    parts.push(`默认: ${param.default}`)
   }
   if (parts.length === 0) {
-    if (param.type === 'string') parts.push('Enter string value')
-    else if (param.type === 'int' || param.type === 'float') parts.push('Enter a number')
-    else parts.push('Enter value')
+    if (param.type === 'string') parts.push('输入文本')
+    else if (param.type === 'int' || param.type === 'float') parts.push('输入数字')
+    else if (param.type === 'bool') parts.push('选择开关')
+    else parts.push('输入值')
   }
   return parts.join(' — ')
 }

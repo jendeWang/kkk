@@ -47,6 +47,7 @@ export const icons = {
   snowflake: '<path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h-2"/><path d="M6.34 17.66l-1.41 1.41"/><path d="M19.07 4.93l-1.41 1.41"/><path d="M12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6 6 6 0 0 1-6-6 6 6 0 0 1 6-6z"/>',
   star: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
   box: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22.66V12"/>',
+  greenhouse: '<path d="M20 8H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2z"/><path d="M12 2v6"/><path d="M8 6l4-4 4 4"/><path d="M6 12h12"/><path d="M8 16h8"/><path d="M10 20h4"/>',
 }
 
 export const emojiToSvgName = {
@@ -72,7 +73,7 @@ export const emojiToSvgName = {
   '📱': 'smartphone',
   '🎬': 'playCircle',
   '🎯': 'gear',
-  '🏠': 'house',
+  '🏠': 'greenhouse',
   '📊': 'trendUp',
   '🔅': 'dim',
 }

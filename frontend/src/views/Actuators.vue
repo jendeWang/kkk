@@ -313,8 +313,8 @@ async function loadActuators() {
 
 async function loadTimedTasks() {
   try {
-    const response = await deviceStore.fetchCommands()
-    timedTasks.value = response.items || response || []
+    const response = await api.get('/tasks')
+    timedTasks.value = response.data || []
   } catch (e) {
     console.error('Failed to load tasks:', e)
   }
@@ -378,13 +378,14 @@ async function handleAddTask() {
 
   saving.value = true
   try {
-    await deviceStore.createCommand({
+    await api.post('/tasks', {
+      name: taskForm.name,
       device_id: taskForm.device_id,
-      service_identifier: `set_${taskForm.property_identifier}`,
-      input_params: {
-        status: taskForm.target_value,
-        cron: taskForm.cron_expression,
-      },
+      property_identifier: taskForm.property_identifier,
+      target_value: taskForm.target_value,
+      cron_expression: taskForm.cron_expression,
+      description: taskForm.description,
+      enabled: true,
     })
     ElMessage.success('定时任务已创建')
     showAddTaskDialog.value = false
@@ -406,8 +407,8 @@ async function handleAddTask() {
 
 async function handleToggleTask(task) {
   try {
-    const result = await deviceStore.updateCommand(task.id, { enabled: !task.enabled })
-    task.enabled = result.enabled
+    const response = await api.post(`/tasks/${task.id}/toggle`)
+    task.enabled = response.data.enabled
     ElMessage.success(`任务已${task.enabled ? '启用' : '禁用'}`)
   } catch (error) {
     ElMessage.error('操作失败')
@@ -416,11 +417,7 @@ async function handleToggleTask(task) {
 
 async function handleRunTask(task) {
   try {
-    await deviceStore.createCommand({
-      device_id: task.device_id,
-      service_identifier: `set_${task.property_identifier}`,
-      input_params: { status: task.target_value },
-    })
+    await api.post(`/tasks/${task.id}/run`)
     ElMessage.success('任务已执行')
     task.last_run_at = new Date().toISOString()
   } catch (error) {
@@ -431,7 +428,7 @@ async function handleRunTask(task) {
 async function handleDeleteTask(task) {
   try {
     await ElMessageBox.confirm('确定要删除此定时任务吗？', '警告', { type: 'warning' })
-    await deviceStore.deleteCommand(task.id)
+    await api.delete(`/tasks/${task.id}`)
     timedTasks.value = timedTasks.value.filter(t => t.id !== task.id)
     ElMessage.success('任务已删除')
   } catch (error) {
