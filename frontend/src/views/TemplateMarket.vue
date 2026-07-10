@@ -50,7 +50,7 @@
         </div>
 
         <div class="card-icon-wrap">
-          <span class="card-icon">{{ tpl.icon }}</span>
+          <span class="card-icon"><SvgIcon :name="getTemplateIcon(tpl.icon)" :size="32" color="#409eff" /></span>
         </div>
 
         <div class="card-content">
@@ -109,7 +109,7 @@
     <el-dialog v-model="showDetailDialog" :title="selectedTemplate?.name" width="800px">
       <div v-if="selectedTemplate" class="detail-content">
         <div class="detail-header">
-          <span class="detail-icon">{{ selectedTemplate.icon }}</span>
+          <span class="detail-icon"><SvgIcon :name="getTemplateIcon(selectedTemplate.icon)" :size="48" color="#409eff" /></span>
           <div class="detail-info">
             <h3>{{ selectedTemplate.name }}</h3>
             <p>{{ selectedTemplate.description }}</p>
@@ -210,6 +210,21 @@ const PROP_ICONS = {
   soil_nitrogen: 'flask', soil_phosphorus: 'star', soil_potassium: 'star', leaf_temperature: 'leaf',
   fan_status: 'fan', light_status: 'bulb', pump_status: 'shower', heater_status: 'fire',
   water_valve_status: 'shower', brightness: 'sun', curtain_status: 'gear', valve_status: 'settings',
+}
+
+const TEMPLATE_ICON_MAP = {
+  '📦': 'box',
+  '🌱': 'leaf',
+  '🐔': 'house',
+  '🏠': 'house',
+  '🌡️': 'thermometer',
+  '💧': 'droplet',
+  '☀️': 'sun',
+  '🎬': 'playCircle',
+}
+
+function getTemplateIcon(icon) {
+  return TEMPLATE_ICON_MAP[icon] || 'box'
 }
 
 const agricultureCount = computed(() => templates.value.filter(t => t.category === '农业').length)

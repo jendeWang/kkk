@@ -476,15 +476,17 @@ onMounted(() => {
   align-items: center;
 }
 
-.stats-card {
+:deep(.el-card__body) { padding: 16px; }
+
+.stats-card :deep(.el-card__body) {
   display: flex;
   align-items: center;
-  padding: 15px;
+  gap: 12px;
 }
 
 .stats-icon {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -492,7 +494,7 @@ onMounted(() => {
   font-size: 24px;
   color: #606266;
   background: #f5f7fa;
-  margin-right: 15px;
+  flex-shrink: 0;
 }
 
 .stats-card.online .stats-icon {

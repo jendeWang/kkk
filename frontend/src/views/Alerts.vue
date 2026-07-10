@@ -272,12 +272,12 @@ onMounted(() => {
   padding: 0;
 }
 
-.stats-card {
+:deep(.el-card__body) { padding: 16px; }
+
+.stats-card :deep(.el-card__body) {
   display: flex;
   align-items: center;
-  gap: 16px;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  gap: 12px;
 }
 
 .stats-card .stats-icon {
@@ -290,6 +290,7 @@ onMounted(() => {
   font-size: 24px;
   color: #409eff;
   background: #ecf5ff;
+  flex-shrink: 0;
 }
 
 .stats-card.critical .stats-icon {

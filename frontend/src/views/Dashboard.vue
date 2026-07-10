@@ -139,7 +139,19 @@
             </el-card>
             <el-card class="actuator-card mode-card">
               <div class="actuator-icon-wrap"><SvgIcon name="gear" :size="32" /></div>
-              <div class="actuator-name">工作模式</div>
+              <div class="actuator-name">
+                工作模式
+                <el-tooltip placement="top" :show-after="300">
+                  <template #content>
+                    <div style="max-width:220px;line-height:1.6">
+                      <p style="margin:0 0 4px"><b style="color:#409eff">手动模式</b>：用户手动控制每个执行器开关</p>
+                      <p style="margin:0 0 4px"><b style="color:#67c23a">自动模式</b>：根据场景联动规则自动控制（需先在「场景联动」页面配置规则）</p>
+                      <p style="margin:0"><b style="color:#e6a23c">节能模式</b>：低功耗运行，仅在环境异常时启动</p>
+                    </div>
+                  </template>
+                  <el-icon class="mode-hint-icon"><Warning /></el-icon>
+                </el-tooltip>
+              </div>
               <div class="actuator-status">{{ modeText }}</div>
               <el-select v-model="actuatorData.work_mode" size="small" @change="changeMode">
                 <el-option label="手动" value="manual" />
@@ -617,7 +629,8 @@ onUnmounted(() => {
 
 .actuator-icon-wrap { font-size: 32px; margin-bottom: 8px; color: #606266; }
 
-.actuator-name { font-size: 14px; font-weight: 600; color: #303133; margin-bottom: 4px; }
+.actuator-name { font-size: 14px; font-weight: 600; color: #303133; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.mode-hint-icon { font-size: 12px; color: #909399; cursor: pointer; }
 
 .actuator-status { font-size: 12px; color: #909399; margin-bottom: 12px; }
 
