@@ -2,7 +2,7 @@
   <div class="dashboard">
     <div class="page-header">
       <div class="header-info">
-        <h2 class="page-title">🌱 智慧大棚监控中心</h2>
+        <h2 class="page-title"><SvgIcon name="leaf" :size="24" /> 智慧大棚监控中心</h2>
         <p class="page-subtitle">实时监测环境数据，智能控制设备运行</p>
       </div>
       <el-button type="primary" :icon="FullScreen" @click="openBigScreen">进入大屏</el-button>
@@ -10,14 +10,19 @@
 
     <div class="greenhouse-tabs">
       <el-tabs v-model="activeGreenhouse" @tab-change="handleGreenhouseChange" type="card">
-        <el-tab-pane label="🏠 农场总览" name="all">
+        <el-tab-pane label="农场总览" name="all">
         </el-tab-pane>
         <el-tab-pane
           v-for="gh in greenhouses"
           :key="gh.id"
-          :label="`${gh.active_alerts > 0 ? '🔴' : '🟢'} ${gh.name} (${gh.online_count}/${gh.device_count})`"
           :name="String(gh.id)"
         >
+          <template #label>
+            <span class="tab-label">
+              <SvgIcon :name="gh.active_alerts > 0 ? 'alertCircle' : 'checkCircle'" :size="14" :color="gh.active_alerts > 0 ? '#f56c6c' : '#67c23a'" />
+              {{ gh.name }} ({{ gh.online_count }}/{{ gh.device_count }})
+            </span>
+          </template>
         </el-tab-pane>
       </el-tabs>
     </div>
@@ -69,27 +74,27 @@
         <el-card class="section-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">🌡️ 环境实时监测</span>
+              <span class="card-title"><SvgIcon name="thermometer" :size="20" /> 环境实时监测</span>
               <span class="update-time">更新时间: {{ lastUpdateTime }}</span>
             </div>
           </template>
           <div class="sensor-grid">
-            <SensorCard icon="🌡️" name="空气温度" :value="sensorData.temperature" unit="°C" :normal-range="{min:15,max:30}" />
-            <SensorCard icon="💧" name="空气湿度" :value="sensorData.humidity" unit="%" :normal-range="{min:40,max:80}" />
-            <SensorCard icon="☀️" name="光照强度" :value="sensorData.light_intensity" unit="lux" :normal-range="{min:5000,max:50000}" :decimals="0" />
-            <SensorCard icon="🌱" name="土壤湿度" :value="sensorData.soil_moisture" unit="%" :normal-range="{min:50,max:80}" />
-            <SensorCard icon="💨" name="CO₂浓度" :value="sensorData.co2" unit="ppm" :normal-range="{min:400,max:1500}" :decimals="0" />
-            <SensorCard icon="🪴" name="土壤温度" :value="sensorData.soil_temperature" unit="°C" :normal-range="{min:15,max:28}" />
-            <SensorCard icon="⚗️" name="土壤pH" :value="sensorData.soil_ph" unit="pH" :normal-range="{min:5.5,max:7.5}" />
-            <SensorCard icon="🌬️" name="风速" :value="sensorData.wind_speed" unit="m/s" :normal-range="{min:0,max:10}" />
-            <SensorCard icon="🌧️" name="雨量" :value="sensorData.rainfall" unit="mm" :normal-range="{min:0,max:10}" />
+            <SensorCard icon="thermometer" name="空气温度" :value="sensorData.temperature" unit="°C" :normal-range="{min:15,max:30}" />
+            <SensorCard icon="droplet" name="空气湿度" :value="sensorData.humidity" unit="%" :normal-range="{min:40,max:80}" />
+            <SensorCard icon="sun" name="光照强度" :value="sensorData.light_intensity" unit="lux" :normal-range="{min:5000,max:50000}" :decimals="0" />
+            <SensorCard icon="leaf" name="土壤湿度" :value="sensorData.soil_moisture" unit="%" :normal-range="{min:50,max:80}" />
+            <SensorCard icon="wind" name="CO₂浓度" :value="sensorData.co2" unit="ppm" :normal-range="{min:400,max:1500}" :decimals="0" />
+            <SensorCard icon="soil" name="土壤温度" :value="sensorData.soil_temperature" unit="°C" :normal-range="{min:15,max:28}" />
+            <SensorCard icon="flask" name="土壤pH" :value="sensorData.soil_ph" unit="pH" :normal-range="{min:5.5,max:7.5}" />
+            <SensorCard icon="cloud" name="风速" :value="sensorData.wind_speed" unit="m/s" :normal-range="{min:0,max:10}" />
+            <SensorCard icon="rain" name="雨量" :value="sensorData.rainfall" unit="mm" :normal-range="{min:0,max:10}" />
           </div>
         </el-card>
 
         <el-card class="section-card chart-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">📈 环境趋势 (最近6小时)</span>
+              <span class="card-title"><SvgIcon name="trendUp" :size="20" /> 环境趋势 (最近6小时)</span>
               <el-radio-group v-model="trendProperty" size="small" @change="loadTrendData">
                 <el-radio-button label="temperature">温度</el-radio-button>
                 <el-radio-button label="humidity">湿度</el-radio-button>
@@ -110,31 +115,43 @@
         <el-card class="section-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">⚡ 执行器控制</span>
+              <span class="card-title"><SvgIcon name="bolt" :size="20" /> 执行器控制</span>
             </div>
           </template>
           <div class="actuator-grid">
             <el-card class="actuator-card" :class="{ active: actuatorData.fan_status }">
-              <div class="actuator-icon-wrap">{{ actuatorData.fan_status ? '🌀' : '💨' }}</div>
+              <div class="actuator-icon-wrap"><SvgIcon :name="actuatorData.fan_status ? 'fan' : 'wind'" :size="32" /></div>
               <div class="actuator-name">通风扇</div>
               <div class="actuator-status">{{ actuatorData.fan_status ? '运行中' : '已关闭' }}</div>
               <el-switch v-model="actuatorData.fan_status" active-color="#67c23a" @change="toggleFan" />
             </el-card>
             <el-card class="actuator-card" :class="{ active: actuatorData.light_status }">
-              <div class="actuator-icon-wrap">{{ actuatorData.light_status ? '💡' : '🔅' }}</div>
+              <div class="actuator-icon-wrap"><SvgIcon :name="actuatorData.light_status ? 'bulb' : 'dim'" :size="32" /></div>
               <div class="actuator-name">补光灯</div>
               <div class="actuator-status">{{ actuatorData.light_status ? `亮度 ${actuatorData.brightness}%` : '已关闭' }}</div>
               <el-switch v-model="actuatorData.light_status" active-color="#e6a23c" @change="toggleLight" />
             </el-card>
             <el-card class="actuator-card" :class="{ active: actuatorData.pump_status }">
-              <div class="actuator-icon-wrap">{{ actuatorData.pump_status ? '🚿' : '💧' }}</div>
+              <div class="actuator-icon-wrap"><SvgIcon :name="actuatorData.pump_status ? 'shower' : 'droplet'" :size="32" /></div>
               <div class="actuator-name">灌溉水泵</div>
               <div class="actuator-status">{{ actuatorData.pump_status ? '灌溉中' : '已关闭' }}</div>
               <el-switch v-model="actuatorData.pump_status" active-color="#409eff" @change="togglePump" />
             </el-card>
             <el-card class="actuator-card mode-card">
-              <div class="actuator-icon-wrap">🎯</div>
-              <div class="actuator-name">工作模式</div>
+              <div class="actuator-icon-wrap"><SvgIcon name="gear" :size="32" /></div>
+              <div class="actuator-name">
+                工作模式
+                <el-tooltip placement="top" :show-after="300">
+                  <template #content>
+                    <div style="max-width:220px;line-height:1.6">
+                      <p style="margin:0 0 4px"><b style="color:#409eff">手动模式</b>：用户手动控制每个执行器开关</p>
+                      <p style="margin:0 0 4px"><b style="color:#67c23a">自动模式</b>：根据场景联动规则自动控制（需先在「场景联动」页面配置规则）</p>
+                      <p style="margin:0"><b style="color:#e6a23c">节能模式</b>：低功耗运行，仅在环境异常时启动</p>
+                    </div>
+                  </template>
+                  <el-icon class="mode-hint-icon"><Warning /></el-icon>
+                </el-tooltip>
+              </div>
               <div class="actuator-status">{{ modeText }}</div>
               <el-select v-model="actuatorData.work_mode" size="small" @change="changeMode">
                 <el-option label="手动" value="manual" />
@@ -148,7 +165,7 @@
         <el-card class="section-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">🔔 最近告警</span>
+              <span class="card-title"><SvgIcon name="bell" :size="20" /> 最近告警</span>
               <el-tag size="small" :type="alertSummary.today_total > 0 ? 'danger' : 'success'">今日 {{ alertSummary.today_total || 0 }}</el-tag>
             </div>
           </template>
@@ -170,14 +187,14 @@
         <el-card class="section-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">📦 快捷操作</span>
+              <span class="card-title">快捷操作</span>
             </div>
           </template>
           <div class="quick-actions">
-            <el-button type="primary" plain size="small" @click="refreshAll">🔄 刷新数据</el-button>
-            <el-button type="success" plain size="small" @click="goToDevices">📱 设备管理</el-button>
-            <el-button type="warning" plain size="small" @click="goToAlerts">⚠️ 告警中心</el-button>
-            <el-button type="info" plain size="small" @click="goToScenes">🎬 场景联动</el-button>
+            <el-button type="primary" plain size="small" @click="refreshAll">刷新数据</el-button>
+            <el-button type="success" plain size="small" @click="goToDevices">设备管理</el-button>
+            <el-button type="warning" plain size="small" @click="goToAlerts">告警中心</el-button>
+            <el-button type="info" plain size="small" @click="goToScenes">场景联动</el-button>
           </div>
         </el-card>
       </el-col>
@@ -281,6 +298,18 @@ async function loadDeviceRealtime() {
         })
       }
       lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    } else {
+      currentDeviceId = null
+      Object.assign(sensorData, {
+        temperature: 0, humidity: 0, light_intensity: 0,
+        soil_moisture: 0, co2: 0, soil_temperature: 0,
+        soil_ph: 0, wind_speed: 0, rainfall: 0
+      })
+      Object.assign(actuatorData, {
+        fan_status: false, light_status: false,
+        pump_status: false, brightness: 0, work_mode: 'manual'
+      })
+      lastUpdateTime.value = '--'
     }
   } catch (e) { console.error('Failed to load device realtime:', e) }
 }
@@ -447,6 +476,12 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 
+.tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .greenhouse-tabs :deep(.el-tabs__header) {
   border-bottom: 2px solid #e4e7ed;
 }
@@ -513,7 +548,7 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 
-.stat-card { border: none; border-radius: 12px; overflow: hidden; }
+.stat-card { border: none; border-radius: 12px; }
 .stat-card :deep(.el-card__body) { padding: 20px; }
 
 .stat-inner { display: flex; align-items: center; gap: 16px; }
@@ -526,6 +561,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   color: #fff;
+  flex-shrink: 0;
+  overflow: visible;
 }
 
 .stat-product .stat-icon-wrap { background: linear-gradient(135deg, #667eea, #764ba2); }
@@ -590,9 +627,10 @@ onUnmounted(() => {
 
 .actuator-card.mode-card { border-color: #409eff; }
 
-.actuator-icon-wrap { font-size: 32px; margin-bottom: 8px; }
+.actuator-icon-wrap { font-size: 32px; margin-bottom: 8px; color: #606266; }
 
-.actuator-name { font-size: 14px; font-weight: 600; color: #303133; margin-bottom: 4px; }
+.actuator-name { font-size: 14px; font-weight: 600; color: #303133; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.mode-hint-icon { font-size: 12px; color: #909399; cursor: pointer; }
 
 .actuator-status { font-size: 12px; color: #909399; margin-bottom: 12px; }
 

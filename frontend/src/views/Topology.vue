@@ -168,7 +168,7 @@
               @click.stop="!editMode && handleSensorClick(node)"
             >
               <div class="node-icon-inner" :style="getNodeIconStyle(node)">
-                <span class="node-emoji">{{ node.icon }}</span>
+                <span class="node-emoji"><SvgIcon :name="node.icon" :size="24" /></span>
               </div>
               <div class="node-value" v-if="hasData && node.value !== undefined">
                 {{ formatValue(node.value, node.decimals) }}
@@ -195,7 +195,7 @@
               @click.stop="!editMode && handleActuatorClick(node)"
             >
               <div class="node-icon-inner" :class="{ 'rotating': node.isRotating && node.isOn }">
-                <span class="node-emoji">{{ node.icon }}</span>
+                <span class="node-emoji"><SvgIcon :name="node.icon" :size="24" /></span>
               </div>
               <div class="node-actuator-status">{{ node.isOn ? '运行中' : '已关闭' }}</div>
               <div class="node-label">{{ node.name }}</div>
@@ -260,7 +260,7 @@
     <el-dialog v-model="showSensorDetail" title="" width="360px" :show-close="true">
       <div v-if="selectedSensor" class="sensor-detail">
         <div class="detail-header" :class="{ warning: selectedSensor.isWarning }">
-          <span class="detail-icon">{{ selectedSensor.icon }}</span>
+          <span class="detail-icon"><SvgIcon :name="selectedSensor.icon" :size="32" /></span>
           <div class="detail-info">
             <div class="detail-name">{{ selectedSensor.name }}</div>
             <div class="detail-value">
@@ -285,7 +285,7 @@
     <el-dialog v-model="showActuatorConfirm" title="" width="360px" :show-close="true">
       <div v-if="selectedActuator" class="actuator-confirm">
         <div class="confirm-header">
-          <span class="confirm-icon">{{ selectedActuator.icon }}</span>
+          <span class="confirm-icon"><SvgIcon :name="selectedActuator.icon" :size="32" /></span>
           <div class="confirm-info">
             <div class="confirm-name">{{ selectedActuator.name }}</div>
             <div class="confirm-status">
@@ -372,17 +372,17 @@ const nodePositions = reactive({})
 
 const defaultFallbackConfigs = {
   sensors: [
-    { id: 'temperature', name: '温度传感器', icon: '🌡️', unit: '°C', decimals: 1, min: 15, max: 30, color: '#f56c6c' },
-    { id: 'humidity', name: '空气湿度', icon: '💧', unit: '%', decimals: 1, min: 40, max: 70, color: '#409eff' },
-    { id: 'light_intensity', name: '光照传感器', icon: '☀️', unit: 'lux', decimals: 0, min: 1000, max: 50000, color: '#e6a23c' },
-    { id: 'soil_moisture', name: '土壤湿度', icon: '🌱', unit: '%', decimals: 1, min: 30, max: 80, color: '#67c23a' },
-    { id: 'co2', name: 'CO₂浓度', icon: '💨', unit: 'ppm', decimals: 0, min: 400, max: 1500, color: '#909399' },
-    { id: 'soil_temperature', name: '土壤温度', icon: '🪴', unit: '°C', decimals: 1, min: 15, max: 28, color: '#8e44ad' }
+    { id: 'temperature', name: '温度传感器', icon: 'thermometer', unit: '°C', decimals: 1, min: 15, max: 30, color: '#f56c6c' },
+    { id: 'humidity', name: '空气湿度', icon: 'droplet', unit: '%', decimals: 1, min: 40, max: 70, color: '#409eff' },
+    { id: 'light_intensity', name: '光照传感器', icon: 'sun', unit: 'lux', decimals: 0, min: 1000, max: 50000, color: '#e6a23c' },
+    { id: 'soil_moisture', name: '土壤湿度', icon: 'leaf', unit: '%', decimals: 1, min: 30, max: 80, color: '#67c23a' },
+    { id: 'co2', name: 'CO₂浓度', icon: 'wind', unit: 'ppm', decimals: 0, min: 400, max: 1500, color: '#909399' },
+    { id: 'soil_temperature', name: '土壤温度', icon: 'soil', unit: '°C', decimals: 1, min: 15, max: 28, color: '#8e44ad' }
   ],
   actuators: [
-    { id: 'fan_status', name: '通风扇', icon: '🌀', service: 'set_fan', param: 'status', isRotating: true },
-    { id: 'light_status', name: '补光灯', icon: '💡', service: 'set_light', param: 'status', isRotating: false },
-    { id: 'pump_status', name: '灌溉水泵', icon: '🚿', service: 'set_pump', param: 'status', isRotating: false }
+    { id: 'fan_status', name: '通风扇', icon: 'fan', service: 'set_fan', param: 'status', isRotating: true },
+    { id: 'light_status', name: '补光灯', icon: 'bulb', service: 'set_light', param: 'status', isRotating: false },
+    { id: 'pump_status', name: '灌溉水泵', icon: 'shower', service: 'set_pump', param: 'status', isRotating: false }
   ],
   positions: {
     temperature: { x: 100, y: 120 },
@@ -1357,10 +1357,10 @@ onBeforeUnmount(() => {
   background: rgba(64, 158, 255, 0.3);
 }
 
-.zone-east { top: 10px; left: 10px; }
-.zone-west { top: 10px; right: 10px; }
+.zone-east { top: 50%; right: 10px; transform: translateY(-50%); }
+.zone-west { top: 50%; left: 10px; transform: translateY(-50%); }
 .zone-south { bottom: 10px; left: 50%; transform: translateX(-50%); }
-.zone-north { top: 50%; right: 10px; transform: translateY(-50%); }
+.zone-north { top: 10px; left: 50%; transform: translateX(-50%); }
 
 .node-icon-inner.rotating {
   animation: spin 2s linear infinite;

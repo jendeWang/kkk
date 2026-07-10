@@ -8,8 +8,20 @@ export const useProductStore = defineStore('product', () => {
 
   async function fetchProducts() {
     const response = await api.get('/products/')
-    products.value = response.data
-    return response.data
+    const list = response.data
+    // 获取每个产品的详情（包含properties/services/events）
+    const detailed = await Promise.all(
+      list.map(async p => {
+        try {
+          const detail = await api.get(`/products/${p.product_key}`)
+          return detail.data
+        } catch (e) {
+          return p
+        }
+      })
+    )
+    products.value = detailed
+    return detailed
   }
 
   async function fetchProduct(productKey) {

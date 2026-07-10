@@ -13,6 +13,12 @@
       </div>
       <div class="header-center">
         <h1 class="title">智慧大棚物联网监控平台</h1>
+        <div class="greenhouse-bar">
+          <span class="greenhouse-label">当前大棚</span>
+          <el-select v-model="selectedGreenhouse" size="small" class="greenhouse-select" @change="onGreenhouseChange">
+            <el-option v-for="gh in greenhouses" :key="gh.id" :label="gh.name" :value="gh.id" />
+          </el-select>
+        </div>
         <div class="subtitle">INTELLIGENT GREENHOUSE IOT MONITORING PLATFORM</div>
       </div>
       <div class="header-right">
@@ -114,7 +120,7 @@
         <div class="sensor-grid">
           <div class="sensor-card" v-for="sensor in sensors" :key="sensor.key">
             <div class="sensor-icon-wrap">
-              <span class="sensor-icon">{{ sensor.icon }}</span>
+              <span class="sensor-icon"><SvgIcon :name="sensor.icon" :size="28" :color="sensor.color" /></span>
             </div>
             <div class="sensor-name">{{ sensor.name }}</div>
             <div class="sensor-value">
@@ -152,21 +158,21 @@
             <div class="actuator-list">
               <div class="actuator-item" :class="{ active: actuatorData.fan_status }">
                 <div class="actuator-icon-wrap">
-                  <span class="actuator-icon">🌀</span>
+                  <span class="actuator-icon"><SvgIcon name="fan" :size="32" color="#00d4ff" /></span>
                   <div class="actuator-ring" :class="{ active: actuatorData.fan_status }"></div>
                 </div>
                 <div class="actuator-info">
                   <div class="actuator-name">通风扇</div>
                   <div class="actuator-status">{{ actuatorData.fan_status ? '运行中' : '已关闭' }}</div>
                 </div>
-                <div class="actuator-switch" :class="{ on: actuatorData.fan_status }">
+                <div class="actuator-switch" :class="{ on: actuatorData.fan_status }" @click="toggleFan">
                   <div class="switch-dot"></div>
                 </div>
               </div>
 
               <div class="actuator-item" :class="{ active: actuatorData.light_status }">
                 <div class="actuator-icon-wrap">
-                  <span class="actuator-icon">💡</span>
+                  <span class="actuator-icon"><SvgIcon name="bulb" :size="32" color="#ffd93d" /></span>
                   <div class="actuator-ring" :class="{ active: actuatorData.light_status }"></div>
                 </div>
                 <div class="actuator-info">
@@ -175,21 +181,21 @@
                     {{ actuatorData.light_status ? `亮度 ${actuatorData.brightness}%` : '已关闭' }}
                   </div>
                 </div>
-                <div class="actuator-switch" :class="{ on: actuatorData.light_status }">
+                <div class="actuator-switch" :class="{ on: actuatorData.light_status }" @click="toggleLight">
                   <div class="switch-dot"></div>
                 </div>
               </div>
 
               <div class="actuator-item" :class="{ active: actuatorData.pump_status }">
                 <div class="actuator-icon-wrap">
-                  <span class="actuator-icon">🚿</span>
+                  <span class="actuator-icon"><SvgIcon name="shower" :size="32" color="#409eff" /></span>
                   <div class="actuator-ring" :class="{ active: actuatorData.pump_status }"></div>
                 </div>
                 <div class="actuator-info">
                   <div class="actuator-name">灌溉水泵</div>
                   <div class="actuator-status">{{ actuatorData.pump_status ? '灌溉中' : '已关闭' }}</div>
                 </div>
-                <div class="actuator-switch" :class="{ on: actuatorData.pump_status }">
+                <div class="actuator-switch" :class="{ on: actuatorData.pump_status }" @click="togglePump">
                   <div class="switch-dot"></div>
                 </div>
               </div>
@@ -229,7 +235,7 @@
               </div>
 
               <div class="scene-item" :class="{ active: scenes[2].active }">
-                <div class="scene-icon">💧</div>
+                <div class="scene-icon"><SvgIcon name="droplet" :size="20" color="#409eff" /></div>
                 <div class="scene-info">
                   <div class="scene-name">{{ scenes[2].name }}</div>
                   <div class="scene-desc">{{ scenes[2].desc }}</div>
@@ -260,9 +266,13 @@ const router = useRouter()
 const currentTime = ref('')
 let timeTimer = null
 let dataTimer = null
+let sseSource = null
 let trendChartInstance = null
 const trendChart = ref(null)
 let currentDeviceId = null
+
+const greenhouses = ref([])
+const selectedGreenhouse = ref(null)
 
 const overview = reactive({
   total_devices: 0,
@@ -292,14 +302,7 @@ const actuatorData = reactive({
   work_mode: 'manual'
 })
 
-const deviceList = ref([
-  { name: '大棚A-001', location: '东区1号棚', status: 'online' },
-  { name: '大棚A-002', location: '东区2号棚', status: 'online' },
-  { name: '大棚B-001', location: '西区1号棚', status: 'alert' },
-  { name: '大棚B-002', location: '西区2号棚', status: 'online' },
-  { name: '大棚C-001', location: '南区1号棚', status: 'offline' },
-  { name: '大棚C-002', location: '南区2号棚', status: 'online' }
-])
+const deviceList = ref([])
 
 const alertList = ref([
   { id: 1, severity: 'critical', message: '大棚B-001: temperature = 32.5，超过阈值 30', created_at: new Date() },
@@ -319,7 +322,8 @@ const sensors = computed(() => [
   {
     key: 'temperature',
     name: '温度',
-    icon: '🌡️',
+    icon: 'thermometer',
+    color: '#00d4ff',
     unit: '°C',
     value: sensorData.temperature,
     displayValue: formatValue(sensorData.temperature, 1),
@@ -329,7 +333,8 @@ const sensors = computed(() => [
   {
     key: 'humidity',
     name: '空气湿度',
-    icon: '💧',
+    icon: 'droplet',
+    color: '#409eff',
     unit: '%',
     value: sensorData.humidity,
     displayValue: formatValue(sensorData.humidity, 1),
@@ -339,7 +344,8 @@ const sensors = computed(() => [
   {
     key: 'light_intensity',
     name: '光照强度',
-    icon: '☀️',
+    icon: 'sun',
+    color: '#ffd93d',
     unit: 'lux',
     value: sensorData.light_intensity,
     displayValue: formatValue(sensorData.light_intensity, 0),
@@ -349,7 +355,8 @@ const sensors = computed(() => [
   {
     key: 'soil_moisture',
     name: '土壤湿度',
-    icon: '🌱',
+    icon: 'leaf',
+    color: '#67c23a',
     unit: '%',
     value: sensorData.soil_moisture,
     displayValue: formatValue(sensorData.soil_moisture, 1),
@@ -359,7 +366,8 @@ const sensors = computed(() => [
   {
     key: 'co2',
     name: 'CO₂浓度',
-    icon: '💨',
+    icon: 'wind',
+    color: '#95a5a6',
     unit: 'ppm',
     value: sensorData.co2,
     displayValue: formatValue(sensorData.co2, 0),
@@ -369,7 +377,8 @@ const sensors = computed(() => [
   {
     key: 'soil_temperature',
     name: '土壤温度',
-    icon: '🪴',
+    icon: 'soil',
+    color: '#e6a23c',
     unit: '°C',
     value: sensorData.soil_temperature,
     displayValue: formatValue(sensorData.soil_temperature, 1),
@@ -379,7 +388,8 @@ const sensors = computed(() => [
   {
     key: 'soil_ph',
     name: '土壤pH',
-    icon: '⚗️',
+    icon: 'flask',
+    color: '#b37feb',
     unit: 'pH',
     value: sensorData.soil_ph,
     displayValue: formatValue(sensorData.soil_ph, 1),
@@ -389,7 +399,8 @@ const sensors = computed(() => [
   {
     key: 'wind_speed',
     name: '风速',
-    icon: '🌬️',
+    icon: 'cloud',
+    color: '#36cfc9',
     unit: 'm/s',
     value: sensorData.wind_speed,
     displayValue: formatValue(sensorData.wind_speed, 1),
@@ -400,6 +411,7 @@ const sensors = computed(() => [
     key: 'rainfall',
     name: '雨量',
     icon: '🌧️',
+    color: '#597ef7',
     unit: 'mm',
     value: sensorData.rainfall,
     displayValue: formatValue(sensorData.rainfall, 1),
@@ -440,46 +452,52 @@ async function loadOverview() {
   try {
     const resp = await api.get('/dashboard/overview')
     Object.assign(overview, resp.data)
-    await loadDeviceList()
   } catch (e) {
     console.error('Failed to load overview:', e)
     generateMockData()
   }
 }
 
-async function loadDeviceList() {
+async function loadGreenhousesAndDevices() {
   try {
-    const resp = await api.get('/devices/')
-    const devices = resp.data.items || resp.data || []
+    const resp = await api.get('/dashboard/devices/realtime')
+    const devices = resp.data.devices || []
     if (devices.length > 0) {
+      greenhouses.value = devices.map(device => ({
+        id: device.id,
+        name: device.name || device.device_name
+      }))
       deviceList.value = devices.map(device => ({
         id: device.id,
-        name: device.device_name,
-        location: device.description || '未设置位置',
-        status: device.status
+        name: device.name || device.device_name,
+        location: device.group_name || device.location || '未设置分组',
+        status: device.status || 'offline'
       }))
-    } else {
-      updateDeviceList()
+      if (!selectedGreenhouse.value && greenhouses.value.length > 0) {
+        selectedGreenhouse.value = greenhouses.value[0].id
+        currentDeviceId = greenhouses.value[0].id
+      }
     }
   } catch (e) {
-    console.error('Failed to load device list:', e)
-    updateDeviceList()
+    console.error('Failed to load greenhouses and devices:', e)
   }
 }
 
-function updateDeviceList() {
-  const online = overview.online_devices || 0
-  const offline = overview.offline_devices || 0
-  const alert = overview.active_alerts || 0
-  
-  deviceList.value = [
-    { name: '大棚A-001', location: '东区1号棚', status: 'online' },
-    { name: '大棚A-002', location: '东区2号棚', status: alert > 0 ? 'alert' : 'online' },
-    { name: '大棚B-001', location: '西区1号棚', status: 'online' },
-    { name: '大棚B-002', location: '西区2号棚', status: 'online' },
-    { name: '大棚C-001', location: '南区1号棚', status: offline > 0 ? 'offline' : 'online' },
-    { name: '大棚C-002', location: '南区2号棚', status: 'online' }
-  ]
+async function loadDeviceList() {
+  try {
+    const resp = await api.get('/dashboard/devices/realtime')
+    const devices = resp.data.devices || []
+    if (devices.length > 0) {
+      deviceList.value = devices.map(device => ({
+        id: device.id,
+        name: device.name || device.device_name,
+        location: device.group_name || device.location || '未设置分组',
+        status: device.status || 'offline'
+      }))
+    }
+  } catch (e) {
+    console.error('Failed to load device list:', e)
+  }
 }
 
 async function loadDeviceRealtime() {
@@ -487,7 +505,11 @@ async function loadDeviceRealtime() {
     const resp = await api.get('/dashboard/devices/realtime')
     const devices = resp.data.devices
     if (devices && devices.length > 0) {
-      const device = devices[0]
+      let device = devices.find(d => d.id === selectedGreenhouse.value)
+      if (!device) {
+        device = devices[0]
+        selectedGreenhouse.value = device.id
+      }
       currentDeviceId = device.id
       if (device.reported) {
         Object.assign(sensorData, {
@@ -534,7 +556,6 @@ function generateMockData() {
   overview.offline_devices = 1
   overview.active_alerts = 2
   overview.today_alerts = 5
-  updateDeviceList()
 }
 
 function generateMockSensorData() {
@@ -686,6 +707,7 @@ function updateTrendChart(tempData, humData) {
 async function refreshData() {
   await Promise.all([
     loadOverview(),
+    loadGreenhousesAndDevices(),
     loadDeviceRealtime(),
     loadRecentAlerts()
   ])
@@ -696,14 +718,16 @@ onMounted(async () => {
   updateTime()
   timeTimer = setInterval(updateTime, 1000)
   
-  // 加载物模型属性映射，用于通用口语化
   await loadPropertyMappings()
   
   generateMockSensorData()
+  await loadGreenhousesAndDevices()
   await refreshData()
   
   dataTimer = setInterval(refreshData, 3000)
-  
+
+  connectSSE()
+
   await nextTick()
   if (!trendChartInstance) {
     trendChartInstance = echarts.init(trendChart.value)
@@ -725,6 +749,16 @@ function exitBigScreen() {
   }, 100)
 }
 
+function onGreenhouseChange(id) {
+  const gh = greenhouses.value.find(g => g.id === id)
+  if (gh) {
+    currentDeviceId = id
+    selectedGreenhouse.value = id
+    refreshData()
+    connectSSE()
+  }
+}
+
 async function resetAll() {
   try {
     const ElMessage = (await import('element-plus')).ElMessage
@@ -732,7 +766,14 @@ async function resetAll() {
     const confirmed = confirm('确认复位吗？\n- 所有执行器将关闭\n- 图表数据将重新拉取\n- 此操作不可撤销')
     if (!confirmed) return
     
-    // 1. 关闭所有执行器
+    // 1. 立即本地更新状态（确保UI先变）
+    actuatorData.fan_status = false
+    actuatorData.light_status = false
+    actuatorData.pump_status = false
+    actuatorData.brightness = 0
+    actuatorData.work_mode = 'manual'
+
+    // 2. 发送关闭命令
     const resetPromises = []
     for (const actuator of ['fan_switch', 'light_switch', 'pump_switch']) {
       resetPromises.push(
@@ -744,13 +785,107 @@ async function resetAll() {
     }
     await Promise.all(resetPromises)
     
-    // 2. 重新拉取数据
+    // 3. 延时后重新拉取数据（确保后端状态已更新）
+    await new Promise(resolve => setTimeout(resolve, 500))
     await refreshData()
     
     ElMessage.success('复位完成，执行器已全部关闭')
   } catch (e) {
     console.error('复位失败:', e)
     alert('复位失败: ' + (e.message || '未知错误'))
+  }
+}
+
+async function toggleFan() {
+  const newStatus = !actuatorData.fan_status
+  actuatorData.fan_status = newStatus
+  if (currentDeviceId) {
+    try {
+      await api.post(`/devices/${currentDeviceId}/commands`, {
+        command: 'fan_switch',
+        params: { value: newStatus }
+      })
+      await new Promise(resolve => setTimeout(resolve, 300))
+      await loadDeviceRealtime()
+    } catch (e) { 
+      console.error('Toggle fan failed:', e)
+      actuatorData.fan_status = !newStatus
+    }
+  }
+}
+async function toggleLight() {
+  const newStatus = !actuatorData.light_status
+  actuatorData.light_status = newStatus
+  if (currentDeviceId) {
+    try {
+      await api.post(`/devices/${currentDeviceId}/commands`, {
+        command: 'light_switch',
+        params: { value: newStatus }
+      })
+      await new Promise(resolve => setTimeout(resolve, 300))
+      await loadDeviceRealtime()
+    } catch (e) { 
+      console.error('Toggle light failed:', e)
+      actuatorData.light_status = !newStatus
+    }
+  }
+}
+async function togglePump() {
+  const newStatus = !actuatorData.pump_status
+  actuatorData.pump_status = newStatus
+  if (currentDeviceId) {
+    try {
+      await api.post(`/devices/${currentDeviceId}/commands`, {
+        command: 'pump_switch',
+        params: { value: newStatus }
+      })
+      await new Promise(resolve => setTimeout(resolve, 300))
+      await loadDeviceRealtime()
+    } catch (e) { 
+      console.error('Toggle pump failed:', e)
+      actuatorData.pump_status = !newStatus
+    }
+  }
+}
+
+function connectSSE() {
+  if (sseSource) sseSource.close()
+  let url = '/api/v1/dashboard/sse/realtime'
+  if (currentDeviceId) {
+    url += `?device_id=${currentDeviceId}`
+  }
+  sseSource = new EventSource(url)
+  sseSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      if (data.reported && (!data.device_id || data.device_id === currentDeviceId)) {
+        Object.assign(sensorData, {
+          temperature: data.reported.temperature ?? sensorData.temperature,
+          humidity: data.reported.humidity ?? sensorData.humidity,
+          light_intensity: data.reported.light_intensity ?? sensorData.light_intensity,
+          soil_moisture: data.reported.soil_moisture ?? sensorData.soil_moisture,
+          co2: data.reported.co2 ?? sensorData.co2,
+          soil_temperature: data.reported.soil_temperature ?? sensorData.soil_temperature,
+          soil_ph: data.reported.soil_ph ?? sensorData.soil_ph,
+          wind_speed: data.reported.wind_speed ?? sensorData.wind_speed,
+          rainfall: data.reported.rainfall ?? sensorData.rainfall
+        })
+        Object.assign(actuatorData, {
+          fan_status: data.reported.fan_status ?? actuatorData.fan_status,
+          light_status: data.reported.light_status ?? actuatorData.light_status,
+          pump_status: data.reported.pump_status ?? actuatorData.pump_status,
+          brightness: data.reported.brightness ?? actuatorData.brightness,
+          work_mode: data.reported.work_mode ?? actuatorData.work_mode
+        })
+      }
+    } catch (e) {
+      console.error('SSE data parse error:', e)
+    }
+  }
+  sseSource.onerror = () => {
+    console.warn('SSE connection error, will retry...')
+    if (sseSource) sseSource.close()
+    setTimeout(connectSSE, 5000)
   }
 }
 
@@ -763,6 +898,7 @@ function handleKeydown(e) {
 onUnmounted(() => {
   if (timeTimer) clearInterval(timeTimer)
   if (dataTimer) clearInterval(dataTimer)
+  if (sseSource) sseSource.close()
   if (trendChartInstance) trendChartInstance.dispose()
   window.removeEventListener('resize', handleResize)
   window.removeEventListener('keydown', handleKeydown)
@@ -947,6 +1083,37 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.4);
   letter-spacing: 6px;
   margin-top: 4px;
+}
+
+.greenhouse-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.greenhouse-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.greenhouse-select {
+  width: 140px;
+}
+
+.greenhouse-select :deep(.el-input__wrapper) {
+  background: rgba(0, 212, 255, 0.1);
+  box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.3) inset;
+}
+
+.greenhouse-select :deep(.el-input__inner) {
+  color: #00d4ff;
+  font-size: 13px;
+}
+
+.greenhouse-select :deep(.el-input__suffix) {
+  color: rgba(0, 212, 255, 0.6);
 }
 
 .main-content {

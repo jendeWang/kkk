@@ -8,6 +8,7 @@ import zh from './locales/zh.js'
 import en from './locales/en.js'
 import App from './App.vue'
 import router from './router'
+import SvgIcon from './components/SvgIcon.vue'
 
 const i18n = createI18n({
   legacy: false,
@@ -21,6 +22,8 @@ const pinia = createPinia()
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }
+
+app.component('SvgIcon', SvgIcon)
 
 app.use(pinia)
 app.use(router)

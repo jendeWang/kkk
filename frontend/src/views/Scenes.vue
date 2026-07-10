@@ -6,7 +6,7 @@
       show-icon
       class="page-intro"
     >
-      <template #title>⚡ 场景联动 = 触发 + 执行</template>
+      <template #title><SvgIcon name="bolt" :size="18" /> 场景联动 = 触发 + 执行</template>
       <template #default>
         场景联动负责<strong>自动执行动作</strong>（如控制设备开关、调节参数）。
         如果只需要<strong>异常监测和告警通知</strong>，请使用「告警规则」。
@@ -180,7 +180,7 @@
             </div>
 
             <div class="detail-section">
-              <h4 class="section-title">⚡ 执行动作</h4>
+              <h4 class="section-title"><SvgIcon name="bolt" :size="16" /> 执行动作</h4>
               <div class="action-box">
                 <template v-if="selectedScene.action_type === 'command'">
                   <div class="action-text">
@@ -295,15 +295,15 @@
         <template v-if="form.trigger_type === 'threshold'">
           <el-form-item label="监测指标" prop="trigger_config.property_identifier">
             <el-select v-model="form.trigger_config.property_identifier" placeholder="选择要监测的指标">
-              <el-option label="🌡️ 空气温度" value="temperature" />
-              <el-option label="💧 空气湿度" value="humidity" />
-              <el-option label="🌱 土壤湿度" value="soil_moisture" />
-              <el-option label="☀️ 光照强度" value="light_intensity" />
-              <el-option label="💨 CO₂浓度" value="co2" />
-              <el-option label="🪴 土壤温度" value="soil_temperature" />
-              <el-option label="⚗️ 土壤pH值" value="soil_ph" />
-              <el-option label="🌬️ 风速" value="wind_speed" />
-              <el-option label="🌧️ 雨量" value="rainfall" />
+              <el-option label="空气温度" value="temperature" />
+              <el-option label="空气湿度" value="humidity" />
+              <el-option label="土壤湿度" value="soil_moisture" />
+              <el-option label="光照强度" value="light_intensity" />
+              <el-option label="CO₂浓度" value="co2" />
+              <el-option label="土壤温度" value="soil_temperature" />
+              <el-option label="土壤pH值" value="soil_ph" />
+              <el-option label="风速" value="wind_speed" />
+              <el-option label="雨量" value="rainfall" />
             </el-select>
           </el-form-item>
 
@@ -359,9 +359,9 @@
 
           <el-form-item label="控制设备" prop="action_config.service_identifier">
             <el-select v-model="form.action_config.service_identifier" placeholder="选择控制指令">
-              <el-option label="🌀 通风扇" value="set_fan" />
-              <el-option label="💡 补光灯" value="set_light" />
-              <el-option label="🚿 灌溉水泵" value="set_pump" />
+              <el-option label="通风扇" value="set_fan" />
+              <el-option label="补光灯" value="set_light" />
+              <el-option label="灌溉水泵" value="set_pump" />
             </el-select>
           </el-form-item>
 

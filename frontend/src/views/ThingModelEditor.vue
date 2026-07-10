@@ -25,68 +25,68 @@
     <div v-else class="editor-content">
       <div class="editor-sidebar">
         <div class="sidebar-section">
-          <div class="section-title">📦 快捷添加</div>
+          <div class="section-title"><SvgIcon name="box" :size="16" /> 快捷添加</div>
           <div class="quick-add-grid">
             <div class="quick-add-item" @click="addPropertyFromTemplate('temperature')">
-              <span class="item-icon">🌡️</span>
+              <span class="item-icon"><SvgIcon name="thermometer" :size="20" /></span>
               <span class="item-name">温度</span>
             </div>
             <div class="quick-add-item" @click="addPropertyFromTemplate('humidity')">
-              <span class="item-icon">💧</span>
+              <span class="item-icon"><SvgIcon name="droplet" :size="20" /></span>
               <span class="item-name">湿度</span>
             </div>
             <div class="quick-add-item" @click="addPropertyFromTemplate('light_intensity')">
-              <span class="item-icon">☀️</span>
+              <span class="item-icon"><SvgIcon name="sun" :size="20" /></span>
               <span class="item-name">光照</span>
             </div>
             <div class="quick-add-item" @click="addPropertyFromTemplate('soil_moisture')">
-              <span class="item-icon">🌱</span>
+              <span class="item-icon"><SvgIcon name="leaf" :size="20" /></span>
               <span class="item-name">土壤湿度</span>
             </div>
             <div class="quick-add-item" @click="addPropertyFromTemplate('co2')">
-              <span class="item-icon">💨</span>
+              <span class="item-icon"><SvgIcon name="wind" :size="20" /></span>
               <span class="item-name">CO₂</span>
             </div>
             <div class="quick-add-item" @click="addPropertyFromTemplate('wind_speed')">
-              <span class="item-icon">🌬️</span>
+              <span class="item-icon"><SvgIcon name="cloud" :size="20" /></span>
               <span class="item-name">风速</span>
             </div>
             <div class="quick-add-item" @click="addPropertyFromTemplate('soil_ph')">
-              <span class="item-icon">⚗️</span>
+              <span class="item-icon"><SvgIcon name="flask" :size="20" /></span>
               <span class="item-name">pH值</span>
             </div>
             <div class="quick-add-item" @click="addPropertyFromTemplate('rainfall')">
-              <span class="item-icon">🌧️</span>
+              <span class="item-icon"><SvgIcon name="rain" :size="20" /></span>
               <span class="item-name">雨量</span>
             </div>
           </div>
         </div>
 
         <div class="sidebar-section">
-          <div class="section-title">⚡ 执行器服务</div>
+          <div class="section-title"><SvgIcon name="bolt" :size="16" /> 执行器服务</div>
           <div class="quick-add-grid">
             <div class="quick-add-item" @click="addServiceFromTemplate('set_fan')">
-              <span class="item-icon">🌀</span>
+              <span class="item-icon"><SvgIcon name="fan" :size="20" /></span>
               <span class="item-name">通风扇</span>
             </div>
             <div class="quick-add-item" @click="addServiceFromTemplate('set_light')">
-              <span class="item-icon">💡</span>
+              <span class="item-icon"><SvgIcon name="bulb" :size="20" /></span>
               <span class="item-name">补光灯</span>
             </div>
             <div class="quick-add-item" @click="addServiceFromTemplate('set_pump')">
-              <span class="item-icon">🚿</span>
+              <span class="item-icon"><SvgIcon name="shower" :size="20" /></span>
               <span class="item-name">水泵</span>
             </div>
             <div class="quick-add-item" @click="addServiceFromTemplate('set_curve')">
-              <span class="item-icon">🎭</span>
+              <span class="item-icon"><SvgIcon name="gear" :size="20" /></span>
               <span class="item-name">卷帘</span>
             </div>
             <div class="quick-add-item" @click="addServiceFromTemplate('set_valve')">
-              <span class="item-icon">🔐</span>
+              <span class="item-icon"><SvgIcon name="settings" :size="20" /></span>
               <span class="item-name">电磁阀</span>
             </div>
             <div class="quick-add-item" @click="addServiceFromTemplate('set_heater')">
-              <span class="item-icon">🔥</span>
+              <span class="item-icon"><SvgIcon name="fire" :size="20" /></span>
               <span class="item-name">加热膜</span>
             </div>
           </div>
@@ -95,7 +95,8 @@
 
       <div class="editor-main">
         <el-tabs v-model="activeTab" type="border-card">
-          <el-tab-pane label="📊 属性 (Properties)" name="properties">
+          <el-tab-pane name="properties">
+            <template #label><SvgIcon name="trendUp" :size="14" /> 属性 (Properties)</template>
             <div class="tab-header">
               <span class="tab-title">设备上报的数据，如温度、湿度等</span>
               <el-button type="primary" size="small" @click="showAddPropertyDialog = true">
@@ -106,7 +107,7 @@
             <div class="model-grid">
               <div v-for="prop in localProperties" :key="prop.id || prop.identifier" class="model-card prop-card">
                 <div class="card-header">
-                  <span class="card-icon">📊</span>
+                  <span class="card-icon"><SvgIcon name="trendUp" :size="18" /></span>
                   <span class="card-name">{{ prop.name }}</span>
                   <el-tag :type="prop.access_type === 'read_write' ? 'success' : 'info'" size="small">
                     {{ prop.access_type === 'read_write' ? '读写' : '只读' }}
@@ -146,7 +147,8 @@
             </div>
           </el-tab-pane>
 
-          <el-tab-pane label="⚡ 服务 (Services)" name="services">
+          <el-tab-pane name="services">
+            <template #label><SvgIcon name="bolt" :size="14" /> 服务 (Services)</template>
             <div class="tab-header">
               <span class="tab-title">设备可执行的命令，如开启风扇、调节灯光等</span>
               <el-button type="primary" size="small" @click="showAddServiceDialog = true">
@@ -157,7 +159,7 @@
             <div class="model-grid">
               <div v-for="svc in localServices" :key="svc.id || svc.identifier" class="model-card service-card">
                 <div class="card-header">
-                  <span class="card-icon">⚡</span>
+                  <span class="card-icon"><SvgIcon name="bolt" :size="18" /></span>
                   <span class="card-name">{{ svc.name }}</span>
                   <div class="card-actions">
                     <el-button size="small" @click="editService(svc)">编辑</el-button>
@@ -200,7 +202,8 @@
             </div>
           </el-tab-pane>
 
-          <el-tab-pane label="🔔 事件 (Events)" name="events">
+          <el-tab-pane name="events">
+            <template #label><SvgIcon name="bell" :size="14" /> 事件 (Events)</template>
             <div class="tab-header">
               <span class="tab-title">设备主动上报的事件，如告警、状态变更等</span>
               <el-button type="primary" size="small" @click="showAddEventDialog = true">
@@ -211,7 +214,7 @@
             <div class="model-grid">
               <div v-for="evt in localEvents" :key="evt.id || evt.identifier" class="model-card event-card">
                 <div class="card-header">
-                  <span class="card-icon">🔔</span>
+                  <span class="card-icon"><SvgIcon name="bell" :size="18" /></span>
                   <span class="card-name">{{ evt.name }}</span>
                   <el-tag :type="getEventTypeTag(evt.event_type)" size="small">
                     {{ getEventTypeLabel(evt.event_type) }}
