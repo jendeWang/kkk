@@ -513,7 +513,7 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 
-.stat-card { border: none; border-radius: 12px; overflow: hidden; }
+.stat-card { border: none; border-radius: 12px; }
 .stat-card :deep(.el-card__body) { padding: 20px; }
 
 .stat-inner { display: flex; align-items: center; gap: 16px; }
@@ -526,6 +526,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   color: #fff;
+  flex-shrink: 0;
+  overflow: visible;
 }
 
 .stat-product .stat-icon-wrap { background: linear-gradient(135deg, #667eea, #764ba2); }
