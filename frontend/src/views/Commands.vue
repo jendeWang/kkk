@@ -124,7 +124,7 @@
             @blur="validateJson"
           />
           <div class="json-hint">
-            <span class="hint-icon">💡</span>
+            <span class="hint-icon"><SvgIcon name="bulb" :size="16" /></span>
             <span>Enter parameters as JSON object, e.g. <code>{"brightness": 50, "power": true}</code></span>
           </div>
           <div v-if="jsonError" class="json-error">{{ jsonError }}</div>

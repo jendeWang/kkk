@@ -22,17 +22,17 @@
 
     <div class="template-stats">
       <div class="stat-item">
-        <span class="stat-icon">🌱</span>
+        <span class="stat-icon"><SvgIcon name="leaf" :size="20" /></span>
         <span class="stat-text">农业模板</span>
         <span class="stat-num">{{ agricultureCount }}</span>
       </div>
       <div class="stat-item">
-        <span class="stat-icon">🐔</span>
+        <span class="stat-icon"><SvgIcon name="treePine" :size="20" /></span>
         <span class="stat-text">畜牧模板</span>
         <span class="stat-num">{{ livestockCount }}</span>
       </div>
       <div class="stat-item">
-        <span class="stat-icon">⭐</span>
+        <span class="stat-icon"><SvgIcon name="star" :size="20" /></span>
         <span class="stat-text">推荐模板</span>
         <span class="stat-num">{{ recommendedCount }}</span>
       </div>
@@ -94,7 +94,7 @@
           <div class="preview-title">预览物模型</div>
           <div class="preview-props">
             <div class="prop-chip" v-for="prop in getPreviewProps(tpl)" :key="prop.identifier">
-              {{ prop.icon }} {{ prop.name }}
+              <SvgIcon :name="prop.icon" :size="14" /> {{ prop.name }}
             </div>
           </div>
         </div>
@@ -122,10 +122,10 @@
 
         <div class="detail-sections">
           <div class="detail-section">
-            <h4 class="section-title">📊 传感器 ({{ getTemplateProps(selectedTemplate)?.length || 0 }}个)</h4>
+            <h4 class="section-title"><SvgIcon name="trendUp" :size="16" /> 传感器 ({{ getTemplateProps(selectedTemplate)?.length || 0 }}个)</h4>
             <div class="prop-list">
               <div v-for="prop in getTemplateProps(selectedTemplate)" :key="prop.identifier" class="prop-item">
-                <span class="prop-icon">{{ getPropIcon(prop.identifier) }}</span>
+                <span class="prop-icon"><SvgIcon :name="getPropIcon(prop.identifier)" :size="16" /></span>
                 <div class="prop-info">
                   <span class="prop-name">{{ prop.name }}</span>
                   <span class="prop-unit">{{ prop.unit }}</span>
@@ -138,10 +138,10 @@
           </div>
 
           <div class="detail-section">
-            <h4 class="section-title">⚡ 执行器服务 ({{ getTemplateServices(selectedTemplate)?.length || 0 }}个)</h4>
+            <h4 class="section-title"><SvgIcon name="bolt" :size="16" /> 执行器服务 ({{ getTemplateServices(selectedTemplate)?.length || 0 }}个)</h4>
             <div class="service-list">
               <div v-for="svc in getTemplateServices(selectedTemplate)" :key="svc.identifier" class="service-item">
-                <span class="service-icon">⚡</span>
+                <span class="service-icon"><SvgIcon name="bolt" :size="18" /></span>
                 <div class="service-info">
                   <span class="service-name">{{ svc.name }}</span>
                   <span class="service-desc">{{ svc.description }}</span>
@@ -151,10 +151,10 @@
           </div>
 
           <div class="detail-section">
-            <h4 class="section-title">🔔 告警规则 ({{ selectedTemplate.alert_count }}个)</h4>
+            <h4 class="section-title"><SvgIcon name="bell" :size="16" /> 告警规则 ({{ selectedTemplate.alert_count }}个)</h4>
             <div class="alert-list">
               <div v-for="(alert, idx) in getTemplateAlerts(selectedTemplate)" :key="idx" class="alert-item">
-                <span class="alert-icon">{{ getAlertIcon(alert.severity) }}</span>
+                <span class="alert-icon"><SvgIcon :name="getAlertIcon(alert.severity)" :size="16" /></span>
                 <span class="alert-name">{{ alert.name }}</span>
                 <el-tag :type="getSeverityTag(alert.severity)" size="small">
                   {{ getSeverityText(alert.severity) }}
@@ -204,12 +204,12 @@ const showDetailDialog = ref(false)
 const usingTemplate = ref(null)
 
 const PROP_ICONS = {
-  temperature: '🌡️', humidity: '💧', light_intensity: '☀️', soil_moisture: '🌱',
-  co2: '💨', soil_temperature: '🪴', soil_ph: '⚗️', wind_speed: '🌬️',
-  rainfall: '🌧️', ammonia: '💩', hydrogen_sulfide: '☠️', ec_value: '⚡',
-  soil_nitrogen: '🧪', soil_phosphorus: '💎', soil_potassium: '🔮', leaf_temperature: '🍃',
-  fan_status: '🌀', light_status: '💡', pump_status: '🚿', heater_status: '🔥',
-  water_valve_status: '🚰', brightness: '✨', curtain_status: '🪟', valve_status: '🔧',
+  temperature: 'thermometer', humidity: 'droplet', light_intensity: 'sun', soil_moisture: 'leaf',
+  co2: 'wind', soil_temperature: 'soil', soil_ph: 'flask', wind_speed: 'cloud',
+  rainfall: 'rain', ammonia: 'wind', hydrogen_sulfide: 'cloud', ec_value: 'bolt',
+  soil_nitrogen: 'flask', soil_phosphorus: 'star', soil_potassium: 'star', leaf_temperature: 'leaf',
+  fan_status: 'fan', light_status: 'bulb', pump_status: 'shower', heater_status: 'fire',
+  water_valve_status: 'shower', brightness: 'sun', curtain_status: 'gear', valve_status: 'settings',
 }
 
 const agricultureCount = computed(() => templates.value.filter(t => t.category === '农业').length)
@@ -233,12 +233,12 @@ function getLevelTagType(level) {
 }
 
 function getPropIcon(identifier) {
-  return PROP_ICONS[identifier] || '📊'
+  return PROP_ICONS[identifier] || 'trendUp'
 }
 
 function getAlertIcon(severity) {
-  const icons = { warning: '⚠️', error: '❌', info: 'ℹ️', critical: '🔴' }
-  return icons[severity] || '🔔'
+  const icons = { warning: 'alertTriangle', error: 'xCircle', info: 'alertCircle', critical: 'alertCircle' }
+  return icons[severity] || 'bell'
 }
 
 function getSeverityTag(severity) {
@@ -253,10 +253,10 @@ function getSeverityText(severity) {
 
 function getPreviewProps(tpl) {
   const propMap = {
-    greenhouse_basic: [{ identifier: 'temperature', icon: '🌡️', name: '温度' }, { identifier: 'humidity', icon: '💧', name: '湿度' }, { identifier: 'soil_moisture', icon: '🌱', name: '土壤湿度' }, { identifier: 'light_intensity', icon: '☀️', name: '光照' }],
-    greenhouse_standard: [{ identifier: 'temperature', icon: '🌡️', name: '温度' }, { identifier: 'humidity', icon: '💧', name: '湿度' }, { identifier: 'co2', icon: '💨', name: 'CO₂' }, { identifier: 'soil_temperature', icon: '🪴', name: '地温' }],
-    greenhouse_pro: [{ identifier: 'temperature', icon: '🌡️', name: '温度' }, { identifier: 'soil_ph', icon: '⚗️', name: 'pH' }, { identifier: 'soil_nitrogen', icon: '🧪', name: '氮' }, { identifier: 'soil_phosphorus', icon: '💎', name: '磷' }],
-    livestock_basic: [{ identifier: 'temperature', icon: '🌡️', name: '温度' }, { identifier: 'humidity', icon: '💧', name: '湿度' }, { identifier: 'ammonia', icon: '💩', name: '氨气' }, { identifier: 'hydrogen_sulfide', icon: '☠️', name: '硫化氢' }],
+    greenhouse_basic: [{ identifier: 'temperature', icon: 'thermometer', name: '温度' }, { identifier: 'humidity', icon: 'droplet', name: '湿度' }, { identifier: 'soil_moisture', icon: 'leaf', name: '土壤湿度' }, { identifier: 'light_intensity', icon: 'sun', name: '光照' }],
+    greenhouse_standard: [{ identifier: 'temperature', icon: 'thermometer', name: '温度' }, { identifier: 'humidity', icon: 'droplet', name: '湿度' }, { identifier: 'co2', icon: 'wind', name: 'CO₂' }, { identifier: 'soil_temperature', icon: 'soil', name: '地温' }],
+    greenhouse_pro: [{ identifier: 'temperature', icon: 'thermometer', name: '温度' }, { identifier: 'soil_ph', icon: 'flask', name: 'pH' }, { identifier: 'soil_nitrogen', icon: 'flask', name: '氮' }, { identifier: 'soil_phosphorus', icon: 'star', name: '磷' }],
+    livestock_basic: [{ identifier: 'temperature', icon: 'thermometer', name: '温度' }, { identifier: 'humidity', icon: 'droplet', name: '湿度' }, { identifier: 'ammonia', icon: 'wind', name: '氨气' }, { identifier: 'hydrogen_sulfide', icon: 'cloud', name: '硫化氢' }],
   }
   return propMap[tpl.template_id] || []
 }

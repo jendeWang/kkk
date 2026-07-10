@@ -28,63 +28,63 @@
           <div class="panel-title">🌿 环境监测</div>
           <div class="env-grid">
             <div class="env-card temp">
-              <div class="env-icon">🌡️</div>
+              <div class="env-icon"><SvgIcon name="thermometer" :size="24" /></div>
               <div class="env-val">{{ envData.temperature ? envData.temperature.toFixed(1) : '--' }}</div>
               <div class="env-unit">°C</div>
               <div class="env-label">温度</div>
               <div class="env-status" :class="tempStatus"></div>
             </div>
             <div class="env-card hum">
-              <div class="env-icon">💧</div>
+              <div class="env-icon"><SvgIcon name="droplet" :size="24" /></div>
               <div class="env-val">{{ envData.humidity ? envData.humidity.toFixed(1) : '--' }}</div>
               <div class="env-unit">%</div>
               <div class="env-label">湿度</div>
               <div class="env-status normal"></div>
             </div>
             <div class="env-card light">
-              <div class="env-icon">☀️</div>
+              <div class="env-icon"><SvgIcon name="sun" :size="24" /></div>
               <div class="env-val">{{ envData.light ? (envData.light / 1000).toFixed(1) : '--' }}</div>
               <div class="env-unit">klux</div>
               <div class="env-label">光照</div>
               <div class="env-status normal"></div>
             </div>
             <div class="env-card soil">
-              <div class="env-icon">🌱</div>
+              <div class="env-icon"><SvgIcon name="leaf" :size="24" /></div>
               <div class="env-val">{{ envData.soil ? envData.soil.toFixed(1) : '--' }}</div>
               <div class="env-unit">%</div>
               <div class="env-label">土壤</div>
               <div class="env-status" :class="soilStatus"></div>
             </div>
             <div class="env-card co2">
-              <div class="env-icon">🫁</div>
+              <div class="env-icon"><SvgIcon name="wind" :size="24" /></div>
               <div class="env-val">{{ envData.co2 ? envData.co2.toFixed(0) : '--' }}</div>
               <div class="env-unit">ppm</div>
               <div class="env-label">CO2</div>
               <div class="env-status normal"></div>
             </div>
             <div class="env-card soil-temp">
-              <div class="env-icon">🪴</div>
+              <div class="env-icon"><SvgIcon name="soil" :size="24" /></div>
               <div class="env-val">{{ envData.soilTemp ? envData.soilTemp.toFixed(1) : '--' }}</div>
               <div class="env-unit">°C</div>
               <div class="env-label">地温</div>
               <div class="env-status normal"></div>
             </div>
             <div class="env-card soil-ph">
-              <div class="env-icon">⚗️</div>
+              <div class="env-icon"><SvgIcon name="flask" :size="24" /></div>
               <div class="env-val">{{ envData.soilPh ? envData.soilPh.toFixed(1) : '--' }}</div>
               <div class="env-unit">pH</div>
               <div class="env-label">酸碱度</div>
               <div class="env-status" :class="envData.soilPh < 5.5 || envData.soilPh > 7.5 ? 'warning' : 'normal'"></div>
             </div>
             <div class="env-card wind">
-              <div class="env-icon">🌬️</div>
+              <div class="env-icon"><SvgIcon name="cloud" :size="24" /></div>
               <div class="env-val">{{ envData.windSpeed ? envData.windSpeed.toFixed(1) : '--' }}</div>
               <div class="env-unit">m/s</div>
               <div class="env-label">风速</div>
               <div class="env-status" :class="envData.windSpeed > 10 ? 'danger' : envData.windSpeed > 5 ? 'warning' : 'normal'"></div>
             </div>
             <div class="env-card rainfall">
-              <div class="env-icon">🌧️</div>
+              <div class="env-icon"><SvgIcon name="rain" :size="24" /></div>
               <div class="env-val">{{ envData.rainfall ? envData.rainfall.toFixed(1) : '--' }}</div>
               <div class="env-unit">mm</div>
               <div class="env-label">雨量</div>
@@ -97,34 +97,34 @@
       <!-- 右侧设备面板 -->
       <div class="hud-right">
         <div class="data-panel">
-          <div class="panel-title">⚡ 设备控制</div>
+          <div class="panel-title"><SvgIcon name="bolt" :size="18" /> 设备控制</div>
           <div class="device-item">
-            <span class="device-icon">🌀</span>
+            <span class="device-icon"><SvgIcon name="fan" :size="20" /></span>
             <span class="device-name">通风风扇</span>
             <el-switch v-model="deviceState.fan" @change="toggleFan" active-color="#67c23a" />
           </div>
           <div class="device-item">
-            <span class="device-icon">💡</span>
+            <span class="device-icon"><SvgIcon name="bulb" :size="20" /></span>
             <span class="device-name">补光灯</span>
             <el-switch v-model="deviceState.light" @change="toggleLight" active-color="#e6a23c" />
           </div>
           <div class="device-item">
-            <span class="device-icon">🪟</span>
+            <span class="device-icon"><SvgIcon name="gear" :size="20" /></span>
             <span class="device-name">遮阳帘</span>
             <el-switch v-model="deviceState.curtain" @change="toggleCurtain" active-color="#409eff" />
           </div>
           <div class="device-item">
-            <span class="device-icon">💧</span>
+            <span class="device-icon"><SvgIcon name="shower" :size="20" /></span>
             <span class="device-name">灌溉泵</span>
             <el-switch v-model="deviceState.pump" @change="togglePump" active-color="#67c23a" />
           </div>
           <div class="device-item">
-            <span class="device-icon">🔧</span>
+            <span class="device-icon"><SvgIcon name="settings" :size="20" /></span>
             <span class="device-name">电磁阀</span>
             <el-switch v-model="deviceState.valve" @change="toggleValve" active-color="#e6a23c" />
           </div>
           <div class="device-item">
-            <span class="device-icon">🔥</span>
+            <span class="device-icon"><SvgIcon name="fire" :size="20" /></span>
             <span class="device-name">加热膜</span>
             <el-switch v-model="deviceState.heater" @change="toggleHeater" active-color="#f56c6c" />
           </div>
@@ -223,12 +223,12 @@ let raycaster, mouse
 let deviceMeshes = {}
 
 const deviceInfoMap = {
-  fan: { name: '通风风扇', icon: '🌀', location: '左侧墙壁', state: () => deviceState.fan, detail: '转速: 1200rpm', toggle: () => toggleFan(!deviceState.fan) },
-  light: { name: '补光灯', icon: '💡', location: '顶棚下方', state: () => deviceState.light, detail: '亮度: 100%', toggle: () => toggleLight(!deviceState.light) },
-  curtain: { name: '遮阳帘', icon: '🪟', location: '顶棚内侧', state: () => deviceState.curtain, detail: '开度: 50%', toggle: () => toggleCurtain(!deviceState.curtain) },
-  pump: { name: '灌溉泵', icon: '💧', location: '右侧角落', state: () => deviceState.pump, detail: '流量: 10L/min', toggle: () => togglePump(!deviceState.pump) },
-  valve: { name: '电磁阀', icon: '🔧', location: '左侧角落', state: () => deviceState.valve, detail: '开度: 100%', toggle: () => toggleValve(!deviceState.valve) },
-  heater: { name: '加热膜', icon: '🔥', location: '地面下方', state: () => deviceState.heater, detail: '温度: 35°C', toggle: () => toggleHeater(!deviceState.heater) },
+  fan: { name: '通风风扇', icon: 'fan', location: '左侧墙壁', state: () => deviceState.fan, detail: '转速: 1200rpm', toggle: () => toggleFan(!deviceState.fan) },
+  light: { name: '补光灯', icon: 'bulb', location: '顶棚下方', state: () => deviceState.light, detail: '亮度: 100%', toggle: () => toggleLight(!deviceState.light) },
+  curtain: { name: '遮阳帘', icon: 'gear', location: '顶棚内侧', state: () => deviceState.curtain, detail: '开度: 50%', toggle: () => toggleCurtain(!deviceState.curtain) },
+  pump: { name: '灌溉泵', icon: 'shower', location: '右侧角落', state: () => deviceState.pump, detail: '流量: 10L/min', toggle: () => togglePump(!deviceState.pump) },
+  valve: { name: '电磁阀', icon: 'settings', location: '左侧角落', state: () => deviceState.valve, detail: '开度: 100%', toggle: () => toggleValve(!deviceState.valve) },
+  heater: { name: '加热膜', icon: 'fire', location: '地面下方', state: () => deviceState.heater, detail: '温度: 35°C', toggle: () => toggleHeater(!deviceState.heater) },
 }
 
 function updateTime() {
@@ -649,10 +649,10 @@ const plants = []
 
 function createSensors() {
   const sensors = [
-    { text: '🌡️ 温度', color: '#ff6b6b', pos: [-4.5, 1.8, -3.2] },
-    { text: '💧 湿度', color: '#4ecdc4', pos: [4.5, 1.8, -3.2] },
-    { text: '☀️ 光照', color: '#ffd93d', pos: [0, 3.5, 0] },
-    { text: '🌱 土壤', color: '#6bc46d', pos: [-3, 0.4, 3] },
+    { text: '温度', color: '#ff6b6b', pos: [-4.5, 1.8, -3.2] },
+    { text: '湿度', color: '#4ecdc4', pos: [4.5, 1.8, -3.2] },
+    { text: '光照', color: '#ffd93d', pos: [0, 3.5, 0] },
+    { text: '土壤', color: '#6bc46d', pos: [-3, 0.4, 3] },
   ]
   sensors.forEach(({ text, color, pos }) => {
     // 3D发光点
@@ -716,10 +716,10 @@ function updateSensorLabels() {
   if (now - lastSensorUpdate < 800) return
   lastSensorUpdate = now
   if (sensorLabels.length >= 4) {
-    sensorLabels[0].div.textContent = `🌡️ 温度 ${envData.temperature ? envData.temperature.toFixed(1) + '°C' : '--'}`
-    sensorLabels[1].div.textContent = `💧 湿度 ${envData.humidity ? envData.humidity.toFixed(1) + '%' : '--'}`
-    sensorLabels[2].div.textContent = `☀️ 光照 ${envData.light ? (envData.light / 1000).toFixed(1) + 'klux' : '--'}`
-    sensorLabels[3].div.textContent = `🌱 土壤 ${envData.soil ? envData.soil.toFixed(1) + '%' : '--'}`
+    sensorLabels[0].div.textContent = `温度 ${envData.temperature ? envData.temperature.toFixed(1) + '°C' : '--'}`
+    sensorLabels[1].div.textContent = `湿度 ${envData.humidity ? envData.humidity.toFixed(1) + '%' : '--'}`
+    sensorLabels[2].div.textContent = `光照 ${envData.light ? (envData.light / 1000).toFixed(1) + 'klux' : '--'}`
+    sensorLabels[3].div.textContent = `土壤 ${envData.soil ? envData.soil.toFixed(1) + '%' : '--'}`
   }
 }
 

@@ -53,7 +53,7 @@ export const sceneService = {
 export const sceneTemplates = [
   {
     id: 'temp-high',
-    name: '🌡️ 高温自动通风',
+    name: '高温自动通风',
     description: '当温度超过30°C时，自动开启通风扇降温',
     trigger_type: 'threshold',
     trigger_config: {
@@ -69,7 +69,7 @@ export const sceneTemplates = [
   },
   {
     id: 'temp-low',
-    name: '❄️ 低温自动保温',
+    name: '低温自动保温',
     description: '当温度低于15°C时，自动关闭通风扇',
     trigger_type: 'threshold',
     trigger_config: {
@@ -85,7 +85,7 @@ export const sceneTemplates = [
   },
   {
     id: 'soil-dry',
-    name: '💧 土壤干燥自动灌溉',
+    name: '土壤干燥自动灌溉',
     description: '当土壤湿度低于50%时，自动开启灌溉水泵',
     trigger_type: 'threshold',
     trigger_config: {
@@ -101,7 +101,7 @@ export const sceneTemplates = [
   },
   {
     id: 'soil-wet',
-    name: '🚿 土壤过湿停止灌溉',
+    name: '土壤过湿停止灌溉',
     description: '当土壤湿度高于80%时，自动关闭灌溉水泵',
     trigger_type: 'threshold',
     trigger_config: {
@@ -117,7 +117,7 @@ export const sceneTemplates = [
   },
   {
     id: 'humidity-high',
-    name: '💨 高湿自动通风',
+    name: '高湿自动通风',
     description: '当空气湿度高于80%时，自动开启通风扇除湿',
     trigger_type: 'threshold',
     trigger_config: {
@@ -133,7 +133,7 @@ export const sceneTemplates = [
   },
   {
     id: 'light-dim',
-    name: '💡 光照不足自动补光',
+    name: '光照不足自动补光',
     description: '当光照强度低于5000 lux时，自动开启补光灯',
     trigger_type: 'threshold',
     trigger_config: {

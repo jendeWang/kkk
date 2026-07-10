@@ -21,7 +21,7 @@
 import { computed } from 'vue'
 
 const props = defineProps({
-  icon: { type: String, default: '📊' },
+  icon: { type: String, default: 'trendUp' },
   name: { type: String, default: '传感器' },
   value: { type: [Number, String], default: 0 },
   unit: { type: String, default: '' },

@@ -4,7 +4,7 @@
     :class="{ active: isActive, disabled: isDisabled }"
     @click="handleClick"
   >
-    <span class="actuator-icon">{{ icon }}</span>
+    <span class="actuator-icon"><SvgIcon :name="icon" :size="28" /></span>
     <span class="actuator-label">{{ label }}</span>
     <span class="actuator-status">{{ isActive ? '运行中' : '停止' }}</span>
   </button>
@@ -12,7 +12,7 @@
 
 <script setup>
 const props = defineProps({
-  icon: { type: String, default: '⚙️' },
+  icon: { type: String, default: 'gear' },
   label: { type: String, default: '执行器' },
   isActive: { type: Boolean, default: false },
   isDisabled: { type: Boolean, default: false },

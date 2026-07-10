@@ -114,7 +114,7 @@
         <div class="sensor-grid">
           <div class="sensor-card" v-for="sensor in sensors" :key="sensor.key">
             <div class="sensor-icon-wrap">
-              <span class="sensor-icon">{{ sensor.icon }}</span>
+              <span class="sensor-icon"><SvgIcon :name="sensor.icon" :size="28" /></span>
             </div>
             <div class="sensor-name">{{ sensor.name }}</div>
             <div class="sensor-value">
@@ -152,7 +152,7 @@
             <div class="actuator-list">
               <div class="actuator-item" :class="{ active: actuatorData.fan_status }">
                 <div class="actuator-icon-wrap">
-                  <span class="actuator-icon">🌀</span>
+                  <span class="actuator-icon"><SvgIcon name="fan" :size="32" /></span>
                   <div class="actuator-ring" :class="{ active: actuatorData.fan_status }"></div>
                 </div>
                 <div class="actuator-info">
@@ -166,7 +166,7 @@
 
               <div class="actuator-item" :class="{ active: actuatorData.light_status }">
                 <div class="actuator-icon-wrap">
-                  <span class="actuator-icon">💡</span>
+                  <span class="actuator-icon"><SvgIcon name="bulb" :size="32" /></span>
                   <div class="actuator-ring" :class="{ active: actuatorData.light_status }"></div>
                 </div>
                 <div class="actuator-info">
@@ -182,7 +182,7 @@
 
               <div class="actuator-item" :class="{ active: actuatorData.pump_status }">
                 <div class="actuator-icon-wrap">
-                  <span class="actuator-icon">🚿</span>
+                  <span class="actuator-icon"><SvgIcon name="shower" :size="32" /></span>
                   <div class="actuator-ring" :class="{ active: actuatorData.pump_status }"></div>
                 </div>
                 <div class="actuator-info">
@@ -229,7 +229,7 @@
               </div>
 
               <div class="scene-item" :class="{ active: scenes[2].active }">
-                <div class="scene-icon">💧</div>
+                <div class="scene-icon"><SvgIcon name="droplet" :size="20" /></div>
                 <div class="scene-info">
                   <div class="scene-name">{{ scenes[2].name }}</div>
                   <div class="scene-desc">{{ scenes[2].desc }}</div>
@@ -319,7 +319,7 @@ const sensors = computed(() => [
   {
     key: 'temperature',
     name: '温度',
-    icon: '🌡️',
+    icon: 'thermometer',
     unit: '°C',
     value: sensorData.temperature,
     displayValue: formatValue(sensorData.temperature, 1),
@@ -329,7 +329,7 @@ const sensors = computed(() => [
   {
     key: 'humidity',
     name: '空气湿度',
-    icon: '💧',
+    icon: 'droplet',
     unit: '%',
     value: sensorData.humidity,
     displayValue: formatValue(sensorData.humidity, 1),
@@ -339,7 +339,7 @@ const sensors = computed(() => [
   {
     key: 'light_intensity',
     name: '光照强度',
-    icon: '☀️',
+    icon: 'sun',
     unit: 'lux',
     value: sensorData.light_intensity,
     displayValue: formatValue(sensorData.light_intensity, 0),
@@ -349,7 +349,7 @@ const sensors = computed(() => [
   {
     key: 'soil_moisture',
     name: '土壤湿度',
-    icon: '🌱',
+    icon: 'leaf',
     unit: '%',
     value: sensorData.soil_moisture,
     displayValue: formatValue(sensorData.soil_moisture, 1),
@@ -359,7 +359,7 @@ const sensors = computed(() => [
   {
     key: 'co2',
     name: 'CO₂浓度',
-    icon: '💨',
+    icon: 'wind',
     unit: 'ppm',
     value: sensorData.co2,
     displayValue: formatValue(sensorData.co2, 0),
@@ -369,7 +369,7 @@ const sensors = computed(() => [
   {
     key: 'soil_temperature',
     name: '土壤温度',
-    icon: '🪴',
+    icon: 'soil',
     unit: '°C',
     value: sensorData.soil_temperature,
     displayValue: formatValue(sensorData.soil_temperature, 1),
@@ -379,7 +379,7 @@ const sensors = computed(() => [
   {
     key: 'soil_ph',
     name: '土壤pH',
-    icon: '⚗️',
+    icon: 'flask',
     unit: 'pH',
     value: sensorData.soil_ph,
     displayValue: formatValue(sensorData.soil_ph, 1),
@@ -389,7 +389,7 @@ const sensors = computed(() => [
   {
     key: 'wind_speed',
     name: '风速',
-    icon: '🌬️',
+    icon: 'cloud',
     unit: 'm/s',
     value: sensorData.wind_speed,
     displayValue: formatValue(sensorData.wind_speed, 1),

@@ -20,7 +20,7 @@
         <el-col :span="8" v-for="actuator in actuators" :key="actuator.identifier">
           <div class="actuator-card" :class="{ 'actuator-active': actuator.value }">
             <div class="actuator-header">
-              <span class="actuator-icon">{{ actuator.icon }}</span>
+              <span class="actuator-icon"><SvgIcon :name="actuator.icon" :size="24" /></span>
               <span class="actuator-name">{{ actuator.name }}</span>
             </div>
             <div class="actuator-status">
@@ -163,12 +163,12 @@ const availableActuators = computed(() => {
 })
 
 const actuatorIcons = {
-  fan: '🌀',
-  light: '💡',
-  pump: '💧',
-  curtain: '🎭',
-  heater: '🔥',
-  cooler: '❄️',
+  fan: 'fan',
+  light: 'bulb',
+  pump: 'shower',
+  curtain: 'gear',
+  heater: 'fire',
+  cooler: 'snowflake',
 }
 
 function getActuatorIcon(identifier) {
@@ -177,7 +177,7 @@ function getActuatorIcon(identifier) {
       return actuatorIcons[key]
     }
   }
-  return '⚡'
+  return 'bolt'
 }
 
 function getActuatorName(identifier) {

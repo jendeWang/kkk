@@ -18,7 +18,7 @@
         <div class="agent-status online">运行中</div>
       </div>
       <div class="agent-card control">
-        <div class="agent-icon">⚡</div>
+        <div class="agent-icon"><SvgIcon name="bolt" :size="24" /></div>
         <h3>调控Agent</h3>
         <p>设备调度与控制</p>
         <div class="agent-status online">运行中</div>
