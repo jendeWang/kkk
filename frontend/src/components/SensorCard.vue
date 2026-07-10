@@ -107,6 +107,7 @@ const rangeStyle = computed(() => {
   justify-content: center;
   background: rgba(64, 158, 255, 0.1);
   border-radius: 10px;
+  color: #409eff;
 }
 
 .sensor-info {

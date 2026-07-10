@@ -592,7 +592,7 @@ onUnmounted(() => {
 
 .actuator-card.mode-card { border-color: #409eff; }
 
-.actuator-icon-wrap { font-size: 32px; margin-bottom: 8px; }
+.actuator-icon-wrap { font-size: 32px; margin-bottom: 8px; color: #606266; }
 
 .actuator-name { font-size: 14px; font-weight: 600; color: #303133; margin-bottom: 4px; }
 
