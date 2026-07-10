@@ -23,7 +23,14 @@
 
       <div v-if="commandForm.service_identifier" class="params-section">
         <div class="params-header">
-          <h4>{{ $t('commands.inputParams') }}</h4>
+          <div class="params-title-wrap">
+            <h4>{{ $t('commands.inputParams') }}</h4>
+            <el-tooltip content="这些参数是设备物模型定义的服务输入参数" placement="top">
+              <span class="params-help-icon">
+                <el-icon><QuestionFilled /></el-icon>
+              </span>
+            </el-tooltip>
+          </div>
           <div v-if="currentServiceParams.length > 0">
             <el-button size="small" @click="switchMode">
               {{ advancedMode ? $t('commands.switchToFormMode') : $t('commands.switchToAdvancedMode') }}
@@ -39,75 +46,98 @@
               :key="param.name"
               :label="param.name"
               :required="param.required"
+              class="param-form-item"
             >
-              <!-- Boolean -->
-              <el-switch
-                v-if="param.type === 'bool'"
-                v-model="paramForm[param.name]"
-              />
+              <template v-if="param.description" #label>
+                <span class="param-label">
+                  {{ param.name }}
+                  <el-tooltip :content="param.description" placement="top">
+                    <span class="param-label-desc-icon">
+                      <el-icon :size="14"><QuestionFilled /></el-icon>
+                    </span>
+                  </el-tooltip>
+                </span>
+              </template>
 
-              <!-- String: with options or plain input -->
-              <template v-else-if="param.type === 'string'">
-                <el-select
-                  v-if="hasValidOptions(param)"
+              <!-- Boolean -->
+              <div class="param-input-wrap">
+                <el-switch
+                  v-if="param.type === 'bool'"
                   v-model="paramForm[param.name]"
-                  :filterable="true"
-                  :allow-create="allowCustomInput(param)"
-                  default-first-option
-                  placeholder="Select or enter a value"
-                  style="width: 300px"
-                >
-                  <el-option
-                    v-for="opt in param.options"
-                    :key="opt"
-                    :value="String(opt)"
-                    :label="String(opt)"
+                />
+
+                <!-- String: with options or plain input -->
+                <template v-else-if="param.type === 'string'">
+                  <el-select
+                    v-if="hasValidOptions(param)"
+                    v-model="paramForm[param.name]"
+                    :filterable="true"
+                    :allow-create="allowCustomInput(param)"
+                    default-first-option
+                    :placeholder="getPlaceholder(param)"
+                    style="width: 300px"
+                  >
+                    <el-option
+                      v-for="opt in param.options"
+                      :key="opt"
+                      :value="String(opt)"
+                      :label="String(opt)"
+                    />
+                  </el-select>
+                  <el-input
+                    v-else
+                    v-model="paramForm[param.name]"
+                    :placeholder="getPlaceholder(param)"
+                    style="width: 300px"
+                  >
+                    <template v-if="param.unit" #append>
+                      <span class="param-unit">{{ param.unit }}</span>
+                    </template>
+                  </el-input>
+                </template>
+
+                <!-- Integer/Float: with options or input-number -->
+                <template v-else-if="param.type === 'int' || param.type === 'float'">
+                  <el-select
+                    v-if="hasValidOptions(param) && !allowCustomInput(param)"
+                    v-model="paramForm[param.name]"
+                    :placeholder="getPlaceholder(param)"
+                    style="width: 300px"
+                  >
+                    <el-option
+                      v-for="opt in param.options"
+                      :key="opt"
+                      :value="Number(opt)"
+                      :label="String(opt)"
+                    />
+                  </el-select>
+                  <el-input-number
+                    v-else
+                    v-model="paramForm[param.name]"
+                    :min="getSafeMin(param)"
+                    :max="getSafeMax(param)"
+                    :step="getSafeStep(param)"
+                    :step-strictly="false"
+                    :controls="true"
+                    :placeholder="getPlaceholder(param)"
                   />
-                </el-select>
+                </template>
+
+                <!-- Fallback -->
                 <el-input
                   v-else
                   v-model="paramForm[param.name]"
-                  :placeholder="param.description || 'Enter string value'"
-                  style="width: 300px"
-                />
-              </template>
-
-              <!-- Integer/Float: with options or input-number -->
-              <template v-else-if="param.type === 'int' || param.type === 'float'">
-                <el-select
-                  v-if="hasValidOptions(param) && !allowCustomInput(param)"
-                  v-model="paramForm[param.name]"
-                  placeholder="Select a value"
+                  :placeholder="getPlaceholder(param)"
                   style="width: 300px"
                 >
-                  <el-option
-                    v-for="opt in param.options"
-                    :key="opt"
-                    :value="Number(opt)"
-                    :label="String(opt)"
-                  />
-                </el-select>
-                <el-input-number
-                  v-else
-                  v-model="paramForm[param.name]"
-                  :min="getSafeMin(param)"
-                  :max="getSafeMax(param)"
-                  :step="getSafeStep(param)"
-                  :step-strictly="false"
-                  :controls="true"
-                  :placeholder="param.description || 'Enter a number'"
-                />
-              </template>
+                  <template v-if="param.unit" #append>
+                    <span class="param-unit">{{ param.unit }}</span>
+                  </template>
+                </el-input>
 
-              <!-- Fallback -->
-              <el-input
-                v-else
-                v-model="paramForm[param.name]"
-                :placeholder="param.description || 'Enter value'"
-                style="width: 300px"
-              />
+                <span v-if="param.unit && (param.type === 'int' || param.type === 'float')" class="param-unit-inline">{{ param.unit }}</span>
+              </div>
 
-              <span v-if="param.description" class="param-desc">{{ param.description }}</span>
               <div v-if="getParamHint(param)" class="param-hint">{{ getParamHint(param) }}</div>
             </el-form-item>
           </el-form>
@@ -169,7 +199,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useDeviceStore } from '../stores/device.js'
 import { useProductStore } from '../stores/product.js'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { QuestionFilled } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 
 const deviceStore = useDeviceStore()
@@ -232,6 +263,24 @@ function getParamHint(param) {
   return hints.length > 0 ? hints.join(' | ') : ''
 }
 
+function getPlaceholder(param) {
+  const parts = []
+  if (param.description) {
+    parts.push(param.description)
+  }
+  if (param.example !== undefined && param.example !== '' && param.example !== null) {
+    parts.push(`e.g. ${param.example}`)
+  } else if (param.default !== undefined && param.default !== '' && param.default !== null) {
+    parts.push(`default: ${param.default}`)
+  }
+  if (parts.length === 0) {
+    if (param.type === 'string') parts.push('Enter string value')
+    else if (param.type === 'int' || param.type === 'float') parts.push('Enter a number')
+    else parts.push('Enter value')
+  }
+  return parts.join(' — ')
+}
+
 function getJsonPlaceholder() {
   const params = {}
   currentServiceParams.value.forEach(p => {
@@ -280,7 +329,23 @@ function switchMode() {
 }
 
 const canSend = computed(() => {
-  return commandForm.device_id && commandForm.service_identifier
+  if (!commandForm.device_id || !commandForm.service_identifier) return false
+
+  if (advancedMode.value || currentServiceParams.value.length === 0) {
+    if (!jsonParams.value.trim()) return false
+    try {
+      JSON.parse(jsonParams.value)
+      return true
+    } catch (e) {
+      return false
+    }
+  } else {
+    const requiredParams = currentServiceParams.value.filter(p => p.required)
+    return requiredParams.every(param => {
+      const value = paramForm.value[param.name]
+      return value !== '' && value !== undefined && value !== null
+    })
+  }
 })
 
 function getStatusType(status) {
@@ -378,6 +443,8 @@ function loadServiceParams() {
         type: typeof def === 'object' && def.type ? def.type : 'string',
         required: false,
         default: typeof def === 'object' && def.default !== undefined ? def.default : '',
+        example: typeof def === 'object' && def.example !== undefined ? def.example : undefined,
+        unit: typeof def === 'object' && def.unit ? def.unit : '',
         description: typeof def === 'object' && def.description ? def.description : key,
         options: Array.isArray(def.options) ? def.options : [],
         allow_custom: def.allow_custom !== false,
@@ -485,12 +552,48 @@ async function sendCommand() {
 
   sending.value = true
   try {
-    await deviceStore.createCommand({
+    const result = await deviceStore.createCommand({
       device_id: commandForm.device_id,
       service_identifier: commandForm.service_identifier,
       input_params: params
     })
-    ElMessage.success('Command sent')
+
+    await deviceStore.fetchDevices()
+    await deviceStore.fetchCommands()
+
+    const device = deviceStore.devices.find(d => d.id === commandForm.device_id)
+    const deviceName = device ? device.device_name : '-'
+    const service = services.value.find(s => s.identifier === commandForm.service_identifier)
+    const serviceName = service ? service.name : commandForm.service_identifier
+
+    const statusType = getStatusType(result.status)
+    const statusText = getStatusText(result.status)
+    const statusColors = {
+      success: '#67c23a',
+      warning: '#e6a23c',
+      danger: '#f56c6c',
+      info: '#909399',
+      '': '#409eff'
+    }
+    const statusColor = statusColors[statusType] || '#909399'
+
+    ElMessageBox.alert(
+      `
+      <div style="line-height: 2; font-size: 14px;">
+        <p style="margin: 8px 0;"><strong style="color: #606266;">命令ID：</strong><span style="color: #303133; font-family: monospace;">${result.command_id || '-'}</span></p>
+        <p style="margin: 8px 0;"><strong style="color: #606266;">设备名称：</strong><span style="color: #303133;">${deviceName}</span></p>
+        <p style="margin: 8px 0;"><strong style="color: #606266;">命令名称：</strong><span style="color: #303133;">${serviceName}</span></p>
+        <p style="margin: 8px 0;"><strong style="color: #606266;">执行状态：</strong><span style="display: inline-block; padding: 2px 8px; border-radius: 4px; background: ${statusColor}20; color: ${statusColor}; font-size: 12px;">${statusText}</span></p>
+        <p style="margin: 8px 0;"><strong style="color: #606266;">下发时间：</strong><span style="color: #303133;">${formatTime(result.issued_at)}</span></p>
+      </div>
+      `,
+      '命令发送成功',
+      {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '确定',
+        type: 'success'
+      }
+    )
   } catch (error) {
     ElMessage.error('Failed to send command')
   } finally {
@@ -528,6 +631,57 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   color: #303133;
+}
+
+.params-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.params-help-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #909399;
+  cursor: help;
+}
+
+.params-help-icon:hover {
+  color: #409eff;
+}
+
+.param-form-item .param-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.param-label-desc-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #c0c4cc;
+  cursor: help;
+}
+
+.param-label-desc-icon:hover {
+  color: #409eff;
+}
+
+.param-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.param-unit {
+  color: #909399;
+  font-size: 13px;
+}
+
+.param-unit-inline {
+  color: #909399;
+  font-size: 13px;
+  margin-left: 4px;
 }
 
 .params-form-container {

@@ -271,15 +271,8 @@ let trendChartInstance = null
 const trendChart = ref(null)
 let currentDeviceId = null
 
-const greenhouses = ref([
-  { id: 1, name: '东区1号棚' },
-  { id: 2, name: '东区2号棚' },
-  { id: 3, name: '西区1号棚' },
-  { id: 4, name: '西区2号棚' },
-  { id: 5, name: '南区1号棚' },
-  { id: 6, name: '南区2号棚' }
-])
-const selectedGreenhouse = ref(1)
+const greenhouses = ref([])
+const selectedGreenhouse = ref(null)
 
 const overview = reactive({
   total_devices: 0,
@@ -309,14 +302,7 @@ const actuatorData = reactive({
   work_mode: 'manual'
 })
 
-const deviceList = ref([
-  { name: '大棚A-001', location: '东区1号棚', status: 'online' },
-  { name: '大棚A-002', location: '东区2号棚', status: 'online' },
-  { name: '大棚B-001', location: '西区1号棚', status: 'alert' },
-  { name: '大棚B-002', location: '西区2号棚', status: 'online' },
-  { name: '大棚C-001', location: '南区1号棚', status: 'offline' },
-  { name: '大棚C-002', location: '南区2号棚', status: 'online' }
-])
+const deviceList = ref([])
 
 const alertList = ref([
   { id: 1, severity: 'critical', message: '大棚B-001: temperature = 32.5，超过阈值 30', created_at: new Date() },
@@ -466,46 +452,52 @@ async function loadOverview() {
   try {
     const resp = await api.get('/dashboard/overview')
     Object.assign(overview, resp.data)
-    await loadDeviceList()
   } catch (e) {
     console.error('Failed to load overview:', e)
     generateMockData()
   }
 }
 
-async function loadDeviceList() {
+async function loadGreenhousesAndDevices() {
   try {
-    const resp = await api.get('/devices/')
-    const devices = resp.data.items || resp.data || []
+    const resp = await api.get('/dashboard/devices/realtime')
+    const devices = resp.data.devices || []
     if (devices.length > 0) {
+      greenhouses.value = devices.map(device => ({
+        id: device.id,
+        name: device.name || device.device_name
+      }))
       deviceList.value = devices.map(device => ({
         id: device.id,
-        name: device.device_name,
-        location: device.description || '未设置位置',
-        status: device.status
+        name: device.name || device.device_name,
+        location: device.group_name || device.location || '未设置分组',
+        status: device.status || 'offline'
       }))
-    } else {
-      updateDeviceList()
+      if (!selectedGreenhouse.value && greenhouses.value.length > 0) {
+        selectedGreenhouse.value = greenhouses.value[0].id
+        currentDeviceId = greenhouses.value[0].id
+      }
     }
   } catch (e) {
-    console.error('Failed to load device list:', e)
-    updateDeviceList()
+    console.error('Failed to load greenhouses and devices:', e)
   }
 }
 
-function updateDeviceList() {
-  const online = overview.online_devices || 0
-  const offline = overview.offline_devices || 0
-  const alert = overview.active_alerts || 0
-  
-  deviceList.value = [
-    { name: '大棚A-001', location: '东区1号棚', status: 'online' },
-    { name: '大棚A-002', location: '东区2号棚', status: alert > 0 ? 'alert' : 'online' },
-    { name: '大棚B-001', location: '西区1号棚', status: 'online' },
-    { name: '大棚B-002', location: '西区2号棚', status: 'online' },
-    { name: '大棚C-001', location: '南区1号棚', status: offline > 0 ? 'offline' : 'online' },
-    { name: '大棚C-002', location: '南区2号棚', status: 'online' }
-  ]
+async function loadDeviceList() {
+  try {
+    const resp = await api.get('/dashboard/devices/realtime')
+    const devices = resp.data.devices || []
+    if (devices.length > 0) {
+      deviceList.value = devices.map(device => ({
+        id: device.id,
+        name: device.name || device.device_name,
+        location: device.group_name || device.location || '未设置分组',
+        status: device.status || 'offline'
+      }))
+    }
+  } catch (e) {
+    console.error('Failed to load device list:', e)
+  }
 }
 
 async function loadDeviceRealtime() {
@@ -513,9 +505,12 @@ async function loadDeviceRealtime() {
     const resp = await api.get('/dashboard/devices/realtime')
     const devices = resp.data.devices
     if (devices && devices.length > 0) {
-      const device = devices[0]
+      let device = devices.find(d => d.id === selectedGreenhouse.value)
+      if (!device) {
+        device = devices[0]
+        selectedGreenhouse.value = device.id
+      }
       currentDeviceId = device.id
-      selectedGreenhouse.value = device.id || currentDeviceId
       if (device.reported) {
         Object.assign(sensorData, {
           temperature: device.reported.temperature ?? 25.5,
@@ -561,7 +556,6 @@ function generateMockData() {
   overview.offline_devices = 1
   overview.active_alerts = 2
   overview.today_alerts = 5
-  updateDeviceList()
 }
 
 function generateMockSensorData() {
@@ -713,6 +707,7 @@ function updateTrendChart(tempData, humData) {
 async function refreshData() {
   await Promise.all([
     loadOverview(),
+    loadGreenhousesAndDevices(),
     loadDeviceRealtime(),
     loadRecentAlerts()
   ])
@@ -723,10 +718,10 @@ onMounted(async () => {
   updateTime()
   timeTimer = setInterval(updateTime, 1000)
   
-  // 加载物模型属性映射，用于通用口语化
   await loadPropertyMappings()
   
   generateMockSensorData()
+  await loadGreenhousesAndDevices()
   await refreshData()
   
   dataTimer = setInterval(refreshData, 3000)
@@ -758,7 +753,9 @@ function onGreenhouseChange(id) {
   const gh = greenhouses.value.find(g => g.id === id)
   if (gh) {
     currentDeviceId = id
+    selectedGreenhouse.value = id
     refreshData()
+    connectSSE()
   }
 }
 
@@ -769,7 +766,14 @@ async function resetAll() {
     const confirmed = confirm('确认复位吗？\n- 所有执行器将关闭\n- 图表数据将重新拉取\n- 此操作不可撤销')
     if (!confirmed) return
     
-    // 1. 关闭所有执行器
+    // 1. 立即本地更新状态（确保UI先变）
+    actuatorData.fan_status = false
+    actuatorData.light_status = false
+    actuatorData.pump_status = false
+    actuatorData.brightness = 0
+    actuatorData.work_mode = 'manual'
+
+    // 2. 发送关闭命令
     const resetPromises = []
     for (const actuator of ['fan_switch', 'light_switch', 'pump_switch']) {
       resetPromises.push(
@@ -781,7 +785,8 @@ async function resetAll() {
     }
     await Promise.all(resetPromises)
     
-    // 2. 重新拉取数据
+    // 3. 延时后重新拉取数据（确保后端状态已更新）
+    await new Promise(resolve => setTimeout(resolve, 500))
     await refreshData()
     
     ElMessage.success('复位完成，执行器已全部关闭')
@@ -827,11 +832,15 @@ async function togglePump() {
 
 function connectSSE() {
   if (sseSource) sseSource.close()
-  sseSource = new EventSource('/dashboard/sse/realtime')
+  let url = '/api/v1/dashboard/sse/realtime'
+  if (currentDeviceId) {
+    url += `?device_id=${currentDeviceId}`
+  }
+  sseSource = new EventSource(url)
   sseSource.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data)
-      if (data.reported) {
+      if (data.reported && (!data.device_id || data.device_id === currentDeviceId)) {
         Object.assign(sensorData, {
           temperature: data.reported.temperature ?? sensorData.temperature,
           humidity: data.reported.humidity ?? sensorData.humidity,

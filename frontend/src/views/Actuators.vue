@@ -16,7 +16,14 @@
         </div>
       </template>
 
-      <el-row :gutter="16">
+      <div v-if="actuators.length === 0 && !loading" class="empty-state">
+        <el-empty description="当前设备暂无执行器，请先在物模型中配置读写类型的属性">
+          <template #image>
+            <el-icon :size="80" color="#c0c4cc"><Operation /></el-icon>
+          </template>
+        </el-empty>
+      </div>
+      <el-row v-else :gutter="16">
         <el-col :span="8" v-for="actuator in actuators" :key="actuator.identifier">
           <div class="actuator-card" :class="{ 'actuator-active': actuator.value }">
             <div class="actuator-header">
@@ -137,11 +144,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useDeviceStore } from '../stores/device.js'
 import { useProductStore } from '../stores/product.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Plus } from '@element-plus/icons-vue'
+import { Refresh, Plus, Operation } from '@element-plus/icons-vue'
 
 const deviceStore = useDeviceStore()
 const productStore = useProductStore()
@@ -154,12 +161,47 @@ const showAddTaskDialog = ref(false)
 const actuators = ref([])
 const timedTasks = ref([])
 
+const inferredActuatorIdentifiers = [
+  'fan_status', 'light_status', 'pump_status', 'heater_status',
+  'cooler_status', 'curtain_status', 'valve_status', 'water_valve_status',
+  'fan_switch', 'light_switch', 'pump_switch', 'heater_switch',
+  'cooler_switch', 'curtain_switch', 'valve_switch', 'water_valve_switch',
+]
+
+const actuatorNameMap = {
+  fan_status: '通风扇',
+  light_status: '补光灯',
+  pump_status: '灌溉水泵',
+  heater_status: '加热器',
+  cooler_status: '制冷器',
+  curtain_status: '卷帘',
+  valve_status: '阀门',
+  water_valve_status: '水阀',
+  fan_switch: '通风扇',
+  light_switch: '补光灯',
+  pump_switch: '灌溉水泵',
+  heater_switch: '加热器',
+  cooler_switch: '制冷器',
+  curtain_switch: '卷帘',
+  valve_switch: '阀门',
+  water_valve_switch: '水阀',
+}
+
 const availableActuators = computed(() => {
   if (!selectedDevice.value) return []
   const device = deviceStore.devices.find(d => d.id === selectedDevice.value)
   if (!device) return []
   const product = productStore.products.find(p => p.id === device.product_id)
-  return product ? (product.properties || []).filter(p => p.access_type === 'read_write') : []
+  const writeableProps = product ? (product.properties || []).filter(p => p.access_type === 'read_write') : []
+  if (writeableProps.length > 0) {
+    return writeableProps
+  }
+  return inferredActuatorIdentifiers.map(identifier => ({
+    identifier,
+    name: actuatorNameMap[identifier] || identifier,
+    access_type: 'read_write',
+    data_type: 'bool',
+  }))
 })
 
 const actuatorIcons = {
@@ -211,26 +253,58 @@ async function loadActuators() {
     const result = await deviceStore.getLatestTelemetry({ device_id: selectedDevice.value })
     const latestValues = result.latest_values || []
 
-    const product = productStore.products.find(p => {
-      const device = deviceStore.devices.find(d => d.id === selectedDevice.value)
-      return device && p.id === device.product_id
-    })
+    const device = deviceStore.devices.find(d => d.id === selectedDevice.value)
+    const product = productStore.products.find(p => device && p.id === device.product_id)
 
-    if (!product) return
+    const writeableProps = product ? (product.properties || []).filter(p => p.access_type === 'read_write') : []
 
-    const writeableProps = (product.properties || []).filter(p => p.access_type === 'read_write')
-    
-    actuators.value = writeableProps.map(prop => {
+    let actuatorProps = []
+    if (writeableProps.length > 0) {
+      actuatorProps = writeableProps
+    } else {
+      const foundInTelemetry = latestValues.filter(t =>
+        inferredActuatorIdentifiers.includes(t.property_identifier)
+      )
+      if (foundInTelemetry.length > 0) {
+        actuatorProps = foundInTelemetry.map(t => ({
+          identifier: t.property_identifier,
+          name: actuatorNameMap[t.property_identifier] || t.property_identifier,
+          data_type: typeof t.value === 'number' ? 'int' : 'bool',
+        }))
+      } else {
+        actuatorProps = inferredActuatorIdentifiers.map(identifier => ({
+          identifier,
+          name: actuatorNameMap[identifier] || identifier,
+          data_type: 'bool',
+        }))
+      }
+    }
+
+    actuators.value = actuatorProps.map(prop => {
       const telemetry = latestValues.find(t => t.property_identifier === prop.identifier)
+      const isNumeric = prop.data_type === 'int' || prop.data_type === 'float' || prop.data_type === 'double'
+      let value = false
+      let level = 0
+      if (telemetry) {
+        if (isNumeric) {
+          value = telemetry.value > 0
+          level = Math.min(100, Math.max(0, Math.round(telemetry.value * 100)))
+        } else {
+          value = telemetry.value === true || telemetry.value === 1 || telemetry.value === '1' || telemetry.value === 'on'
+        }
+      }
       return {
         identifier: prop.identifier,
         name: prop.name,
         icon: getActuatorIcon(prop.identifier),
-        type: prop.data_type === 'int' ? 'slider' : 'switch',
-        value: telemetry ? telemetry.value : false,
-        level: telemetry ? (telemetry.value * 100) : 0,
+        type: isNumeric ? 'slider' : 'switch',
+        value,
+        level,
         last_updated: telemetry?.timestamp,
       }
+    }).filter(a => {
+      if (writeableProps.length > 0) return true
+      return latestValues.some(t => t.property_identifier === a.identifier)
     })
   } catch (e) {
     console.error('Failed to load actuators:', e)
@@ -278,6 +352,14 @@ async function handleLevelChange(actuator, level) {
 function handleDeviceChange() {
   loadActuators()
 }
+
+watch(selectedDevice, () => {
+  if (selectedDevice.value) {
+    loadActuators()
+  } else {
+    actuators.value = []
+  }
+})
 
 const taskForm = reactive({
   name: '',
@@ -447,5 +529,9 @@ onMounted(async () => {
 .actuator-info {
   font-size: 12px;
   color: #909399;
+}
+
+.empty-state {
+  padding: 60px 0;
 }
 </style>
