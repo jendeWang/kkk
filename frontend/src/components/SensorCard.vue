@@ -1,6 +1,6 @@
 <template>
   <div class="sensor-card" :class="{ 'status-warning': isWarning, 'status-error': isError }">
-    <div class="sensor-icon">{{ icon }}</div>
+    <div class="sensor-icon"><SvgIcon :name="icon" :size="32" /></div>
     <div class="sensor-info">
       <div class="sensor-name">{{ name }}</div>
       <div class="sensor-value">
