@@ -654,3 +654,38 @@ class TopologyConfigUpdate(BaseModel):
     background_image: Optional[str] = None
     canvas_width: Optional[int] = None
     canvas_height: Optional[int] = None
+
+
+class TimedTaskBase(BaseModel):
+    name: str
+    device_id: int
+    property_identifier: str
+    target_value: Dict[str, Any]
+    cron_expression: str
+    enabled: bool = True
+    description: Optional[str] = None
+
+
+class TimedTaskCreate(TimedTaskBase):
+    pass
+
+
+class TimedTaskUpdate(BaseModel):
+    name: Optional[str] = None
+    device_id: Optional[int] = None
+    property_identifier: Optional[str] = None
+    target_value: Optional[Dict[str, Any]] = None
+    cron_expression: Optional[str] = None
+    enabled: Optional[bool] = None
+    description: Optional[str] = None
+
+
+class TimedTaskResponse(TimedTaskBase):
+    id: int
+    owner_id: int
+    last_run_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    device_name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)

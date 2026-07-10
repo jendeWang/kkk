@@ -20,6 +20,11 @@
         <h1>智慧大棚数字孪生平台</h1>
         <div class="header-deco right"></div>
         <div class="hud-time">{{ currentTime }}</div>
+        <div class="hud-device-selector">
+          <el-select v-model="deviceId" placeholder="选择大棚" @change="onDeviceChange" style="width: 150px">
+            <el-option v-for="d in devices" :key="d.id" :label="d.name" :value="d.id" />
+          </el-select>
+        </div>
       </div>
 
       <!-- 左侧环境面板 -->
@@ -197,6 +202,7 @@ const router = useRouter()
 const containerRef = ref(null)
 const currentTime = ref('')
 const deviceId = ref(null)
+const devices = ref([])
 const connected = ref(false)
 const autoRotate = ref(false)
 const alertActive = ref(false)
@@ -1016,6 +1022,24 @@ function resetCamera() { camera.position.set(14, 10, 16); controls.target.set(0,
 function toggleAutoRotate() { autoRotate.value = !autoRotate.value }
 function goBack() { router.push('/dashboard') }
 
+async function loadDevices() {
+  try {
+    const resp = await api.get('/dashboard/devices/realtime')
+    devices.value = (resp.data.devices || []).map(d => ({
+      id: d.id,
+      name: d.name || d.device_name
+    }))
+    if (devices.value.length > 0 && !deviceId.value) {
+      deviceId.value = devices.value[0].id
+    }
+  } catch (e) { console.error('Failed to load devices:', e) }
+}
+
+function onDeviceChange() {
+  loadRealtimeData()
+  if (eventSource) { eventSource.close(); eventSource = null; connectSSE() }
+}
+
 function toggleFan(v) { deviceState.fan = v; sendCmd('set_fan', v) }
 function toggleLight(v) { deviceState.light = v; sync3DState(); sendCmd('set_light', v) }
 function toggleCurtain(v) { deviceState.curtain = v; sendCmd('set_curtain', v) }
@@ -1041,6 +1065,7 @@ function onResize() {
 onMounted(async () => {
   init()
   window.addEventListener('resize', onResize)
+  await loadDevices()
   await loadRealtimeData()
   connectSSE()
 })
@@ -1071,6 +1096,8 @@ onUnmounted(() => {
 .hud-header { position:absolute; top:16px; left:50%; transform:translateX(-50%); text-align:center; }
 .hud-header h1 { color:#00d4ff; font-size:22px; margin:0; text-shadow:0 0 30px rgba(0,212,255,0.4); letter-spacing:6px; }
 .hud-time { color:#5a7a99; font-size:13px; margin-top:4px; font-family:monospace; }
+.hud-device-selector { position:absolute; top:0; right:-170px; pointer-events:auto; }
+.hud-device-selector :deep(.el-select) { .el-input__wrapper { background:rgba(0,20,40,0.7); border:1px solid rgba(0,212,255,0.3); } .el-input__inner { color:#00d4ff; } }
 
 /* 左侧 */
 .hud-left { position:absolute; top:70px; left:16px; pointer-events:auto; }

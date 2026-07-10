@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from ...api import devices, telemetry, commands, products, groups, scenes, alerts, sse
+from ...api import devices, telemetry, commands, products, groups, scenes, alerts, sse, tasks
 
 router = APIRouter()
 
@@ -11,3 +11,4 @@ router.include_router(groups.router)
 router.include_router(scenes.router)
 router.include_router(alerts.router)
 router.include_router(sse.router)
+router.include_router(tasks.router)

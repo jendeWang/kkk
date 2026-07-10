@@ -1357,10 +1357,10 @@ onBeforeUnmount(() => {
   background: rgba(64, 158, 255, 0.3);
 }
 
-.zone-east { top: 10px; left: 10px; }
-.zone-west { top: 10px; right: 10px; }
+.zone-east { top: 50%; right: 10px; transform: translateY(-50%); }
+.zone-west { top: 50%; left: 10px; transform: translateY(-50%); }
 .zone-south { bottom: 10px; left: 50%; transform: translateX(-50%); }
-.zone-north { top: 50%; right: 10px; transform: translateY(-50%); }
+.zone-north { top: 10px; left: 50%; transform: translateX(-50%); }
 
 .node-icon-inner.rotating {
   animation: spin 2s linear infinite;
