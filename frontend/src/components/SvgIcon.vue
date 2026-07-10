@@ -10,9 +10,8 @@
     fill="none"
     stroke="currentColor"
     class="svg-icon"
-  >
-    <path :d="iconPath" />
-  </svg>
+    v-html="iconPath"
+  />
 </template>
 
 <script setup>

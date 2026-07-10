@@ -15,9 +15,14 @@
         <el-tab-pane
           v-for="gh in greenhouses"
           :key="gh.id"
-          :label="`${gh.active_alerts > 0 ? '🔴' : '🟢'} ${gh.name} (${gh.online_count}/${gh.device_count})`"
           :name="String(gh.id)"
         >
+          <template #label>
+            <span class="tab-label">
+              <SvgIcon :name="gh.active_alerts > 0 ? 'alertCircle' : 'checkCircle'" :size="14" :color="gh.active_alerts > 0 ? '#f56c6c' : '#67c23a'" />
+              {{ gh.name }} ({{ gh.online_count }}/{{ gh.device_count }})
+            </span>
+          </template>
         </el-tab-pane>
       </el-tabs>
     </div>
@@ -281,6 +286,18 @@ async function loadDeviceRealtime() {
         })
       }
       lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    } else {
+      currentDeviceId = null
+      Object.assign(sensorData, {
+        temperature: 0, humidity: 0, light_intensity: 0,
+        soil_moisture: 0, co2: 0, soil_temperature: 0,
+        soil_ph: 0, wind_speed: 0, rainfall: 0
+      })
+      Object.assign(actuatorData, {
+        fan_status: false, light_status: false,
+        pump_status: false, brightness: 0, work_mode: 'manual'
+      })
+      lastUpdateTime.value = '--'
     }
   } catch (e) { console.error('Failed to load device realtime:', e) }
 }
@@ -445,6 +462,12 @@ onUnmounted(() => {
 
 .greenhouse-tabs {
   margin-bottom: 20px;
+}
+
+.tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .greenhouse-tabs :deep(.el-tabs__header) {
